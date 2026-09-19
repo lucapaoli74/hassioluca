@@ -1,7 +1,13 @@
-# ESPHome firmware for the carousel dispenser.
+# ESPHome firmware for the loose-cigarette roller dispenser.
 # Flash with: esphome run cigarette-dispenser.yaml
 # Secrets (wifi_ssid, wifi_password, api_encryption_key, ota_password) live
 # in secrets.yaml (see secrets.yaml.example) — never commit real secrets.
+#
+# Design: the daily quota and today's count are enforced HERE, on the
+# device, not in Home Assistant. The front button, the HA dashboard button
+# and the Android app all end up calling the same `try_dispense` script, so
+# the same rule applies no matter who presses what — and the button keeps
+# working (respecting the quota) even if WiFi/HA is briefly down.
 
 esphome:
   name: cigarette-dispenser
@@ -19,30 +25,17 @@ api:
   encryption:
     key: !secret api_encryption_key
   services:
-    # called from Home Assistant: script/automation decides IF a dispense
-    # is allowed (quota, auth, stock), the ESP just executes the mechanics
-    - service: dispense_slot
-      variables:
-        slot: int
+    # remote "dispense one" for the HA dashboard / Android app — goes
+    # through the exact same quota check as the physical button
+    - service: dispense_one
       then:
-        - script.execute:
-            id: do_dispense
-            target_slot: !lambda "return slot;"
-    # positions the carousel without opening the gate — used to bring an
-    # empty pocket under the lid's loading port for refilling
-    - service: goto_slot_for_loading
-      variables:
-        slot: int
+        - script.execute: try_dispense
+    - service: lock_hopper
       then:
-        - script.execute:
-            id: goto_slot
-            target_slot: !lambda "return slot;"
-    - service: lock_hatch
+        - switch.turn_on: hopper_lock
+    - service: unlock_hopper
       then:
-        - switch.turn_on: hatch_lock
-    - service: unlock_hatch
-      then:
-        - switch.turn_off: hatch_lock
+        - switch.turn_off: hopper_lock
 
 ota:
   - platform: esphome
@@ -57,95 +50,116 @@ wifi:
 
 captive_portal:
 
-i2c:
-  sda: GPIO21
-  scl: GPIO22
-  scan: true
+# orologio locale per il reset giornaliero della quota — funziona anche
+# offline dopo la prima sincronizzazione (l'RTC interno dell'ESP32 deriva
+# un po' senza rete, accettabile per un reset "a mezzanotte" domestico)
+time:
+  - platform: sntp
+    id: sntp_time
+    timezone: "Europe/Rome"
+    on_time:
+      - seconds: 0
+        minutes: 0
+        hours: 0
+        then:
+          - lambda: |-
+              id(dispensed_today) = 0;
+          - logger.log: "Reset quota giornaliera (mezzanotte)"
 
-# --- Motion: NEMA17 through an A4988/DRV8825 driver -------------------------
-number:
-  - platform: template
-    name: "Slots totali"
-    id: total_slots
-    min_value: 3
-    max_value: 12
-    step: 1
-    initial_value: 6
-    optimistic: true
-    restore_value: true
-    entity_category: config
-
+# --- Motion: rullo scanalato su NEMA17 tramite A4988/DRV8825 ---------------
 stepper:
   - platform: a4988
-    id: carousel_stepper
+    id: roller_stepper
     step_pin: GPIO25
     dir_pin: GPIO26
     sleep_pin: GPIO27
-    max_speed: 400 steps/s
-    acceleration: 800 steps/s^2
-    deceleration: 800 steps/s^2
+    max_speed: 300 steps/s
+    acceleration: 600 steps/s^2
+    deceleration: 600 steps/s^2
 
-# Steps per full carousel revolution — calibrate for your motor/gearing
-# (full steps * microstepping * any belt/gear ratio) and set it here.
 globals:
+  # passi per un giro completo del rullo: passi interi motore * microstep *
+  # eventuale rapporto di riduzione — calibra per il tuo motore/accoppiamento
   - id: steps_per_rev
     type: int
     restore_value: false
-    initial_value: "3200"   # e.g. 200 full steps * 16 microsteps
-  - id: current_slot
+    initial_value: "3200"
+  # numero di scanalature del rullo stampato — deve combaciare con `flutes`
+  # in hardware/3d-print/params.scad
+  - id: flute_count
     type: int
     restore_value: false
+    initial_value: "8"
+  - id: dispensed_today
+    type: int
+    restore_value: true
     initial_value: "0"
-  - id: homed
-    type: bool
-    restore_value: false
-    initial_value: "false"
 
-# --- Sensors -----------------------------------------------------------------
+# --- Policy: quota giornaliera + scorta stimata, impostabili da remoto ----
+number:
+  - platform: template
+    name: "Quota giornaliera"
+    id: daily_quota
+    icon: mdi:counter
+    min_value: 0
+    max_value: 60
+    step: 1
+    initial_value: 10
+    optimistic: true
+    restore_value: true
+    entity_category: config
+  - platform: template
+    name: "Scorta stimata"
+    id: stock_estimate
+    icon: mdi:cigar
+    min_value: 0
+    max_value: 300
+    step: 1
+    initial_value: 100
+    optimistic: true
+    restore_value: true
+
+sensor:
+  - platform: template
+    name: "Erogate oggi"
+    id: dispensed_today_sensor
+    icon: mdi:cigar-off
+    lambda: "return id(dispensed_today);"
+    update_interval: 10s
+    accuracy_decimals: 0
+    state_class: total_increasing
+
+# --- Sensori -----------------------------------------------------------------
 binary_sensor:
   - platform: gpio
-    name: "Sensore homing carosello"
-    id: home_sensor
+    name: "Pulsante erogazione"
+    id: dispense_button
     pin:
-      # GPIO34-39 are input-only with no internal pullup — add an external
-      # 10k pullup on the sensor line (see hardware/wiring.md).
-      number: GPIO35
-      mode: INPUT
+      number: GPIO4
+      mode: INPUT_PULLUP
       inverted: true
     filters:
-      - delayed_on_off: 10ms
+      - delayed_on_off: 20ms
+    on_press:
+      then:
+        - script.execute: try_dispense
 
   - platform: gpio
-    name: "Caduta pacchetto confermata"
+    name: "Caduta sigaretta confermata"
     id: drop_sensor
     pin:
+      # GPIO34 è input-only, senza pullup interno: pull-up esterno da 10k
+      # (vedi hardware/wiring.md)
       number: GPIO34
       mode: INPUT
       inverted: true
     filters:
       - delayed_on_off: 10ms
-    on_press:
-      then:
-        - logger.log: "Pacchetto rilevato nello scivolo"
-
-  # Optional: binary_sensor.pn532 with a `uid:` reports true only when that
-  # specific tag is present. We instead use pn532_i2c's `on_tag` below to
-  # react to *any* tag and let Home Assistant decide who's authorized.
-
-pn532_i2c:
-  id: nfc_reader
-  update_interval: 1s
-  on_tag:
-    then:
-      - homeassistant.event:
-          event: esphome.nfc_tag_scanned
-          data:
-            tag_id: !lambda "return x;"
 
 switch:
   - platform: gpio
-    name: "Serratura sportello"
-    id: hatch_lock
+    name: "Serratura tramoggia"
+    id: hopper_lock
     pin: GPIO14
     restore_mode: ALWAYS_OFF
 
@@ -156,10 +170,6 @@ output:
   - platform: ledc
     id: status_led_out
     pin: GPIO33
-  - platform: ledc
-    id: gate_pwm
-    pin: GPIO13
-    frequency: 50 Hz
 
 light:
   - platform: monochromatic
@@ -167,98 +177,61 @@ light:
     id: status_led
     output: status_led_out
 
-servo:
-  - id: gate_servo
-    output: gate_pwm
-
-# --- Dispense logic ------------------------------------------------------
+# --- Logica di erogazione --------------------------------------------------
 script:
-  - id: home_carousel
+  - id: try_dispense
+    mode: single
     then:
-      - switch.turn_on: hatch_lock
-      - stepper.set_speed:
-          id: carousel_stepper
-          speed: 200 steps/s
       - if:
           condition:
-            binary_sensor.is_off: home_sensor
+            lambda: "return id(dispensed_today) < (int) id(daily_quota).state;"
           then:
-            - stepper.set_target:
-                id: carousel_stepper
-                target: !lambda "return 100000;"
-            - wait_until:
-                binary_sensor.is_on: home_sensor
-            - stepper.set_target:
-                id: carousel_stepper
-                target: !lambda "return id(carousel_stepper).current_position;"
-      - lambda: |-
-          id(current_slot) = 0;
-          id(homed) = true;
-      - logger.log: "Homing completato"
+            - script.execute: do_dispense_one
+          else:
+            - output.set_level: { id: buzzer_out, level: 80% }
+            - delay: 150ms
+            - output.set_level: { id: buzzer_out, level: 0% }
+            - delay: 100ms
+            - output.set_level: { id: buzzer_out, level: 80% }
+            - delay: 150ms
+            - output.set_level: { id: buzzer_out, level: 0% }
+            - homeassistant.event:
+                event: esphome.quota_reached
+                data: {}
 
-  # shared positioning logic: rotates whichever pocket is `target_slot`
-  # to the fixed load/dispense station. Loading (from the top, through the
-  # lid's port) and dispensing (out the bottom, through the base's chute)
-  # happen at that same station — only the gate decides which one occurs.
-  - id: goto_slot
-    parameters:
-      target_slot: int
+  - id: do_dispense_one
+    mode: single
     then:
-      - if:
-          condition:
-            lambda: "return !id(homed);"
-          then:
-            - script.execute: home_carousel
       - lambda: |-
-          int slots = id(total_slots).state;
-          int delta = target_slot - id(current_slot);
-          delta = ((delta % slots) + slots) % slots;
-          int steps = (id(steps_per_rev) * delta) / slots;
-          id(carousel_stepper).set_target(id(carousel_stepper).current_position + steps);
-          id(current_slot) = target_slot;
+          int steps = id(steps_per_rev) / id(flute_count);
+          id(roller_stepper).set_target(id(roller_stepper).current_position + steps);
       - wait_until:
           condition:
-            lambda: "return id(carousel_stepper).current_position == id(carousel_stepper).target_position;"
-          timeout: 15s
-
-  - id: do_dispense
-    parameters:
-      target_slot: int
-    then:
-      - script.execute:
-          id: goto_slot
-          target_slot: !lambda "return target_slot;"
-      # open the gate, let gravity do the rest, confirm via the drop sensor
-      - servo.write:
-          id: gate_servo
-          level: 100%
-      - delay: 400ms
+            lambda: "return id(roller_stepper).current_position == id(roller_stepper).target_position;"
+          timeout: 10s
       - wait_until:
           condition:
             binary_sensor.is_on: drop_sensor
           timeout: 3s
-      - servo.write:
-          id: gate_servo
-          level: 0%
       - if:
           condition:
             binary_sensor.is_on: drop_sensor
           then:
+            - lambda: |-
+                id(dispensed_today) += 1;
+                float remaining = id(stock_estimate).state - 1;
+                if (remaining < 0) remaining = 0;
+                id(stock_estimate).make_call().set_value(remaining).perform();
             - output.set_level: { id: buzzer_out, level: 50% }
-            - delay: 100ms
+            - delay: 80ms
             - output.set_level: { id: buzzer_out, level: 0% }
             - homeassistant.event:
                 event: esphome.dispense_confirmed
-                data:
-                  slot: !lambda "return to_string(target_slot);"
+                data: {}
           else:
+            - output.set_level: { id: buzzer_out, level: 100% }
+            - delay: 500ms
+            - output.set_level: { id: buzzer_out, level: 0% }
             - homeassistant.event:
                 event: esphome.dispense_failed
-                data:
-                  slot: !lambda "return to_string(target_slot);"
-
-button:
-  - platform: template
-    name: "Home carosello"
-    on_press:
-      - script.execute: home_carousel
+                data: {}

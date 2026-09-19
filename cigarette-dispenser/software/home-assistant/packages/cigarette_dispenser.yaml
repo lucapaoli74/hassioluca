@@ -1,5 +1,11 @@
 # Home Assistant package — gestione remota del distributore.
 #
+# Con il nuovo meccanismo (sigarette sfuse + rullo), la quota giornaliera e
+# il conteggio erogazioni vivono SUL dispositivo ESPHome (number.*/sensor.*
+# esposti automaticamente): questo pacchetto è solo l'interfaccia — non
+# duplica lo stato, così pulsante fisico, dashboard e app Android vedono
+# sempre lo stesso numero.
+#
 # Installazione: abilita i pacchetti in configuration.yaml
 #   homeassistant:
 #     packages: !include_dir_named packages
@@ -7,178 +13,31 @@
 # e aggiungi il dispositivo ESPHome (Impostazioni → Dispositivi e servizi →
 # aggiungi integrazione → ESPHome → cigarette-dispenser.local).
 #
-# I nomi dei servizi esphome.* assumono `esphome: name: cigarette-dispenser`
-# in software/esphome/cigarette-dispenser.yaml (invariato = va bene così).
-
-input_boolean:
-  cig_slot_1_loaded: { name: "Tasca 1 caricata", icon: mdi:cigar-off }
-  cig_slot_2_loaded: { name: "Tasca 2 caricata", icon: mdi:cigar-off }
-  cig_slot_3_loaded: { name: "Tasca 3 caricata", icon: mdi:cigar-off }
-  cig_slot_4_loaded: { name: "Tasca 4 caricata", icon: mdi:cigar-off }
-  cig_slot_5_loaded: { name: "Tasca 5 caricata", icon: mdi:cigar-off }
-  cig_slot_6_loaded: { name: "Tasca 6 caricata", icon: mdi:cigar-off }
-
-input_number:
-  cig_total_slots:
-    name: "Numero tasche carosello"
-    min: 3
-    max: 12
-    step: 1
-    initial: 6
-    icon: mdi:rotate-3d-variant
-  cig_daily_quota:
-    name: "Quota giornaliera"
-    min: 0
-    max: 20
-    step: 1
-    initial: 5
-    icon: mdi:counter
-
-input_text:
-  cig_authorized_nfc_uids:
-    name: "UID NFC autorizzati (separati da virgola)"
-    max: 255
-    icon: mdi:nfc
-
-counter:
-  cig_dispensed_today:
-    name: "Sigarette erogate oggi"
-    initial: 0
-    step: 1
-    restore: true
+# NOTA: gli entity_id esatti (number.quota_giornaliera, number.scorta_stimata,
+# sensor.erogate_oggi, ecc.) dipendono dalla tua versione Home Assistant/
+# ESPHome, che potrebbe prefissarli col nome del dispositivo. Controlla in
+# Impostazioni → Dispositivi e servizi → cigarette-dispenser e correggi le
+# righe sotto se necessario.
 
 template:
   - binary_sensor:
-      - name: "Scorte in esaurimento"
+      - name: "Scorta sigarette in esaurimento"
         unique_id: cig_low_stock
         icon: mdi:alert
-        state: >
-          {% set loaded = ['input_boolean.cig_slot_1_loaded','input_boolean.cig_slot_2_loaded',
-                            'input_boolean.cig_slot_3_loaded','input_boolean.cig_slot_4_loaded',
-                            'input_boolean.cig_slot_5_loaded','input_boolean.cig_slot_6_loaded']
-                           | map('is_state', 'on') | select('equalto', true) | list | count %}
-          {{ loaded <= 1 }}
-      - name: "Quota giornaliera raggiunta"
-        unique_id: cig_quota_reached
-        icon: mdi:cigar-off
-        state: >
-          {{ states('counter.cig_dispensed_today') | int(0)
-             >= states('input_number.cig_daily_quota') | int(999) }}
-  - sensor:
-      - name: "Tasche cariche"
-        unique_id: cig_slots_loaded
-        icon: mdi:archive-check
-        state: >
-          {% set loaded = ['input_boolean.cig_slot_1_loaded','input_boolean.cig_slot_2_loaded',
-                            'input_boolean.cig_slot_3_loaded','input_boolean.cig_slot_4_loaded',
-                            'input_boolean.cig_slot_5_loaded','input_boolean.cig_slot_6_loaded']
-                           | map('is_state', 'on') | select('equalto', true) | list | count %}
-          {{ loaded }}
-
-script:
-  cig_dispense:
-    alias: "Eroga sigaretta da una tasca"
-    fields:
-      slot:
-        description: "Numero tasca (1-based, come sui pulsanti dashboard)"
-        example: 1
-    sequence:
-      - if:
-          - condition: template
-            value_template: >
-              {{ states('counter.cig_dispensed_today') | int(0)
-                 < states('input_number.cig_daily_quota') | int(999) }}
-          - condition: template
-            value_template: "{{ is_state('input_boolean.cig_slot_' ~ slot ~ '_loaded', 'on') }}"
-        then:
-          # ESPHome usa slot 0-based, la dashboard usa 1-based
-          - service: esphome.cigarette_dispenser_dispense_slot
-            data:
-              slot: "{{ slot | int - 1 }}"
-        else:
-          - service: persistent_notification.create
-            data:
-              title: "Distributore sigarette"
-              message: >
-                {% if states('counter.cig_dispensed_today') | int(0)
-                      >= states('input_number.cig_daily_quota') | int(999) %}
-                  Quota giornaliera raggiunta ({{ states('input_number.cig_daily_quota') }}).
-                {% else %}
-                  Tasca {{ slot }} risulta vuota: seleziona un'altra tasca o ricarica.
-                {% endif %}
-
-  cig_prepare_loading:
-    alias: "Prepara caricamento prossima tasca vuota"
-    sequence:
-      - variables:
-          empty_slot: >
-            {% set ns = namespace(slot=0) %}
-            {% for i in range(1, states('input_number.cig_total_slots') | int(6) + 1) %}
-              {% if ns.slot == 0 and is_state('input_boolean.cig_slot_' ~ i ~ '_loaded', 'off') %}
-                {% set ns.slot = i %}
-              {% endif %}
-            {% endfor %}
-            {{ ns.slot }}
-      - if:
-          - condition: template
-            value_template: "{{ empty_slot | int > 0 }}"
-        then:
-          - service: esphome.cigarette_dispenser_goto_slot_for_loading
-            data:
-              slot: "{{ empty_slot | int - 1 }}"
-          - service: esphome.cigarette_dispenser_unlock_hatch
-          - service: persistent_notification.create
-            data:
-              title: "Distributore sigarette"
-              message: >
-                Tasca {{ empty_slot }} portata in posizione di carico, sportello sbloccato.
-                Ricordati di bloccarlo dopo aver caricato.
-        else:
-          - service: persistent_notification.create
-            data:
-              title: "Distributore sigarette"
-              message: "Tutte le tasche risultano già caricate."
-
-  cig_confirm_slot_loaded:
-    alias: "Conferma tasca caricata e blocca sportello"
-    fields:
-      slot:
-        description: "Numero tasca appena caricata"
-        example: 1
-    sequence:
-      - service: input_boolean.turn_on
-        target:
-          entity_id: "input_boolean.cig_slot_{{ slot }}_loaded"
-      - service: esphome.cigarette_dispenser_lock_hatch
+        state: "{{ states('number.scorta_stimata') | int(999) < 15 }}"
 
 automation:
-  - alias: "Distributore: reset quota giornaliera"
-    trigger:
-      - platform: time
-        at: "00:00:00"
-    action:
-      - service: counter.reset
-        target:
-          entity_id: counter.cig_dispensed_today
-
   - alias: "Distributore: erogazione confermata"
     trigger:
       - platform: event
         event_type: esphome.dispense_confirmed
     action:
-      - service: counter.increment
-        target:
-          entity_id: counter.cig_dispensed_today
-      - service: input_boolean.turn_off
-        target:
-          # l'evento riporta lo slot 0-based dell'ESP; la dashboard è 1-based
-          entity_id: "input_boolean.cig_slot_{{ trigger.event.data.slot | int + 1 }}_loaded"
       - service: persistent_notification.create
         data:
           title: "Distributore sigarette"
           message: >
-            Erogazione confermata (tasca {{ trigger.event.data.slot | int + 1 }}).
-            Oggi: {{ states('counter.cig_dispensed_today') }}/{{ states('input_number.cig_daily_quota') }}.
+            Sigaretta erogata. Oggi: {{ states('sensor.erogate_oggi') }}/{{ states('number.quota_giornaliera') }}.
+            Scorta stimata: {{ states('number.scorta_stimata') }}.
 
   - alias: "Distributore: erogazione fallita"
     trigger:
@@ -189,50 +48,30 @@ automation:
         data:
           title: "Distributore sigarette — attenzione"
           message: >
-            Erogazione dalla tasca {{ trigger.event.data.slot | int + 1 }} non confermata
-            dal sensore di caduta: controlla che non sia vuota o inceppata.
+            Erogazione non confermata dal sensore di caduta: possibile
+            inceppamento o tramoggia vuota. Controlla la macchina.
 
-  - alias: "Distributore: scorte in esaurimento"
+  - alias: "Distributore: quota giornaliera raggiunta"
+    trigger:
+      - platform: event
+        event_type: esphome.quota_reached
+    action:
+      - service: persistent_notification.create
+        data:
+          title: "Distributore sigarette"
+          message: >
+            Quota giornaliera raggiunta ({{ states('number.quota_giornaliera') }}).
+            Nessuna erogazione fino a mezzanotte.
+
+  - alias: "Distributore: scorta in esaurimento"
     trigger:
       - platform: state
-        entity_id: binary_sensor.scorte_in_esaurimento
+        entity_id: binary_sensor.scorta_sigarette_in_esaurimento
         to: "on"
     action:
       - service: persistent_notification.create
         data:
           title: "Distributore sigarette"
-          message: "Scorte in esaurimento: resta {{ states('sensor.tasche_cariche') }} tasca/e carica/e."
-
-  # Controllo accessi opzionale: sblocca lo sportello di carico solo per i
-  # tag NFC elencati in input_text.cig_authorized_nfc_uids. Se non ti serve
-  # la verifica NFC, disabilita semplicemente questa automazione.
-  - alias: "Distributore: sblocco sportello via NFC autorizzato"
-    trigger:
-      - platform: event
-        event_type: esphome.nfc_tag_scanned
-    condition:
-      - condition: template
-        value_template: >
-          {{ trigger.event.data.tag_id in
-             (states('input_text.cig_authorized_nfc_uids') | default('', true)).split(',') | map('trim') | list }}
-    action:
-      - service: esphome.cigarette_dispenser_unlock_hatch
-      - service: persistent_notification.create
-        data:
-          title: "Distributore sigarette"
-          message: "Sportello sbloccato da tag NFC autorizzato ({{ trigger.event.data.tag_id }})."
-
-  - alias: "Distributore: tentativo NFC non autorizzato"
-    trigger:
-      - platform: event
-        event_type: esphome.nfc_tag_scanned
-    condition:
-      - condition: template
-        value_template: >
-          {{ trigger.event.data.tag_id not in
-             (states('input_text.cig_authorized_nfc_uids') | default('', true)).split(',') | map('trim') | list }}
-    action:
-      - service: persistent_notification.create
-        data:
-          title: "Distributore sigarette — attenzione"
-          message: "Tag NFC non riconosciuto: {{ trigger.event.data.tag_id }}."
+          message: >
+            Scorta stimata sotto le 15 sigarette: ricarica la tramoggia
+            e aggiorna "Scorta stimata" nel pannello dopo averlo fatto.

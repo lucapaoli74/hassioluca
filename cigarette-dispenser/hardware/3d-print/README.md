@@ -1,77 +1,110 @@
-# Parti da stampare in 3D
+# Parti da stampare in 3D — meccanismo per sigarette sfuse
 
-File parametrici OpenSCAD (testati con `openscad 2021.01`, tutte le mesh
-esportate sono manifold/chiuse — verificato in questa sessione con
-`openscad -o out.stl <file>.scad`).
+File parametrici OpenSCAD (testati con `openscad 2021.01`, ogni pezzo
+esporta una mesh manifold/chiusa — verificato in sessione con
+`openscad -o out.stl <file>.scad`; l'assemblaggio completo è stato
+renderizzato senza errori).
+
+## Come funziona: rullo scanalato (singolarizzatore)
+
+Non è più un carosello di pacchetti: la macchina tiene le sigarette
+**sfuse alla rinfusa** in una tramoggia (>=100 pezzi) e le eroga **una alla
+volta** tramite un rullo scanalato, lo stesso principio dei contapillole
+farmaceutici e delle seminatrici a rullo (una tecnologia collaudata, non
+inventata qui):
+
+1. Il **rullo** (`roller.scad`) ha `flutes` scanalature cilindriche lungo
+   la sua superficie, ciascuna dimensionata per contenere **una sola**
+   sigaretta (troppo corta e stretta perché ce ne stiano due, per
+   costruzione — vedi i commenti in `params.scad`).
+2. Il rullo gira parzialmente immerso nella **tramoggia** (`hopper.scad`),
+   nella zona di carico: le sigarette cadono per gravità nelle scanalature
+   che passano di lì.
+3. Un **alloggiamento a "C"** (`housing.scad`) avvolge il resto della
+   circonferenza, trattenendo le sigarette già raccolte durante il
+   trasporto e facendo da "pettine": qualunque sigaretta non seduta bene
+   nella scanalatura (di traverso, o doppia) viene bloccata dal bordo
+   dell'apertura e ricade nella tramoggia.
+4. Quando la scanalatura carica raggiunge l'apertura di scarico (in
+   basso), la sigaretta cade per gravità nello **scivolo** (`chute.scad`)
+   e arriva al **pannello frontale** (`front_panel.scad`), dove l'utente
+   la preleva dalla feritoia.
+5. Il motore passo-passo ruota il rullo esattamente di `360°/flutes` per
+   ogni erogazione: una pressione sul pulsante frontale = una sigaretta
+   (vedi `../../software/esphome`).
 
 ## File
 
 | File | Cosa stampa | Copie |
 |---|---|---|
-| `hub.scad` | Mozzo centrale, si accoppia all'albero motore | 1 |
-| `wedge.scad` | Tasca/spicchio del carosello | `slots` (6 di default) |
-| `base.scad` | Piatto fisso con scivolo e supporto motore | 1 |
-| `lid.scad` | Coperchio + sportello scorrevole di carico | 1 + 1 sportello |
+| `roller.scad` | Rullo scanalato | 1 |
+| `housing.scad` | Alloggiamento a "C" + piatti terminali | 1 |
+| `hopper.scad` | Tramoggia (>=100 sigarette) | 1 |
+| `chute.scad` | Scivolo verso il pannello — **da adattare alla profondità del tuo mobile** | 1 |
+| `front_panel.scad` | Pannello con pulsante, LED, feritoia — o usalo solo come dima su legno/plexiglass | 1 |
 | `params.scad` | Parametri condivisi — **modifica solo questo file** | — |
 | `helpers.scad` | Funzioni geometriche condivise | — |
-| `assembly.scad` | Solo per anteprima in OpenSCAD, non da stampare | — |
+| `assembly.scad` | Solo anteprima in OpenSCAD, non da stampare | — |
 
-Apri `assembly.scad` nella GUI di OpenSCAD per vedere come si incastrano i
-pezzi prima di stampare.
+## IMPORTANTE: misura le tue sigarette prima di stampare
 
-## Come funziona
+`params.scad` assume un formato king-size standard con filtro
+(~84×7.9mm). Le "JPS fini" che userai potrebbero differire di qualche
+decimo di millimetro — misurale con un calibro e aggiorna `cig_l`, `cig_d`
+in `params.scad` prima di stampare. Tutte le altre dimensioni (diametro
+rullo, alloggiamento, tramoggia) sono derivate automaticamente.
 
-Il carosello (mozzo + spicchi) ruota sopra al piatto fisso (`base.scad`).
-Ogni tasca non ha fondo: il fondo è il piatto fisso stesso. Il piatto ha
-un solo scivolo (chute) ritagliato in un punto preciso: quando il motore
-passo-passo ruota il carosello di `360°/slots`, la tasca allineata con lo
-scivolo lascia cadere il pacchetto per gravità. È lo stesso principio dei
-dispenser di pillole/monete: nessuna molla, nessuna leva, solo indicizzazione
-e gravità — affidabile e semplice da stampare.
+Con i valori di default: rullo Ø 36.7mm × 88mm, alloggiamento Ø ~60mm,
+tramoggia con capacità stimata 95-160 sigarette a seconda di quanto si
+impaccano (vedi il calcolo commentato in `params.scad`) — abbondantemente
+sopra le 100 richieste anche nello scenario pessimistico.
 
-Il coperchio copre tutto tranne un'apertura fissa di carico con uno
-sportello scorrevole stampato: fai ruotare il carosello (dal pannello
-Home Assistant, vedi `../../software`) finché una tasca vuota non è sotto
-l'apertura, poi fai scorrere lo sportello e carica un pacchetto.
+## Il singolarizzatore richiede una taratura empirica
 
-## IMPORTANTE: misura i tuoi pacchetti prima di stampare
+Questo è vero per **qualsiasi** dispenser di oggetti alla rinfusa,
+comprese le macchine commerciali: la geometria qui è corretta in
+principio, ma la tenuta pratica (nessuna sigaretta doppia, nessun
+inceppamento) dipende da attrito, umidità, velocità di rotazione e da
+quanto la tramoggia è piena. Aspettati di dover:
 
-`params.scad` assume un pacchetto rigido standard (55×22×85 mm). Le marche
-variano di qualche millimetro — misura i pacchetti che userai davvero e
-aggiorna `pack_w`, `pack_d`, `pack_h`, `clear` prima di stampare. Tutte le
-altre dimensioni (`r_in`, `r_out`, `hub_od`, il diametro del piatto) sono
-derivate automaticamente da questi valori.
+- regolare `discharge_gap_deg`/`load_gap_deg` e il gioco `housing_clear`
+  di qualche decimo di mm dopo i primi test
+- rallentare la velocità di rotazione dello stepper se noti doppie
+  erogazioni
+- eventualmente aggiungere un piccolo agitatore/vibrazione nella tramoggia
+  se le sigarette "fanno ponte" sopra il rullo (comune con oggetti
+  cilindrici lunghi) — non incluso in questa prima versione
 
-Con i valori di default: piatto Ø 198 mm (adatto a letti da 220×220 mm o
-più grandi), mozzo Ø 134 mm × 90 mm alto, 6 tasche.
+Il sensore di caduta (`../wiring.md`) è la tua rete di sicurezza software:
+conferma che sia effettivamente caduta una sigaretta, e il firmware segnala
+un errore se non lo è (vedi `../../software/esphome`).
 
 ## Impostazioni di stampa consigliate
 
-- Materiale: **PETG** (meglio di PLA per attrito/usura sul foro albero e
-  sulle guide dello sportello; l'ABS va bene ma deforma di più)
-- Altezza layer: 0.2 mm
-- Perimetri: 4-5 (`wall = 2.4mm` in params.scad assume questo)
-- Infill: 15-20% è sufficiente (i pezzi non sono strutturalmente caricati,
-  è solo la parete a contare)
-- Supporti: nessuno per `base.scad`/`wedge.scad`/`hub.scad` se orientati
-  come esportati (piatti sulla faccia larga); `lid.scad` potrebbe
-  richiedere supporti minimi sotto le guide dello sportello
-- Foro albero (`hub_id`, 8 mm di default): stampalo a misura nominale e
-  rifinisci con una punta da trapano se necessario — la stampa 3D
-  restringe leggermente i fori
+- Materiale: **PETG** (l'attrito ripetuto rullo/sigaretta e sportello usura
+  il PLA più in fretta)
+- Altezza layer: 0.2 mm, 4 perimetri, infill 20%
+- Nessun supporto necessario per `roller.scad`/`hopper.scad`/`chute.scad`
+  se orientati come esportati; `housing.scad` potrebbe volere supporti
+  minimi sotto gli sbalzi dei piatti terminali
+- Foro albero del rullo (6mm): rifinisci con un trapano se stampa stretta
 
 ## Assemblaggio
 
-1. Stampa 1× `base.scad`, 1× `hub.scad`, `slots`× `wedge.scad`, 1× `lid.scad`
-   (include lo sportello)
-2. Premi un cuscinetto a sfere skate 608 (o una boccola) nella sede sotto
-   `base.scad`
-3. Fissa il mozzo all'albero motore con un giunto flessibile (vedi
-   `../bom.md`), passando per il cuscinetto della base
-4. Avvita ogni spicchio al relativo boss del mozzo (viti M3×10, vedi BOM)
-5. Monta il motore sotto la base con le 4 viti M3
-6. Posiziona il coperchio sopra e fissalo alla base con distanziali/viti
-7. Prima di caricare i pacchetti, esegui una calibrazione: fai girare il
-   carosello a vuoto e verifica che ogni tasca si allinei correttamente
-   con lo scivolo (vedi `../../software/esphome` per l'homing tramite
-   sensore di prossimità)
+1. Stampa 1× ciascuno di `roller.scad`, `housing.scad`, `hopper.scad`,
+   `chute.scad`, `front_panel.scad`
+2. Monta il rullo nell'housing, verifica che giri libero senza attrito
+   eccessivo contro le pareti
+3. Fissa il motore al piatto terminale "drive" (foro NEMA17, pattern
+   31mm) con un giunto flessibile verso l'albero del rullo
+4. Il perno opposto ("idler") scorre nel foro boccola del piatto
+   terminale — se vuoi più durata, sostituiscilo con un piccolo
+   cuscinetto (vedi `../bom.md`)
+5. Fissa la tramoggia sopra l'apertura di carico, lo scivolo sotto quella
+   di scarico, il pannello frontale in fondo allo scivolo (adatta
+   lunghezza/percorso alla profondità del tuo mobile)
+6. Monta pulsante, LED e sensore di caduta secondo `../wiring.md`
+7. **Prima di caricare sigarette vere**: fai girare il rullo a vuoto
+   qualche ciclo, verifica l'allineamento delle aperture, poi carica
+   poche decine di sigarette per un primo collaudo prima di riempire la
+   tramoggia del tutto
