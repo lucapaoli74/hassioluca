@@ -1,0 +1,264 @@
+# ESPHome firmware for the carousel dispenser.
+# Flash with: esphome run cigarette-dispenser.yaml
+# Secrets (wifi_ssid, wifi_password, api_encryption_key, ota_password) live
+# in secrets.yaml (see secrets.yaml.example) — never commit real secrets.
+
+esphome:
+  name: cigarette-dispenser
+  friendly_name: Distributore Sigarette
+  min_version: 2024.6.0
+
+esp32:
+  board: esp32dev
+  framework:
+    type: arduino
+
+logger:
+
+api:
+  encryption:
+    key: !secret api_encryption_key
+  services:
+    # called from Home Assistant: script/automation decides IF a dispense
+    # is allowed (quota, auth, stock), the ESP just executes the mechanics
+    - service: dispense_slot
+      variables:
+        slot: int
+      then:
+        - script.execute:
+            id: do_dispense
+            target_slot: !lambda "return slot;"
+    # positions the carousel without opening the gate — used to bring an
+    # empty pocket under the lid's loading port for refilling
+    - service: goto_slot_for_loading
+      variables:
+        slot: int
+      then:
+        - script.execute:
+            id: goto_slot
+            target_slot: !lambda "return slot;"
+    - service: lock_hatch
+      then:
+        - switch.turn_on: hatch_lock
+    - service: unlock_hatch
+      then:
+        - switch.turn_off: hatch_lock
+
+ota:
+  - platform: esphome
+    password: !secret ota_password
+
+wifi:
+  ssid: !secret wifi_ssid
+  password: !secret wifi_password
+  ap:
+    ssid: "Cigarette-Dispenser Fallback"
+    password: !secret ota_password
+
+captive_portal:
+
+i2c:
+  sda: GPIO21
+  scl: GPIO22
+  scan: true
+
+# --- Motion: NEMA17 through an A4988/DRV8825 driver -------------------------
+number:
+  - platform: template
+    name: "Slots totali"
+    id: total_slots
+    min_value: 3
+    max_value: 12
+    step: 1
+    initial_value: 6
+    optimistic: true
+    restore_value: true
+    entity_category: config
+
+stepper:
+  - platform: a4988
+    id: carousel_stepper
+    step_pin: GPIO25
+    dir_pin: GPIO26
+    sleep_pin: GPIO27
+    max_speed: 400 steps/s
+    acceleration: 800 steps/s^2
+    deceleration: 800 steps/s^2
+
+# Steps per full carousel revolution — calibrate for your motor/gearing
+# (full steps * microstepping * any belt/gear ratio) and set it here.
+globals:
+  - id: steps_per_rev
+    type: int
+    restore_value: false
+    initial_value: "3200"   # e.g. 200 full steps * 16 microsteps
+  - id: current_slot
+    type: int
+    restore_value: false
+    initial_value: "0"
+  - id: homed
+    type: bool
+    restore_value: false
+    initial_value: "false"
+
+# --- Sensors -----------------------------------------------------------------
+binary_sensor:
+  - platform: gpio
+    name: "Sensore homing carosello"
+    id: home_sensor
+    pin:
+      # GPIO34-39 are input-only with no internal pullup — add an external
+      # 10k pullup on the sensor line (see hardware/wiring.md).
+      number: GPIO35
+      mode: INPUT
+      inverted: true
+    filters:
+      - delayed_on_off: 10ms
+
+  - platform: gpio
+    name: "Caduta pacchetto confermata"
+    id: drop_sensor
+    pin:
+      number: GPIO34
+      mode: INPUT
+      inverted: true
+    filters:
+      - delayed_on_off: 10ms
+    on_press:
+      then:
+        - logger.log: "Pacchetto rilevato nello scivolo"
+
+  # Optional: binary_sensor.pn532 with a `uid:` reports true only when that
+  # specific tag is present. We instead use pn532_i2c's `on_tag` below to
+  # react to *any* tag and let Home Assistant decide who's authorized.
+
+pn532_i2c:
+  id: nfc_reader
+  update_interval: 1s
+  on_tag:
+    then:
+      - homeassistant.event:
+          event: esphome.nfc_tag_scanned
+          data:
+            tag_id: !lambda "return x;"
+
+switch:
+  - platform: gpio
+    name: "Serratura sportello"
+    id: hatch_lock
+    pin: GPIO14
+    restore_mode: ALWAYS_OFF
+
+output:
+  - platform: ledc
+    id: buzzer_out
+    pin: GPIO32
+  - platform: ledc
+    id: status_led_out
+    pin: GPIO33
+  - platform: ledc
+    id: gate_pwm
+    pin: GPIO13
+    frequency: 50 Hz
+
+light:
+  - platform: monochromatic
+    name: "LED di stato"
+    id: status_led
+    output: status_led_out
+
+servo:
+  - id: gate_servo
+    output: gate_pwm
+
+# --- Dispense logic ------------------------------------------------------
+script:
+  - id: home_carousel
+    then:
+      - switch.turn_on: hatch_lock
+      - stepper.set_speed:
+          id: carousel_stepper
+          speed: 200 steps/s
+      - if:
+          condition:
+            binary_sensor.is_off: home_sensor
+          then:
+            - stepper.set_target:
+                id: carousel_stepper
+                target: !lambda "return 100000;"
+            - wait_until:
+                binary_sensor.is_on: home_sensor
+            - stepper.set_target:
+                id: carousel_stepper
+                target: !lambda "return id(carousel_stepper).current_position;"
+      - lambda: |-
+          id(current_slot) = 0;
+          id(homed) = true;
+      - logger.log: "Homing completato"
+
+  # shared positioning logic: rotates whichever pocket is `target_slot`
+  # to the fixed load/dispense station. Loading (from the top, through the
+  # lid's port) and dispensing (out the bottom, through the base's chute)
+  # happen at that same station — only the gate decides which one occurs.
+  - id: goto_slot
+    parameters:
+      target_slot: int
+    then:
+      - if:
+          condition:
+            lambda: "return !id(homed);"
+          then:
+            - script.execute: home_carousel
+      - lambda: |-
+          int slots = id(total_slots).state;
+          int delta = target_slot - id(current_slot);
+          delta = ((delta % slots) + slots) % slots;
+          int steps = (id(steps_per_rev) * delta) / slots;
+          id(carousel_stepper).set_target(id(carousel_stepper).current_position + steps);
+          id(current_slot) = target_slot;
+      - wait_until:
+          condition:
+            lambda: "return id(carousel_stepper).current_position == id(carousel_stepper).target_position;"
+          timeout: 15s
+
+  - id: do_dispense
+    parameters:
+      target_slot: int
+    then:
+      - script.execute:
+          id: goto_slot
+          target_slot: !lambda "return target_slot;"
+      # open the gate, let gravity do the rest, confirm via the drop sensor
+      - servo.write:
+          id: gate_servo
+          level: 100%
+      - delay: 400ms
+      - wait_until:
+          condition:
+            binary_sensor.is_on: drop_sensor
+          timeout: 3s
+      - servo.write:
+          id: gate_servo
+          level: 0%
+      - if:
+          condition:
+            binary_sensor.is_on: drop_sensor
+          then:
+            - output.set_level: { id: buzzer_out, level: 50% }
+            - delay: 100ms
+            - output.set_level: { id: buzzer_out, level: 0% }
+            - homeassistant.event:
+                event: esphome.dispense_confirmed
+                data:
+                  slot: !lambda "return to_string(target_slot);"
+          else:
+            - homeassistant.event:
+                event: esphome.dispense_failed
+                data:
+                  slot: !lambda "return to_string(target_slot);"
+
+button:
+  - platform: template
+    name: "Home carosello"
+    on_press:
+      - script.execute: home_carousel

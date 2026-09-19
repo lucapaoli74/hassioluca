@@ -1,0 +1,121 @@
+# Vista Lovelace — importa come "nuova vista" (modalità YAML) o incolla il
+# contenuto sotto `views:` nella tua dashboard esistente.
+# Richiede: cards custom di base (usa solo card stock, nessuna HACS necessaria).
+#
+# NOTA: gli entity_id generati dall'integrazione ESPHome (es.
+# switch.serratura_sportello) dipendono dalla tua versione di Home
+# Assistant/ESPHome, che potrebbe prefissarli col nome del dispositivo
+# (es. switch.distributore_sigarette_serratura_sportello). Controlla in
+# Impostazioni → Dispositivi e servizi → cigarette-dispenser i nomi reali
+# e correggi le righe sotto se necessario.
+
+title: Distributore Sigarette
+path: distributore-sigarette
+icon: mdi:cigar
+cards:
+  - type: entities
+    title: Stato
+    entities:
+      - entity: sensor.tasche_cariche
+        name: Tasche cariche
+      - entity: binary_sensor.scorte_in_esaurimento
+        name: Scorte in esaurimento
+      - entity: counter.cig_dispensed_today
+        name: Erogate oggi
+      - entity: input_number.cig_daily_quota
+        name: Quota giornaliera
+      - entity: binary_sensor.quota_giornaliera_raggiunta
+        name: Quota raggiunta
+
+  - type: grid
+    title: Eroga da una tasca
+    columns: 3
+    square: false
+    cards:
+      - type: button
+        name: Tasca 1
+        icon: mdi:numeric-1-box
+        show_state: true
+        entity: input_boolean.cig_slot_1_loaded
+        tap_action:
+          action: call-service
+          service: script.cig_dispense
+          service_data: { slot: 1 }
+      - type: button
+        name: Tasca 2
+        icon: mdi:numeric-2-box
+        show_state: true
+        entity: input_boolean.cig_slot_2_loaded
+        tap_action:
+          action: call-service
+          service: script.cig_dispense
+          service_data: { slot: 2 }
+      - type: button
+        name: Tasca 3
+        icon: mdi:numeric-3-box
+        show_state: true
+        entity: input_boolean.cig_slot_3_loaded
+        tap_action:
+          action: call-service
+          service: script.cig_dispense
+          service_data: { slot: 3 }
+      - type: button
+        name: Tasca 4
+        icon: mdi:numeric-4-box
+        show_state: true
+        entity: input_boolean.cig_slot_4_loaded
+        tap_action:
+          action: call-service
+          service: script.cig_dispense
+          service_data: { slot: 4 }
+      - type: button
+        name: Tasca 5
+        icon: mdi:numeric-5-box
+        show_state: true
+        entity: input_boolean.cig_slot_5_loaded
+        tap_action:
+          action: call-service
+          service: script.cig_dispense
+          service_data: { slot: 5 }
+      - type: button
+        name: Tasca 6
+        icon: mdi:numeric-6-box
+        show_state: true
+        entity: input_boolean.cig_slot_6_loaded
+        tap_action:
+          action: call-service
+          service: script.cig_dispense
+          service_data: { slot: 6 }
+
+  - type: entities
+    title: Ricarica
+    entities:
+      - entity: script.cig_prepare_loading
+        name: "Porta prossima tasca vuota al carico + sblocca sportello"
+      - entity: switch.serratura_sportello
+        name: Serratura sportello
+      - type: divider
+      - entity: input_boolean.cig_slot_1_loaded
+        name: Tasca 1 caricata
+      - entity: input_boolean.cig_slot_2_loaded
+        name: Tasca 2 caricata
+      - entity: input_boolean.cig_slot_3_loaded
+        name: Tasca 3 caricata
+      - entity: input_boolean.cig_slot_4_loaded
+        name: Tasca 4 caricata
+      - entity: input_boolean.cig_slot_5_loaded
+        name: Tasca 5 caricata
+      - entity: input_boolean.cig_slot_6_loaded
+        name: Tasca 6 caricata
+
+  - type: entities
+    title: Controllo accessi (opzionale)
+    entities:
+      - entity: input_text.cig_authorized_nfc_uids
+        name: UID NFC autorizzati
+
+  - type: history-graph
+    title: Erogazioni ultimi 7 giorni
+    hours_to_show: 168
+    entities:
+      - counter.cig_dispensed_today
