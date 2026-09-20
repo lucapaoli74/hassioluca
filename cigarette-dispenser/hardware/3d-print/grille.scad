@@ -11,6 +11,7 @@
 // valuta celle ancora più strette (riduci `cell_gap`) verificando che le
 // sigarette continuino a passare con la tramoggia che vibra.
 include <params.scad>
+include <helpers.scad>
 
 cell_gap  = 11;    // luce libera tra le barre (< probe da 12mm, > cig_d)
 bar_w     = 3;      // spessore barra
@@ -45,6 +46,11 @@ module grille() {
         // griglia a maglia, centrata sull'apertura utile
         translate([0, 0, plate_t/2 + bar_h/2 - 0.01])
             bars(hopper_bot_w, hopper_bot_d, hopper_bot_w - bar_w, hopper_bot_d - bar_w);
+        // Lettera "C" (vedi assembly-guide.md): il telaio è troppo sottile
+        // (lip=3mm) per un'incisione diretta, quindi una piccola targhetta
+        // sporge dal bordo posteriore, a filo con lo spessore del telaio.
+        translate([-38, frame_d/2, 0])
+            label_tag("C", h = plate_t);
     }
 }
 

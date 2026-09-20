@@ -14,6 +14,7 @@
 // Stessa convenzione di assi del mobile (params.scad): X = larghezza
 // (centrata su 0), Z = altezza da terra, Y = spessore/profondità.
 include <params.scad>
+include <helpers.scad>
 
 panel_w = cab_w;
 panel_h = front_panel_h;
@@ -50,6 +51,9 @@ module front_panel() {
                 translate([x, -1, z])
                     rotate([-90, 0, 0])
                         cylinder(d = 4, h = panel_t + 2, $fn = 16);
+        // Lettera "G" (vedi assembly-guide.md): incisa sulla faccia interna
+        // (verso il mobile, y = panel_t), tra la feritoia e il pulsante
+        label_cut_y("G", -30, panel_t, 30, size = 7);
     }
 }
 

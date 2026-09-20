@@ -60,6 +60,8 @@ module drive_end_plate() {
     }
 }
 
+// Lettera "B" (vedi assembly-guide.md): incisa sulla faccia esterna del
+// piatto folle, ad angolo 0 (lontano dalle orecchiette a 45/135/225/315).
 module idler_end_plate() {
     difference() {
         union() {
@@ -68,6 +70,7 @@ module idler_end_plate() {
         }
         translate([0, 0, -1])
             cylinder(d = idler_bore_d, h = end_plate_t + 2, $fn = 32);
+        label_cut("B", 14, 0, end_plate_t);
     }
 }
 

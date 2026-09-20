@@ -7,7 +7,11 @@
 // rullo, dimensionato per UNA sola sigaretta (troppo stretto perché due ci
 // stiano affiancate — vedi il controllo in params.scad: groove_d < 2*cig_d).
 include <params.scad>
+include <helpers.scad>
 
+// Lettera "A" (vedi assembly-guide.md): incisa sulla faccia piatta di
+// un'estremità, nell'anello pieno tra il foro albero (r=shaft_d/2) e il
+// fondo delle scanalature (r=core_r) — l'unica zona senza tagli.
 module roller() {
     difference() {
         cylinder(r = roller_r, h = roller_len, $fn = 96);
@@ -22,6 +26,7 @@ module roller() {
         translate([-roller_r - 1, 0, roller_len/2])
             rotate([0, 90, 0])
                 cylinder(d = 3.2, h = roller_r*2 + 2, $fn = 16);
+        label_cut("A", (shaft_d/2 + core_r)/2, 0, roller_len);
     }
 }
 

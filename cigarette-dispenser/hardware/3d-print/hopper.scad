@@ -3,6 +3,7 @@
 // dell'alloggiamento (housing.scad). Capacità: vedi il calcolo in
 // params.scad (hopper_*).
 include <params.scad>
+include <helpers.scad>
 
 module loft(w1, d1, w2, d2, h) {
     hull() {
@@ -47,6 +48,10 @@ module hopper() {
                 cylinder(d = latch_hole_d, h = rim_t + 2, center = true, $fn = 16);
             translate([15, hopper_top_d/2 + rim_w/2, hopper_h - rim_t/2 - 0.01])
                 cylinder(d = reed_hole_d, h = rim_t + 2, center = true, $fn = 16);
+            // Lettera "D" (vedi assembly-guide.md): angolo posteriore destro
+            // del bordo, lontano da cerniera/serratura/sensore
+            label_cut("D", hopper_top_w/2 + rim_w/2 - 2, hopper_top_d/2 + rim_w/2 - 2,
+                       hopper_h - 0.01 + rim_t/2, size = 6);
         }
     }
 }

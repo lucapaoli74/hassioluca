@@ -132,6 +132,41 @@ module back_panel_seg(i) {
     }
 }
 
+// --- Versioni 3D con lettera identificativa (vedi assembly-guide.md) -------
+// I moduli sopra restano 2D apposta (validi per l'export .dxf da taglio);
+// queste versioni li estrudono a panel_mat_t e incidono la lettera sulla
+// faccia superiore dell'estrusione — usale per l'export STL/3MF da stampa,
+// non cut_layout() che resta solo per il taglio piatto. Posizioni verificate
+// per le quote di default: se cambi molto i parametri, ricontrolla con un
+// render che la lettera non finisca su un foro.
+module top_panel_3d() {
+    difference() {
+        linear_extrude(height = panel_mat_t) top_panel();
+        label_cut("H", 0, (hopper_cut_d/2 + cab_d/2) / 2, panel_mat_t);
+    }
+}
+
+module bottom_panel_3d() {
+    difference() {
+        linear_extrude(height = panel_mat_t) bottom_panel();
+        label_cut("I", 0, 0, panel_mat_t);
+    }
+}
+
+module side_panel_seg_3d(i, is_drive, letter, lx, ly) {
+    difference() {
+        linear_extrude(height = panel_mat_t) side_panel_seg(i, is_drive);
+        label_cut(letter, lx, ly, panel_mat_t);
+    }
+}
+
+module back_panel_seg_3d(i, letter, lx, ly) {
+    difference() {
+        linear_extrude(height = panel_mat_t) back_panel_seg(i);
+        label_cut(letter, lx, ly, panel_mat_t);
+    }
+}
+
 // Layout piatto per stampa/taglio (tutti i pannelli affiancati, scala 1:1).
 // Ogni pezzo sta singolarmente dentro il piano X1C da 256x256 — verificalo
 // tu stesso se cambi i parametri, con `openscad -o check.dxf`.

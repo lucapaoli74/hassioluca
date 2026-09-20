@@ -4,6 +4,7 @@
 // il mobile mette la tramoggia/housing al centro e il pannello vicino al
 // fronte, quindi lo scivolo è un condotto obliquo, non dritto.
 include <params.scad>
+include <helpers.scad>
 
 module loft(w1, d1, w2, d2, h, dy2 = 0) {
     hull() {
@@ -43,6 +44,22 @@ module baffle(z0, side, cover_frac, thick, overlap = 2) {
         cube([w, abs(y_far - y_near), thick], center = true);
 }
 
+// Lettera "F" (vedi assembly-guide.md): la parete è troppo sottile
+// (hopper_wall) per un'incisione diretta, quindi una piccola targhetta
+// sporge dalla parete esterna lato +Y (verso il fronte), vicino alla cima —
+// posizione calcolata dalle stesse funzioni lerp/center_y del condotto
+// (non a occhio), con `overlap` scelto apposta perché resti dentro lo
+// spessore reale della parete a quella quota, senza sporgere nella cavità.
+module f_tag() {
+    z0 = drop_h * 0.85;
+    t  = z0 / drop_h;
+    outer_w = lerp(drop_w - 6, drop_w, t);
+    outer_d = lerp(drop_d2, drop_d1, t);
+    y_face  = center_y(z0) + outer_d/2;
+    translate([0, y_face, z0])
+        label_tag("F", w = 12, d = 5, h = 6, overlap = 2, depth = 0.7, size = 5);
+}
+
 module chute() {
     union() {
         difference() {
@@ -55,6 +72,7 @@ module chute() {
         // proprio dentro quello spazio cavo)
         baffle(drop_h * 0.66, 1, 0.62, 6);
         baffle(drop_h * 0.33, -1, 0.62, 6);
+        f_tag();
     }
 }
 

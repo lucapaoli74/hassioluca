@@ -7,6 +7,7 @@
 // per il sensore magnetico che conferma allo sportello di essere chiuso
 // prima che il firmware autorizzi un'erogazione.
 include <params.scad>
+include <helpers.scad>
 
 lid_w = hopper_top_w + 2*rim_w;
 lid_d = hopper_top_d + 2*rim_w;
@@ -48,11 +49,16 @@ module latch_catch() {
 }
 
 module hopper_lid() {
-    union() {
-        lid_plate();
-        skirt();
-        for (x = hinge_x) hinge_tab(x);
-        latch_catch();
+    difference() {
+        union() {
+            lid_plate();
+            skirt();
+            for (x = hinge_x) hinge_tab(x);
+            latch_catch();
+        }
+        // Lettera "E" (vedi assembly-guide.md): angolo posteriore destro,
+        // lontano da cerniere (fronte) e gancio serratura (retro sinistra)
+        label_cut("E", 45, 50, lid_t/2, size = 6);
     }
 }
 

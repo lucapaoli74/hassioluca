@@ -103,8 +103,45 @@ inventata qui):
 | `front_panel.scad` | Pannello con pulsante, LED, feritoia — copre solo la parte bassa del mobile | 1 | stampa 3D o dima per taglio |
 | `cabinet.scad` | Pannelli del mobile, con fori di fissaggio per housing e tramoggia (sopra/sotto + fianchi/retro spezzati in 2) | 8 | stampa 3D, o taglio laser/CNC/sega (esporta `.dxf`) |
 | `params.scad` | Parametri condivisi — **modifica solo questo file** | — | — |
-| `helpers.scad` | Funzioni geometriche condivise | — | — |
+| `helpers.scad` | Funzioni geometriche condivise (incluse le lettere incise, vedi sotto) | — | — |
 | `assembly.scad` | Solo anteprima in OpenSCAD, non da stampare | — | — |
+
+## Legenda pezzi (A-O): una lettera incisa su ogni pezzo
+
+I 15 pezzi stampabili hanno tutti una lettera incisa (o su una piccola
+targhetta sporgente, dove il pezzo è troppo sottile per un'incisione) così
+si riconoscono senza doverli confrontare a occhio col disegno mentre li
+stacchi dal piatto di stampa — modulo `label_cut`/`label_tag` in
+`helpers.scad`, usato da ogni file di questa cartella.
+
+| Lettera | Pezzo | File | Dove è incisa |
+|---|---|---|---|
+| **A** | Rullo scanalato | `roller.scad` | faccia piatta di un'estremità, tra il foro albero e il fondo delle scanalature |
+| **B** | Alloggiamento a "C" | `housing.scad` | faccia esterna del piatto folle (lato opposto al motore) |
+| **C** | Griglia di sicurezza | `grille.scad` | targhetta sporgente sul bordo posteriore del telaio |
+| **D** | Tramoggia | `hopper.scad` | angolo posteriore destro del bordo superiore |
+| **E** | Coperchio tramoggia | `hopper_lid.scad` | angolo posteriore destro della faccia superiore |
+| **F** | Scivolo | `chute.scad` | targhetta sporgente sulla parete esterna, vicino alla cima |
+| **G** | Pannello frontale | `front_panel.scad` | faccia interna, tra la feritoia e il pulsante |
+| **H** | Pannello superiore | `cabinet.scad` → `top_panel_3d()` | accanto al ritaglio della tramoggia |
+| **I** | Pannello inferiore | `cabinet.scad` → `bottom_panel_3d()` | centro pannello |
+| **J** | Fianco motore, segmento inferiore | `cabinet.scad` → `side_panel_seg_3d(0,true,...)` | vicino al cerchio di fori housing/NEMA17 |
+| **K** | Fianco motore, segmento superiore | `cabinet.scad` → `side_panel_seg_3d(1,true,...)` | centro pannello |
+| **L** | Fianco folle, segmento inferiore | `cabinet.scad` → `side_panel_seg_3d(0,false,...)` | vicino al cerchio di fori housing |
+| **M** | Fianco folle, segmento superiore | `cabinet.scad` → `side_panel_seg_3d(1,false,...)` | centro pannello |
+| **N** | Retro, segmento inferiore | `cabinet.scad` → `back_panel_seg_3d(0,...)` | sopra il foro passacavi |
+| **O** | Retro, segmento superiore | `cabinet.scad` → `back_panel_seg_3d(1,...)` | centro pannello |
+
+**Nota per `cabinet.scad`**: i moduli 2D originali (`top_panel()`,
+`side_panel_seg(i, is_drive)`, ecc.) restano invariati e senza lettera —
+servono anche per l'export `.dxf` da taglio, dove un'incisione non ha
+senso. Le versioni `_3d()` aggiunte in fondo al file estrudono a
+`panel_mat_t` e incidono la lettera: usa quelle per l'export STL/3MF da
+stampa 3D.
+
+Schema di montaggio con questa stessa legenda (dove va ogni lettera,
+passo-passo): vedi l'artifact "Guida al montaggio" condiviso in
+conversazione, o riproducilo dalla sezione Assemblaggio più sotto.
 
 ## Sicurezza: come chiudere la macchina
 
@@ -206,37 +243,37 @@ Vedi `assembly.scad` per la vista 3D con tutte queste quote applicate.
 
 ## Assemblaggio
 
-1. Stampa 1× ciascuno di `roller.scad`, `housing.scad`, `grille.scad`,
-   `hopper.scad`, `hopper_lid.scad`, `chute.scad`, `front_panel.scad`;
-   stampa (o taglia) gli 8 pezzi di `cabinet.scad` (sopra, sotto, 2 fianchi
-   in 2 segmenti ciascuno, retro in 2 segmenti). Unisci ogni coppia di
-   segmenti con viti M4 nei fori allineati lungo la giunzione, con una
-   fascetta/listello interno a cavallo della cucitura per irrigidirla
-2. Monta il rullo nell'housing, verifica che giri libero senza attrito
+Lettere tra parentesi = legenda A-O qui sopra.
+
+1. Stampa 1× ciascuno di **A** `roller.scad`, **B** `housing.scad`,
+   **C** `grille.scad`, **D** `hopper.scad`, **E** `hopper_lid.scad`,
+   **F** `chute.scad`, **G** `front_panel.scad`; stampa (o taglia) gli 8
+   pezzi di `cabinet.scad` (**H** sopra, **I** sotto, **J**+**K** fianco
+   motore in 2 segmenti, **L**+**M** fianco folle in 2 segmenti, **N**+**O**
+   retro in 2 segmenti). Unisci ogni coppia di segmenti (**J**+**K**,
+   **L**+**M**, **N**+**O**) con viti M4 nei fori allineati lungo la
+   giunzione, con una fascetta/listello interno a cavallo della cucitura
+   per irrigidirla
+2. Monta **A** dentro **B**, verifica che giri libero senza attrito
    eccessivo contro le pareti
-3. Avvita l'housing ai due pannelli laterali del mobile usando i fori
-   delle orecchiette (stesso pattern su housing e pannelli, vedi sopra)
-4. Avvita il motore da fuori sul pannello laterale "drive" (pattern
-   NEMA17), collega l'albero all'housing con un giunto flessibile
-   attraverso il foro Ø24mm
-5. Il perno "idler" scorre nel foro di passaggio sul pannello laterale
-   opposto — se vuoi più durata, aggiungi un piccolo cuscinetto lì
-   (vedi `../bom.md`)
-6. Completa il mobile (pannello inferiore, posteriore, angolari agli
-   spigoli, vedi `../bom.md`)
-7. Incastra la griglia tra la bocca inferiore della tramoggia e
-   l'apertura di carico dell'housing, poi avvita la tramoggia ai 4 fori
-   d'angolo del pannello superiore
-8. Fissa lo scivolo sotto l'apertura di scarico dell'housing; il suo
-   fondo arriva vicino alla feritoia del pannello frontale — rifinisci/
-   incolla la giunzione
-9. Avvita il pannello frontale in fondo al mobile
-10. Monta il coperchio della tramoggia con la cerniera sul lato fronte,
-    la serratura + il sensore magnetico sul lato retro (fori già presenti
-    nel bordo stampato)
+3. Avvita **B** ai pannelli **J**+**K** e **L**+**M** usando i fori delle
+   orecchiette (stesso pattern su housing e pannelli, vedi sopra)
+4. Avvita il motore da fuori su **J** (pattern NEMA17), collega l'albero a
+   **B** con un giunto flessibile attraverso il foro Ø24mm
+5. Il perno "idler" scorre nel foro di passaggio su **L** — se vuoi più
+   durata, aggiungi un piccolo cuscinetto lì (vedi `../bom.md`)
+6. Completa il guscio: **I** (fondo), **N**+**O** (posteriore), angolari
+   agli spigoli (vedi `../bom.md`)
+7. Incastra **C** tra la bocca inferiore di **D** e l'apertura di carico
+   di **B**, poi avvita **D** ai 4 fori d'angolo di **H**
+8. Fissa **F** sotto l'apertura di scarico di **B**; il suo fondo arriva
+   vicino alla feritoia di **G** — rifinisci/incolla la giunzione
+9. Avvita **G** in fondo al mobile
+10. Monta **E** con la cerniera sul lato fronte, la serratura + il sensore
+    magnetico sul lato retro (fori già presenti nel bordo stampato)
 11. Monta pulsante, LED, sensore di caduta e sensore sportello secondo
     `../wiring.md`
-12. **Prima di caricare sigarette vere**: fai girare il rullo a vuoto
+12. **Prima di caricare sigarette vere**: fai girare **A** a vuoto
     qualche ciclo (con lo sportello chiuso, altrimenti l'interblocco lo
     impedisce), verifica l'allineamento delle aperture, poi carica poche
     decine di sigarette per un primo collaudo prima di riempire la
