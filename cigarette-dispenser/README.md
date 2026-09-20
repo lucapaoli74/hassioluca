@@ -15,6 +15,11 @@ distributori esterni non presidiati). Vedi la nota in `hardware/bom.md`.
 Questo progetto, così com'è, **non** è un sistema di verifica dell'età
 certificato.
 
+🖨️ **Tutti i pezzi, mobile compreso, entrano nel piano di stampa di una
+Bambu X1C** (256×256×256mm) — i pannelli più grandi del mobile sono
+spezzati in segmenti che si avvitano insieme, vedi
+`hardware/3d-print/README.md`.
+
 ## Struttura del repository
 
 ```
@@ -30,7 +35,7 @@ cigarette-dispenser/
 │   │   ├── hopper_lid.scad     coperchio tramoggia (cerniera + serratura)
 │   │   ├── chute.scad          scivolo a labirinto anti-intrusione
 │   │   ├── front_panel.scad    pannello con pulsante, LED, feritoia
-│   │   ├── cabinet.scad        pannelli del mobile (taglio laser/CNC)
+│   │   ├── cabinet.scad        pannelli del mobile (stampa 3D o taglio)
 │   │   ├── assembly.scad       anteprima assemblaggio (non da stampare)
 │   │   └── README.md           come funziona, sicurezza, impostazioni di stampa
 │   ├── bom.md                ← parti standard da comprare
@@ -137,3 +142,7 @@ consapevole, non per un contesto con bambini piccoli senza supervisione.
   (`cabinet.scad`, con export `.dxf` verificato leggendo le coordinate
   reali dei contorni). Tutti i nuovi/modificati file `.scad` restano mesh
   manifold; il firmware aggiornato passa di nuovo `esphome config`
+- Verificato che ogni singolo pezzo stampabile (meccanismo + gli 8 pezzi
+  del mobile, pannelli spezzati inclusi) rientri nei 250mm per lato
+  (margine di sicurezza sotto i 256mm del piano Bambu X1C) — bounding box
+  letto dai vertici reali di ogni STL/DXF esportato, non stimato

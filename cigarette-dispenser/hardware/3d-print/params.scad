@@ -78,3 +78,10 @@ cab_d        = 240;   // profondità (fronte-retro)
 cab_h        = 420;   // altezza
 panel_mat_t  = 9;     // spessore materiale pannelli (legno 9mm o simile — adatta)
 cab_back_margin = 15; // margine tra il bordo posteriore e il ritaglio tramoggia
+
+// Piano di stampa Bambu X1C: 256x256x256mm. Qui sotto un margine di
+// sicurezza (bordo letto, adesione, calibro) — nessun pezzo, pannelli del
+// mobile compresi, deve superare questa misura in nessuna dimensione.
+x1c_max      = 250;
+seam_hole_d  = 4;      // fori M4 lungo la giunzione dei pannelli spezzati
+seam_hole_n  = 5;

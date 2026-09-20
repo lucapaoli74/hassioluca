@@ -5,6 +5,13 @@ esporta una mesh manifold/chiusa — verificato in sessione con
 `openscad -o out.stl <file>.scad`; l'assemblaggio completo è stato
 renderizzato senza errori).
 
+**Tutti i pezzi, mobile compreso, entrano nel piano di stampa di una Bambu
+X1C** (256×256×256mm — verificato leggendo il bounding box reale di ogni
+STL/DXF esportato, margine di sicurezza a 250mm in `x1c_max`,
+`params.scad`). I pannelli del mobile più alti di 250mm (`cabinet.scad`,
+lati e retro) sono spezzati in due segmenti che si avvitano insieme lungo
+la giunzione — vedi la sezione Assemblaggio.
+
 ## Come funziona: rullo scanalato (singolarizzatore)
 
 Non è più un carosello di pacchetti: la macchina tiene le sigarette
@@ -52,7 +59,7 @@ inventata qui):
 | `hopper_lid.scad` | Coperchio della tramoggia (cerniera + serratura) | 1 | stampa 3D |
 | `chute.scad` | Scivolo a labirinto — **da adattare alla profondità del tuo mobile** | 1 | stampa 3D |
 | `front_panel.scad` | Pannello con pulsante, LED, feritoia | 1 | stampa 3D o dima per taglio |
-| `cabinet.scad` | Pannelli del mobile (sopra/sotto/fianchi/retro) | 5 | taglio laser/CNC/sega (esporta `.dxf`) |
+| `cabinet.scad` | Pannelli del mobile (sopra/sotto + fianchi/retro spezzati in 2) | 8 | stampa 3D, o taglio laser/CNC/sega (esporta `.dxf`) |
 | `params.scad` | Parametri condivisi — **modifica solo questo file** | — | — |
 | `helpers.scad` | Funzioni geometriche condivise | — | — |
 | `assembly.scad` | Solo anteprima in OpenSCAD, non da stampare | — | — |
@@ -125,7 +132,10 @@ un errore se non lo è (vedi `../../software/esphome`).
 
 1. Stampa 1× ciascuno di `roller.scad`, `housing.scad`, `grille.scad`,
    `hopper.scad`, `hopper_lid.scad`, `chute.scad`, `front_panel.scad`;
-   taglia i 5 pannelli di `cabinet.scad`
+   stampa (o taglia) gli 8 pezzi di `cabinet.scad` (sopra, sotto, 2 fianchi
+   in 2 segmenti ciascuno, retro in 2 segmenti). Unisci ogni coppia di
+   segmenti con viti M4 nei fori allineati lungo la giunzione, con una
+   fascetta/listello interno a cavallo della cucitura per irrigidirla
 2. Monta il rullo nell'housing, verifica che giri libero senza attrito
    eccessivo contro le pareti
 3. Fissa il motore al piatto terminale "drive" (foro NEMA17, pattern

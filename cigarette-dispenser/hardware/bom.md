@@ -39,17 +39,21 @@ scanalato rilascia la sigaretta per gravità solo quando la scanalatura
 raggiunge l'apertura fissa di scarico, quindi non serve un attuatore
 aggiuntivo lì.
 
-## Struttura macchina — mobile chiuso (non stampato)
+## Struttura macchina — mobile chiuso
 
 Il meccanismo va **sempre** racchiuso in un mobile: il rullo in movimento e
 l'apertura della tramoggia non sono sicuri da toccare a corpo libero. Vedi
-`3d-print/cabinet.scad` per i pannelli quotati (esporta anche `.dxf` per
-taglio laser/CNC) e `3d-print/README.md` per l'assemblaggio.
+`3d-print/cabinet.scad` per i pannelli quotati — **ogni pezzo, spezzato dove
+serve, entra nel piano di stampa di una Bambu X1C (256×256×256mm)**; lo
+stesso file esporta anche `.dxf` se preferisci tagliarli invece di
+stamparli. Dettagli assemblaggio in `3d-print/README.md`.
 
 | Componente | Specifica | Qtà | Note |
 |---|---|---|---|
-| Pannelli piatti | legno multistrato 9mm, alluminio composito o plexiglass, tagliati da `cabinet.scad` | 5 (sopra/sotto/2 fianchi/retro) | Il fronte è `front_panel.scad` |
-| Angolari interni + viti | angolari in metallo o plastica, ~20×20mm | 8-12 | Uniscono i pannelli agli spigoli (giunto a battuta, niente incastri a pettine) |
+| Pannelli | stampa 3D (PETG/PLA, infill 15-20%), o legno multistrato 9mm/alluminio composito/plexiglass tagliati dalla stessa sagoma | 8 (sopra, sotto, 2 fianchi × 2 segmenti, retro × 2 segmenti) | Il fronte è `front_panel.scad`, non spezzato |
+| Viti M4×16 + dadi | per unire i segmenti spezzati lungo la giunzione | ~20 | 5 fori per giunzione, vedi `seam_hole_n` in `params.scad` |
+| Listello/fascetta interna | legno o profilo stampato, a cavallo di ogni giunzione | 4 (una per ogni coppia di segmenti) | Irrigidisce la cucitura tra due metà dello stesso pannello |
+| Angolari interni + viti | angolari in metallo o plastica, ~20×20mm | 8-12 | Uniscono i pannelli agli spigoli del mobile (giunto a battuta) |
 | Cerniera piccola | 40-60mm, qualunque tipo (piano, a libro) | 1 | Per il coperchio della tramoggia (`hopper_lid.scad`), più affidabile di una cerniera stampata su uno sportello aperto spesso |
 | Piedini in gomma | autoadesivi | 4 | Sul pannello inferiore |
 | Sigarette | JPS (o altro formato king-size ~84×7.9mm) | — | Misura le tue prima di stampare — vedi `3d-print/README.md` |
