@@ -75,3 +75,30 @@ automation:
           message: >
             Scorta stimata sotto le 15 sigarette: ricarica la tramoggia
             e aggiorna "Scorta stimata" nel pannello dopo averlo fatto.
+
+  - alias: "Distributore: erogazione bloccata, tramoggia aperta"
+    trigger:
+      - platform: event
+        event_type: esphome.hopper_open_blocked
+    action:
+      - service: persistent_notification.create
+        data:
+          title: "Distributore sigarette — sicurezza"
+          message: >
+            Pulsante premuto ma la tramoggia risulta aperta: il rullo NON si
+            è mosso (interblocco di sicurezza). Chiudi e blocca lo sportello
+            per riprendere a erogare.
+
+  - alias: "Distributore: tramoggia rimasta aperta"
+    trigger:
+      - platform: state
+        entity_id: binary_sensor.tramoggia_chiusa
+        to: "off"
+        for: "00:05:00"
+    action:
+      - service: persistent_notification.create
+        data:
+          title: "Distributore sigarette"
+          message: >
+            La tramoggia è aperta da più di 5 minuti. Se hai finito di
+            ricaricare, chiudi e blocca lo sportello.

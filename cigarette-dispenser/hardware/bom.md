@@ -27,7 +27,8 @@ variano molto per fornitore.
 | Resistenza pull-up 10kΩ | — | 1 | Per il sensore su GPIO34 (input-only, niente pullup interno) |
 | Buzzer attivo 5V | — | 1 | Feedback erogazione/quota raggiunta/errore |
 | LED di stato | singolo colore + resistenza, o RGB | 1 | Stato macchina |
-| Serratura elettromagnetica o solenoide 12V | opzionale | 1 | Blocca lo sportello di ricarica della tramoggia |
+| Serratura elettromagnetica o solenoide 12V | tipo push-pull, corsa ≥10mm | 1 | **Non più opzionale**: blocca lo sportello tramoggia, vedi nota sicurezza sotto |
+| Sensore magnetico (reed switch) | tipo per porte/finestre, NC o NA | 1 | Conferma software che lo sportello è chiuso prima di autorizzare il motore |
 | Alimentatore logica | 5V 2A (USB o DC-DC da 12V) | 1 | Alimenta ESP32 + sensori + buzzer + LED |
 | Convertitore DC-DC 12V→5V | buck 3A | 1 | Se usi un solo alimentatore 12V per tutto |
 | Cavi Dupont / JST | assortiti | — | Cablaggio |
@@ -38,13 +39,41 @@ scanalato rilascia la sigaretta per gravità solo quando la scanalatura
 raggiunge l'apertura fissa di scarico, quindi non serve un attuatore
 aggiuntivo lì.
 
-## Struttura macchina (non stampata)
+## Struttura macchina — mobile chiuso (non stampato)
 
-| Componente | Specifica | Note |
-|---|---|---|
-| Mobile/cabinet | legno, metallo o profili in alluminio 2020 | Contiene tramoggia, rullo e scivolo — profondità da adattare a `chute.scad` |
-| Cerniera + serratura a chiave sulla tramoggia | per la ricarica | In alternativa/aggiunta alla serratura elettrica |
-| Sigarette | JPS (o altro formato king-size ~84×7.9mm) | Misura le tue prima di stampare — vedi `3d-print/README.md` |
+Il meccanismo va **sempre** racchiuso in un mobile: il rullo in movimento e
+l'apertura della tramoggia non sono sicuri da toccare a corpo libero. Vedi
+`3d-print/cabinet.scad` per i pannelli quotati (esporta anche `.dxf` per
+taglio laser/CNC) e `3d-print/README.md` per l'assemblaggio.
+
+| Componente | Specifica | Qtà | Note |
+|---|---|---|---|
+| Pannelli piatti | legno multistrato 9mm, alluminio composito o plexiglass, tagliati da `cabinet.scad` | 5 (sopra/sotto/2 fianchi/retro) | Il fronte è `front_panel.scad` |
+| Angolari interni + viti | angolari in metallo o plastica, ~20×20mm | 8-12 | Uniscono i pannelli agli spigoli (giunto a battuta, niente incastri a pettine) |
+| Cerniera piccola | 40-60mm, qualunque tipo (piano, a libro) | 1 | Per il coperchio della tramoggia (`hopper_lid.scad`), più affidabile di una cerniera stampata su uno sportello aperto spesso |
+| Piedini in gomma | autoadesivi | 4 | Sul pannello inferiore |
+| Sigarette | JPS (o altro formato king-size ~84×7.9mm) | — | Misura le tue prima di stampare — vedi `3d-print/README.md` |
+
+## Nota sulla sicurezza meccanica
+
+Il rullo scanalato è un punto di intrappolamento per le dita se lasciato
+accessibile. Il progetto lo mitiga con tre livelli, nessuno dei quali è una
+certificazione formale (non ISO 13857/EN60204) ma che insieme rendono la
+macchina ragionevolmente sicura per un uso domestico consapevole:
+
+1. **Griglia** (`3d-print/grille.scad`) tra tramoggia e rullo: maglie più
+   strette di un dito, più larghe di una sigaretta.
+2. **Sportello con serratura + interblocco elettrico**: il firmware
+   rifiuta di muovere il motore se il sensore magnetico non conferma lo
+   sportello chiuso (vedi `software/esphome/cigarette-dispenser.yaml`),
+   qualunque sia l'origine del comando (pulsante, app, dashboard).
+3. **Scivolo a labirinto** (`3d-print/chute.scad`): alette sfalsate tra la
+   feritoia frontale e il rullo, per impedire di infilare una mano in
+   linea retta fino al meccanismo.
+
+Se costruisci questa macchina in un contesto con accesso di bambini
+piccoli, non fidarti solo di queste misure: valuta un mobile con serratura
+a chiave anche sul pannello frontale, o tieni la macchina fuori portata.
 
 ## Nota legale/etica importante
 

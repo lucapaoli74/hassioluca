@@ -59,3 +59,22 @@ hopper_bot_w   = roller_len + 6;   // combacia con la larghezza del rullo
 hopper_bot_d   = 34;
 hopper_h       = 190;
 hopper_wall    = 2.4;
+
+// --- Bordo/coperchio/serratura tramoggia (hopper.scad + hopper_lid.scad) -
+rim_w        = 10;   // sporgenza del bordo oltre l'apertura
+rim_t        = 4;
+hinge_hole_d = 3.2;
+hinge_x      = [-30, 30];  // posizione viti cerniera, lato -Y (fronte)
+latch_hole_d = 4;          // foro per il gancio della serratura, lato +Y (retro)
+reed_hole_d  = 6;          // foro per il sensore magnetico di sportello chiuso
+
+// --- Mobile esterno (cabinet.scad) — pannelli piatti, non stampati -------
+// Un guscio 3D pieno di queste dimensioni non è stampabile in un pezzo
+// solo: qui si generano pannelli piatti (taglio laser/CNC/sega) che
+// racchiudono il meccanismo, lasciando accessibili solo pulsante,
+// feritoia e sportello tramoggia con serratura.
+cab_w        = 180;   // larghezza (sx-dx)
+cab_d        = 240;   // profondità (fronte-retro)
+cab_h        = 420;   // altezza
+panel_mat_t  = 9;     // spessore materiale pannelli (legno 9mm o simile — adatta)
+cab_back_margin = 15; // margine tra il bordo posteriore e il ritaglio tramoggia

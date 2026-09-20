@@ -12,6 +12,7 @@ Cambia pure i pin, basta che corrispondano tra questo schema e lo YAML.
 | Driver stepper — SLEEP | GPIO27 | uscita (attivo basso) |
 | Pulsante frontale erogazione | GPIO4 | ingresso |
 | Fotointerruttore conferma caduta | GPIO34 (input only) | ingresso |
+| Sensore magnetico sportello tramoggia (reed) | GPIO35 (input only) | ingresso |
 | Buzzer | GPIO32 | uscita |
 | LED di stato | GPIO33 | uscita |
 | Serratura tramoggia (via relè/MOSFET) | GPIO14 | uscita |
@@ -70,6 +71,27 @@ vedi il pacchetto Home Assistant).
 GPIO34 è input-only sull'ESP32 (nessun pull-up interno): aggiungi una
 resistenza di pull-up esterna da 10kΩ se il tuo sensore è a collettore
 aperto (tipico dei fotointerruttori a forcella economici).
+
+## Sensore sportello tramoggia (interblocco di sicurezza)
+
+Il **reed switch** va montato nel foro `reed_hole_d` sul bordo della
+tramoggia (`hopper.scad`), con il magnete incassato nel coperchio
+(`hopper_lid.scad`) in modo che si affaccino quando lo sportello è chiuso.
+Cablalo tra GPIO35 e GND con un pull-up esterno da 10kΩ (stessa ragione di
+GPIO34: nessun pull-up interno sui pin input-only). Il firmware legge
+questo sensore **prima** di muovere il motore, per qualunque erogazione
+(pulsante, dashboard, app): se lo sportello non risulta chiuso, il rullo
+non gira, punto — vedi lo script `try_dispense` nello YAML ESPHome. Non è
+un controllo continuo durante la rotazione: è un blocco preventivo prima
+che parta.
+
+## Serratura tramoggia
+
+Pilotala tramite relè o MOSFET (non collegare un solenoide/serratura
+direttamente a un GPIO: assorbe più corrente di quanta l'ESP32 possa
+erogare). GPIO14 comanda il relè, il relè commuta l'alimentazione 12V
+della serratura. Aggiungi un diodo di ricircolo (flyback) in antiparallelo
+sulla bobina della serratura se è di tipo a solenoide.
 
 ## Nota su homing/allineamento
 

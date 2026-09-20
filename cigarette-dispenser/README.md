@@ -25,11 +25,14 @@ cigarette-dispenser/
 │   │   ├── helpers.scad        funzioni geometriche condivise
 │   │   ├── roller.scad         rullo scanalato (singolarizzatore, 1×)
 │   │   ├── housing.scad        alloggiamento a "C" + piatti terminali
+│   │   ├── grille.scad         griglia di sicurezza tramoggia→rullo
 │   │   ├── hopper.scad         tramoggia (>=100 sigarette sfuse)
-│   │   ├── chute.scad          scivolo verso il pannello frontale
+│   │   ├── hopper_lid.scad     coperchio tramoggia (cerniera + serratura)
+│   │   ├── chute.scad          scivolo a labirinto anti-intrusione
 │   │   ├── front_panel.scad    pannello con pulsante, LED, feritoia
+│   │   ├── cabinet.scad        pannelli del mobile (taglio laser/CNC)
 │   │   ├── assembly.scad       anteprima assemblaggio (non da stampare)
-│   │   └── README.md           come funziona, impostazioni di stampa
+│   │   └── README.md           come funziona, sicurezza, impostazioni di stampa
 │   ├── bom.md                ← parti standard da comprare
 │   └── wiring.md             ← schema di cablaggio, mappa GPIO
 └── software/
@@ -53,6 +56,19 @@ fino al **pannello frontale**. Ogni pressione del pulsante fa avanzare il
 rullo di esattamente una scanalatura = una sigaretta. Dettagli e limiti
 (serve una taratura empirica, come per qualunque dispenser di oggetti alla
 rinfusa) in `hardware/3d-print/README.md`.
+
+## Sicurezza
+
+Il meccanismo va sempre chiuso in un **mobile** (pannelli quotati in
+`hardware/3d-print/cabinet.scad`), con tre misure aggiuntive contro
+l'intrappolamento delle dita: una griglia tra tramoggia e rullo, uno
+scivolo a labirinto tra rullo e feritoia, e uno sportello di ricarica con
+serratura elettrica **il cui sensore blocca il firmware dal muovere il
+motore finché non è chiuso** — vale per il pulsante fisico, la dashboard e
+l'app, sempre. Dettagli in `hardware/3d-print/README.md` e
+`hardware/bom.md`. Non è una certificazione di sicurezza macchine
+(ISO 13857/EN60204): sono accorgimenti ragionevoli per un uso domestico
+consapevole, non per un contesto con bambini piccoli senza supervisione.
 
 ## Come funziona il software
 
@@ -88,9 +104,11 @@ rinfusa) in `hardware/3d-print/README.md`.
    (`number.scorta_stimata`)
 8. Installa la Home Assistant Companion App su Android — vedi
    `software/android-app.md`
-9. **Prima di caricare sigarette vere**: fai girare il rullo a vuoto,
-   verifica l'allineamento, poi collauda con poche decine di sigarette
-   prima di riempire la tramoggia del tutto
+9. **Prima di caricare sigarette vere**: fai girare il rullo a vuoto (con
+   lo sportello tramoggia chiuso — il firmware si rifiuta di muovere il
+   motore altrimenti, vedi la sezione Sicurezza sotto), verifica
+   l'allineamento, poi collauda con poche decine di sigarette prima di
+   riempire la tramoggia del tutto
 
 ## Cosa è stato verificato in questa sessione
 
@@ -112,3 +130,10 @@ rinfusa) in `hardware/3d-print/README.md`.
   **non** è stata testata su un'istanza Home Assistant reale — verifica gli
   entity_id esatti generati dalla tua integrazione prima di affidarti alla
   dashboard/automazioni
+- Aggiunta la chiusura di sicurezza: griglia (`grille.scad`), scivolo a
+  labirinto (`chute.scad`, alette verificate con un rendering in sezione),
+  sportello con serratura e interblocco firmware (sensore letto da
+  `try_dispense` prima di ogni movimento), mobile a pannelli piatti
+  (`cabinet.scad`, con export `.dxf` verificato leggendo le coordinate
+  reali dei contorni). Tutti i nuovi/modificati file `.scad` restano mesh
+  manifold; il firmware aggiornato passa di nuovo `esphome config`

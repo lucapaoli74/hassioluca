@@ -156,6 +156,21 @@ binary_sensor:
     filters:
       - delayed_on_off: 10ms
 
+  - platform: gpio
+    name: "Tramoggia chiusa"
+    id: hopper_closed
+    device_class: safety
+    pin:
+      # sensore magnetico (reed) sul bordo tramoggia/coperchio — vedi
+      # hopper.scad (foro reed_hole_d) e hardware/wiring.md.
+      # GPIO35 è input-only: pull-up esterno da 10k. ON = circuito chiuso
+      # = magnete presente = sportello chiuso.
+      number: GPIO35
+      mode: INPUT
+      inverted: true
+    filters:
+      - delayed_on_off: 50ms
+
 switch:
   - platform: gpio
     name: "Serratura tramoggia"
@@ -178,26 +193,44 @@ light:
     output: status_led_out
 
 # --- Logica di erogazione --------------------------------------------------
+# Interblocco di sicurezza: il motore non parte MAI se la tramoggia non è
+# confermata chiusa dal sensore magnetico, qualunque sia l'origine del
+# comando (pulsante fisico, dashboard, app). Non è un controllo continuo
+# durante la rotazione (il rullo, una volta partito, completa il passo) —
+# è un blocco preventivo: se lo sportello è aperto, il rullo non si muove
+# affatto, quindi non c'è mai una scanalatura esposta ed in movimento
+# mentre si sta rabboccando la tramoggia.
 script:
   - id: try_dispense
     mode: single
     then:
       - if:
           condition:
-            lambda: "return id(dispensed_today) < (int) id(daily_quota).state;"
+            binary_sensor.is_off: hopper_closed
           then:
-            - script.execute: do_dispense_one
-          else:
-            - output.set_level: { id: buzzer_out, level: 80% }
-            - delay: 150ms
-            - output.set_level: { id: buzzer_out, level: 0% }
-            - delay: 100ms
-            - output.set_level: { id: buzzer_out, level: 80% }
-            - delay: 150ms
+            - output.set_level: { id: buzzer_out, level: 100% }
+            - delay: 400ms
             - output.set_level: { id: buzzer_out, level: 0% }
             - homeassistant.event:
-                event: esphome.quota_reached
+                event: esphome.hopper_open_blocked
                 data: {}
+          else:
+            - if:
+                condition:
+                  lambda: "return id(dispensed_today) < (int) id(daily_quota).state;"
+                then:
+                  - script.execute: do_dispense_one
+                else:
+                  - output.set_level: { id: buzzer_out, level: 80% }
+                  - delay: 150ms
+                  - output.set_level: { id: buzzer_out, level: 0% }
+                  - delay: 100ms
+                  - output.set_level: { id: buzzer_out, level: 80% }
+                  - delay: 150ms
+                  - output.set_level: { id: buzzer_out, level: 0% }
+                  - homeassistant.event:
+                      event: esphome.quota_reached
+                      data: {}
 
   - id: do_dispense_one
     mode: single

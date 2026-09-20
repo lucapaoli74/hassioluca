@@ -2,6 +2,12 @@
 // legno/plexiglass/alluminio, usando questo file solo come dima/misure).
 // Ospita: pulsante di erogazione, LED di stato, feritoia di uscita
 // sigaretta allineata allo scivolo (chute.scad).
+//
+// SICUREZZA: la feritoia deve restare lunga quanto la sigaretta (non si
+// può restringere sotto quella misura, è un vincolo fisico del prodotto),
+// quindi da sola NON impedisce di infilare una mano — è lo scivolo dietro
+// di essa (le alette sfalsate in chute.scad) a impedire di raggiungere in
+// linea retta il rullo. Qui riduciamo solo la larghezza al minimo utile.
 include <params.scad>
 
 panel_w = 160;
@@ -11,7 +17,7 @@ panel_t = 4;
 button_d   = 16;   // pulsante momentaneo antivandalo 16mm, foro standard
 led_d      = 8;
 slot_w     = roller_len + 8;   // un po' più larga dell'uscita dello scivolo
-slot_h     = cig_d + 12;
+slot_h     = cig_d + 6;        // stretta il giusto per far uscire la sigaretta
 
 module front_panel() {
     difference() {

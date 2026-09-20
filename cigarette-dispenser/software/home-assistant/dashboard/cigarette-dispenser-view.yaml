@@ -24,6 +24,8 @@ cards:
         name: Scorta stimata
       - entity: binary_sensor.scorta_sigarette_in_esaurimento
         name: Scorta in esaurimento
+      - entity: binary_sensor.tramoggia_chiusa
+        name: Tramoggia chiusa (interblocco sicurezza)
 
   - type: button
     name: Eroga una sigaretta

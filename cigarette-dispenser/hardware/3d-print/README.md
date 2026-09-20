@@ -20,31 +20,63 @@ inventata qui):
 2. Il rullo gira parzialmente immerso nella **tramoggia** (`hopper.scad`),
    nella zona di carico: le sigarette cadono per gravità nelle scanalature
    che passano di lì.
-3. Un **alloggiamento a "C"** (`housing.scad`) avvolge il resto della
+3. Una **griglia di sicurezza** (`grille.scad`) siede tra tramoggia e
+   rullo: maglie abbastanza strette da bloccare un dito, abbastanza larghe
+   da far cadere le sigarette.
+4. Un **alloggiamento a "C"** (`housing.scad`) avvolge il resto della
    circonferenza, trattenendo le sigarette già raccolte durante il
    trasporto e facendo da "pettine": qualunque sigaretta non seduta bene
    nella scanalatura (di traverso, o doppia) viene bloccata dal bordo
    dell'apertura e ricade nella tramoggia.
-4. Quando la scanalatura carica raggiunge l'apertura di scarico (in
-   basso), la sigaretta cade per gravità nello **scivolo** (`chute.scad`)
-   e arriva al **pannello frontale** (`front_panel.scad`), dove l'utente
-   la preleva dalla feritoia.
-5. Il motore passo-passo ruota il rullo esattamente di `360°/flutes` per
+5. Quando la scanalatura carica raggiunge l'apertura di scarico (in
+   basso), la sigaretta cade per gravità nello **scivolo a labirinto**
+   (`chute.scad` — alette sfalsate anti-intrusione) e arriva al
+   **pannello frontale** (`front_panel.scad`), dove l'utente la preleva
+   dalla feritoia.
+6. Il motore passo-passo ruota il rullo esattamente di `360°/flutes` per
    ogni erogazione: una pressione sul pulsante frontale = una sigaretta
-   (vedi `../../software/esphome`).
+   (vedi `../../software/esphome`) — **ma solo se il firmware conferma che
+   lo sportello della tramoggia è chiuso**, vedi sotto.
+7. Tutto questo va dentro un **mobile chiuso** (`cabinet.scad`, pannelli
+   piatti da taglio) — il meccanismo da solo non è sicuro da lasciare a
+   vista.
 
 ## File
 
-| File | Cosa stampa | Copie |
-|---|---|---|
-| `roller.scad` | Rullo scanalato | 1 |
-| `housing.scad` | Alloggiamento a "C" + piatti terminali | 1 |
-| `hopper.scad` | Tramoggia (>=100 sigarette) | 1 |
-| `chute.scad` | Scivolo verso il pannello — **da adattare alla profondità del tuo mobile** | 1 |
-| `front_panel.scad` | Pannello con pulsante, LED, feritoia — o usalo solo come dima su legno/plexiglass | 1 |
-| `params.scad` | Parametri condivisi — **modifica solo questo file** | — |
-| `helpers.scad` | Funzioni geometriche condivise | — |
-| `assembly.scad` | Solo anteprima in OpenSCAD, non da stampare | — |
+| File | Cosa produce | Copie | Tecnica |
+|---|---|---|---|
+| `roller.scad` | Rullo scanalato | 1 | stampa 3D |
+| `housing.scad` | Alloggiamento a "C" + piatti terminali | 1 | stampa 3D |
+| `grille.scad` | Griglia di sicurezza tramoggia→rullo | 1 | stampa 3D |
+| `hopper.scad` | Tramoggia (>=100 sigarette) + bordo per coperchio | 1 | stampa 3D |
+| `hopper_lid.scad` | Coperchio della tramoggia (cerniera + serratura) | 1 | stampa 3D |
+| `chute.scad` | Scivolo a labirinto — **da adattare alla profondità del tuo mobile** | 1 | stampa 3D |
+| `front_panel.scad` | Pannello con pulsante, LED, feritoia | 1 | stampa 3D o dima per taglio |
+| `cabinet.scad` | Pannelli del mobile (sopra/sotto/fianchi/retro) | 5 | taglio laser/CNC/sega (esporta `.dxf`) |
+| `params.scad` | Parametri condivisi — **modifica solo questo file** | — | — |
+| `helpers.scad` | Funzioni geometriche condivise | — | — |
+| `assembly.scad` | Solo anteprima in OpenSCAD, non da stampare | — | — |
+
+## Sicurezza: come chiudere la macchina
+
+Il rullo in movimento e l'apertura della tramoggia sono un rischio di
+intrappolamento dita se lasciati accessibili. Il progetto lo affronta su
+più livelli (dettagli e limiti onesti in `../bom.md`, sezione "Nota sulla
+sicurezza meccanica"):
+
+- **Griglia** fissa tra tramoggia e rullo (`grille.scad`)
+- **Scivolo a labirinto** tra rullo e feritoia frontale (`chute.scad`)
+- **Sportello con serratura elettrica + interblocco firmware**:
+  `hopper_lid.scad` si chiude a chiave sulla tramoggia; un sensore
+  magnetico conferma al firmware che è chiuso, e **il motore non parte se
+  non lo è** — qualunque sia l'origine del comando (pulsante, app,
+  dashboard). Vedi `../../software/esphome/cigarette-dispenser.yaml`.
+- **Mobile chiuso** (`cabinet.scad`): l'unica cosa accessibile dall'esterno
+  deve restare il pulsante, la feritoia e lo sportello a chiave.
+
+Nessuna di queste è una certificazione formale (non ISO 13857/EN60204) —
+sono accorgimenti ragionevoli per un uso domestico consapevole, non per un
+contesto con accesso libero di bambini piccoli.
 
 ## IMPORTANTE: misura le tue sigarette prima di stampare
 
@@ -91,8 +123,9 @@ un errore se non lo è (vedi `../../software/esphome`).
 
 ## Assemblaggio
 
-1. Stampa 1× ciascuno di `roller.scad`, `housing.scad`, `hopper.scad`,
-   `chute.scad`, `front_panel.scad`
+1. Stampa 1× ciascuno di `roller.scad`, `housing.scad`, `grille.scad`,
+   `hopper.scad`, `hopper_lid.scad`, `chute.scad`, `front_panel.scad`;
+   taglia i 5 pannelli di `cabinet.scad`
 2. Monta il rullo nell'housing, verifica che giri libero senza attrito
    eccessivo contro le pareti
 3. Fissa il motore al piatto terminale "drive" (foro NEMA17, pattern
@@ -100,11 +133,21 @@ un errore se non lo è (vedi `../../software/esphome`).
 4. Il perno opposto ("idler") scorre nel foro boccola del piatto
    terminale — se vuoi più durata, sostituiscilo con un piccolo
    cuscinetto (vedi `../bom.md`)
-5. Fissa la tramoggia sopra l'apertura di carico, lo scivolo sotto quella
-   di scarico, il pannello frontale in fondo allo scivolo (adatta
-   lunghezza/percorso alla profondità del tuo mobile)
-6. Monta pulsante, LED e sensore di caduta secondo `../wiring.md`
-7. **Prima di caricare sigarette vere**: fai girare il rullo a vuoto
-   qualche ciclo, verifica l'allineamento delle aperture, poi carica
-   poche decine di sigarette per un primo collaudo prima di riempire la
-   tramoggia del tutto
+5. Assembla il mobile (pannelli + angolari, vedi `../bom.md`); il pannello
+   superiore ha il ritaglio per la tramoggia
+6. Incastra la griglia tra la bocca inferiore della tramoggia e
+   l'apertura di carico dell'housing, poi fissa la tramoggia nel ritaglio
+   del pannello superiore
+7. Fissa lo scivolo sotto l'apertura di scarico, il pannello frontale in
+   fondo allo scivolo (adatta lunghezza/percorso alla profondità del tuo
+   mobile)
+8. Monta il coperchio della tramoggia con la cerniera sul lato fronte,
+   la serratura + il sensore magnetico sul lato retro (fori già presenti
+   nel bordo stampato)
+9. Monta pulsante, LED, sensore di caduta e sensore sportello secondo
+   `../wiring.md`
+10. **Prima di caricare sigarette vere**: fai girare il rullo a vuoto
+    qualche ciclo (con lo sportello chiuso, altrimenti l'interblocco lo
+    impedisce), verifica l'allineamento delle aperture, poi carica poche
+    decine di sigarette per un primo collaudo prima di riempire la
+    tramoggia del tutto
