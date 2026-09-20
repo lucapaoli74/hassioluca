@@ -17,9 +17,42 @@ la giunzione — vedi la sezione Assemblaggio.
 reale del meccanismo (rullo, housing, tramoggia, scivolo), e i pannelli
 hanno i fori giusti per avvitarci sopra housing e tramoggia — non solo
 per contenerli a vista. Con i valori di default il mobile è
-154×130×363mm (prima era 180×240×420mm: il calcolo puntuale invece di
-margini forfettari lo ha ristretto parecchio). Vedi `assembly.scad` per
-la vista d'insieme quotata.
+**132×128×316mm** (storia delle riduzioni: 180×240×420mm con margini a
+occhio → 154×130×363mm col primo calcolo puntuale → questi 132×128×316mm
+dopo aver ridotto la tramoggia stessa e i margini al minimo che rispetta
+ancora sia la capienza richiesta sia i vincoli geometrici — vedi sotto).
+Vedi `assembly.scad` per la vista d'insieme quotata.
+
+### Fin dove si può ridurre: i tre vincoli che contano
+
+Ridurre "a piacere" `hopper_top_w/d/h` e i margini del mobile in
+`params.scad` produce in fretta geometrie che sembrano più piccole ma non
+sono valide. Le quote di default sono il risultato di una ricerca numerica
+(non a tentativi) che rispetta questi vincoli, tutti verificati in sessione
+sui file `.scad` risultanti, non solo calcolati a mano:
+
+1. **Capienza**: il volume utile della tramoggia (integrale del tronco di
+   piramide tra `hopper_bot_*` e `hopper_top_*`) per il fattore di
+   impaccamento pessimistico (35%) deve restare >=~100 sigarette — con i
+   valori di default sono **~102** (fino a ~146 al 50%, scenario più
+   realistico).
+2. **Fori d'angolo della tramoggia**: il pannello superiore/i pannelli
+   laterali hanno fori Ø4mm nei punti in cui il bordo della tramoggia
+   (`rim_w`) li combacia — se `side_wall_margin`/`depth_margin` sono troppo
+   stretti rispetto a `hopper_top_w`/`hopper_top_d`, quei fori sfondano il
+   bordo del pannello invece di restarci dentro. `cab_w`/`cab_d` in
+   `params.scad` includono ora questo vincolo esplicitamente
+   (`corner_hole_edge_margin`), non solo un margine forfettario.
+3. **Feritoia del pannello frontale**: `slot_w = drop_w + 8` più i fori
+   d'angolo di fissaggio del pannello non possono essere più larghi del
+   pannello stesso — anche questo è nella formula di `cab_w`, non lasciato
+   a un margine indovinato.
+
+Se cambi `cig_l`/`cig_d` (sigarette diverse) o `flutes`/`wall` (rullo
+diverso), tutte queste quote si ricalcolano da sole — ma rifai comunque la
+verifica di questi tre vincoli (bastano gli stessi comandi usati in
+sessione: `openscad -o out.stl <file>.scad` per la mesh, e un rendering di
+`assembly.scad` per vedere a occhio se qualcosa si sovrappone).
 
 ## Come funziona: rullo scanalato (singolarizzatore)
 
@@ -102,10 +135,15 @@ decimo di millimetro — misurale con un calibro e aggiorna `cig_l`, `cig_d`
 in `params.scad` prima di stampare. Tutte le altre dimensioni (diametro
 rullo, alloggiamento, tramoggia) sono derivate automaticamente.
 
-Con i valori di default: rullo Ø 36.7mm × 88mm, alloggiamento Ø ~60mm,
-tramoggia con capacità stimata 95-160 sigarette a seconda di quanto si
-impaccano (vedi il calcolo commentato in `params.scad`) — abbondantemente
-sopra le 100 richieste anche nello scenario pessimistico.
+Con i valori di default: rullo Ø 36.7mm × 88mm, alloggiamento Ø ~50.7mm,
+tramoggia con capacità stimata 102-146 sigarette a seconda di quanto si
+impaccano (vedi il calcolo commentato in `params.scad`) — sopra le 100
+richieste anche nello scenario pessimistico (35%), ma con meno margine di
+prima: la tramoggia è stata ridotta al minimo che rispetta ancora quella
+soglia, non più sovradimensionata "per sicurezza". Se preferisci più
+scorta a scapito dell'ingombro, aumenta `hopper_h` in `params.scad` (è la
+dimensione più economica da crescere: aggiunge capacità senza spostare i
+tre vincoli geometrici della sezione precedente).
 
 ## Il singolarizzatore richiede una taratura empirica
 

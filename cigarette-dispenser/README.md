@@ -17,7 +17,8 @@ certificato.
 
 🖨️ **Tutti i pezzi, mobile compreso, entrano nel piano di stampa di una
 Bambu X1C** (256×256×256mm) — i pannelli più grandi del mobile sono
-spezzati in segmenti che si avvitano insieme. Il mobile (154×130×363mm) è
+spezzati in segmenti che si avvitano insieme. Il mobile (132×128×316mm,
+ridotto al minimo che rispetta ancora capienza e vincoli di montaggio) è
 dimensionato dalla geometria reale del meccanismo, non da margini a
 occhio, e i suoi pannelli hanno i fori esatti per avvitarci sopra housing
 e tramoggia — vedi `hardware/3d-print/README.md`.
@@ -150,12 +151,22 @@ consapevole, non per un contesto con bambini piccoli senza supervisione.
   letto dai vertici reali di ogni STL/DXF esportato, non stimato
 - Il mobile è stato riprogettato da zero: prima aveva quote a occhio (era
   troppo grande, 180×240×420mm) e nessun punto di fissaggio reale al
-  meccanismo. Ora `cab_w`/`cab_d`/`cab_h` sono formule sulla geometria
-  vera (154×130×363mm), i pannelli laterali portano il pattern di fori
-  dell'housing (più NEMA17 sul lato motore) e il pannello superiore i fori
-  d'angolo della tramoggia; lo scivolo è ridisegnato obliquo per collegare
-  davvero housing e pannello frontale invece di un imbuto dritto "da
-  adattare". Verificato con un `assembly.scad` riscritto che compone tutti
-  i pezzi alle quote reali (rotazioni derivate algebricamente con matrici
-  di rotazione, non a occhio) e renderizzato — vedi le immagini in questa
-  conversazione
+  meccanismo. `cab_w`/`cab_d`/`cab_h` sono formule sulla geometria vera
+  (portandolo a 154×130×363mm), i pannelli laterali portano il pattern di
+  fori dell'housing (più NEMA17 sul lato motore) e il pannello superiore i
+  fori d'angolo della tramoggia; lo scivolo è ridisegnato obliquo per
+  collegare davvero housing e pannello frontale invece di un imbuto
+  dritto "da adattare". Verificato con un `assembly.scad` riscritto che
+  compone tutti i pezzi alle quote reali (rotazioni derivate
+  algebricamente con matrici di rotazione, non a occhio) e renderizzato
+- Il mobile è stato ridotto ulteriormente al minimo pratico: tramoggia
+  ridisegnata (ricerca numerica su capienza vs ingombro, non tentativi a
+  occhio) e margini del mobile stretti fino ai loro vincoli geometrici
+  reali (fori d'angolo tramoggia che non sfondino il bordo pannello,
+  feritoia frontale che non collida con i suoi fori di fissaggio — un
+  vincolo mancato in un primo giro di ottimizzazione e poi aggiunto).
+  Risultato: 132×128×316mm, capienza ~102-146 sigarette invece delle
+  ~111-158 di prima — ancora sopra le 100 richieste nello scenario
+  pessimistico, ma con meno margine. Ogni pezzo ri-verificato manifold
+  (mesh chiusa) e ogni pezzo del mobile ri-verificato sotto i 250mm dal
+  bounding box reale del `.dxf` esportato, non stimato

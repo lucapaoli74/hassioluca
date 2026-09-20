@@ -58,16 +58,20 @@ discharge_gap_deg = 40; // ampiezza apertura di scarico
 
 // --- Tramoggia (hopper) --------------------------------------------------
 // Capienza richiesta: >=100 sigarette sfuse. Volume solido di 100 sigarette
-// =~ 411 cm3; per cilindretti alla rinfusa il fattore di impaccamento reale
+// =~ 412 cm3; per cilindretti alla rinfusa il fattore di impaccamento reale
 // è basso e variabile (si intasano/incrociano) — 35-50% è una stima
-// prudente. Le dimensioni sotto danno un volume utile di ~1.3 L, che
-// garantisce >=100 pezzi anche nello scenario pessimistico (35%): vedi il
-// conto fatto per questo file (~111 sigarette al 35%, fino a ~158 al 50%).
-hopper_top_w   = 130;
-hopper_top_d   = 100;
+// prudente. Queste quote sono il risultato di una ricerca numerica
+// (integrale del volume del tronco di piramide tra hopper_bot_*/top_*,
+// stesso metodo di prima) vincolata a capienza >=~102 pezzi al 35%
+// pessimistico E al minimo ingombro totale del mobile risultante (vedi
+// sotto) — non sono più le prime quote "capienti" trovate: sono le più
+// piccole che rispettano ancora sia la capienza sia i vincoli geometrici
+// di fori/giunzioni del mobile.
+hopper_top_w   = 110;
+hopper_top_d   = 106;
 hopper_bot_w   = roller_len + 6;   // combacia con la larghezza del rullo
 hopper_bot_d   = 34;
-hopper_h       = 190;
+hopper_h       = 172;
 hopper_wall    = 2.4;
 
 // --- Bordo/coperchio/serratura tramoggia (hopper.scad + hopper_lid.scad) -
@@ -105,20 +109,50 @@ drop_h  = 60;
 // condividono queste coordinate senza doverla rifare.
 panel_mat_t  = 9;     // spessore materiale pannelli (legno 9mm o simile — adatta)
 
-side_wall_margin  = 12;  // gioco tra il cerchio dei fori housing e il bordo pannello
-depth_margin      = 15;  // gioco tra la tramoggia e i pannelli fronte/retro
-base_clear        = 35;  // spazio sotto lo scivolo per piedini/elettronica
-mech_gap          = 12;  // gioco verticale tra tramoggia/scivolo e l'housing
-lid_clear         = 15;  // spazio sopra la tramoggia per lo sportello
+// Margini ridotti al minimo pratico (vedi i due vincoli sotto che li
+// sostituiscono quando sono loro a comandare, non un valore a caso più
+// piccolo del necessario):
+side_wall_margin  = 6;   // gioco base tra il cerchio dei fori housing e il bordo pannello
+depth_margin      = 6;   // gioco base tra la tramoggia e i pannelli fronte/retro
+base_clear        = 15;  // spazio sotto lo scivolo per piedini/elettronica
+// il gioco verticale sopra/sotto l'housing NON è lo stesso sui due lati:
+// lato carico (sotto la tramoggia) deve ospitare la griglia di sicurezza
+// (grille.scad: plate_t 2.5 + bar_h 6 =~ 8.5mm) quindi serve un minimo di
+// ~10mm; lato scarico (sopra lo scivolo) non ospita nulla, solo aria di
+// montaggio, quindi basta ~6mm — un solo mech_gap condiviso avrebbe
+// sovradimensionato un lato o schiacciato l'altro
+mech_gap_load  = 10;  // gioco tra tramoggia/griglia e l'housing (lato carico)
+mech_gap_disch = 6;   // gioco tra housing e scivolo (lato scarico)
+lid_clear      = 8;   // spazio sopra la tramoggia per lo sportello
 
-cab_w = max(hopper_top_w, roller_len + 2*end_plate_t) + 2*side_wall_margin;
-cab_d = hopper_top_d + 2*depth_margin;
+// margine minimo tra il centro di un foro d'angolo Ø4mm della tramoggia
+// (sul bordo rim_w) e il bordo del pannello: raggio foro (2mm) + un minimo
+// di materiale pieno intorno (4mm) perché il foro non sfondi il bordo —
+// è un vincolo geometrico reale, non un margine a piacere (vedi cab_w/cab_d)
+corner_hole_edge_margin = 6;
+
+// cab_w deve rispettare TRE vincoli indipendenti, non solo "housing + margine":
+//  1) il cerchio di fori dell'housing (o il rullo) deve stare dentro con
+//     side_wall_margin di gioco
+//  2) i fori d'angolo della tramoggia (a hopper_top_w/2 + rim_w/2 dal
+//     centro) non devono uscire dal bordo pannello — altrimenti il foro
+//     sfonda il pannello invece di restarci dentro
+//  3) la feritoia del pannello frontale (slot_w = drop_w+8, vedi
+//     front_panel.scad) più i suoi fori d'angolo di fissaggio non deve
+//     essere più larga del pannello stesso
+cab_w = max(
+    max(hopper_top_w, roller_len + 2*end_plate_t) + 2*side_wall_margin,
+    hopper_top_w + rim_w + 2*corner_hole_edge_margin,
+    (roller_len + 6) + 8 + 30   // = drop_w + 8 (feritoia) + margine fori d'angolo pannello
+);
+// stesso vincolo (2) applicato in profondità
+cab_d = max(hopper_top_d + 2*depth_margin, hopper_top_d + rim_w + 2*corner_hole_edge_margin);
 
 // centro del rullo/housing dentro al mobile (asse a X=0, cioè a metà cab_w)
 mech_y = cab_d / 2;                        // profondità (centrato)
 mech_z = base_clear + drop_h + housing_or; // altezza da terra
 
-cab_h = lid_clear + hopper_h + mech_gap + 2*housing_or + drop_h + base_clear;
+cab_h = lid_clear + hopper_h + mech_gap_load + 2*housing_or + drop_h + base_clear;
 
 // il pannello frontale sta vicino al fronte (Y piccolo): lo scivolo deve
 // quindi spostarsi in orizzontale dal centro housing (mech_y) fino a lì
@@ -128,10 +162,10 @@ chute_dy  = mech_y - front_y;   // spostamento orizzontale richiesto allo scivol
 // il pannello frontale copre solo la parte bassa (rullo/scivolo): la
 // tramoggia sopra resta "a vista", chiusa dalle sue stesse pareti piene —
 // così il pannello frontale resta sotto i 250mm senza bisogno di spezzarlo
-front_panel_h = mech_z + housing_or + mech_gap;
+front_panel_h = mech_z + housing_or + mech_gap_load;
 
-chute_top_z    = mech_z - housing_or - mech_gap;  // aggancio allo scarico housing
-chute_bottom_z = chute_top_z - drop_h;             // uscita verso il pannello
+chute_top_z    = mech_z - housing_or - mech_gap_disch;  // aggancio allo scarico housing
+chute_bottom_z = chute_top_z - drop_h;                   // uscita verso il pannello
 
 cab_back_margin = depth_margin; // margine tra il bordo posteriore e il ritaglio tramoggia
 
