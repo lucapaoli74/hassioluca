@@ -1,20 +1,14 @@
 // Scivolo di scarico — stampa 1x. Si fissa sotto l'apertura di scarico
-// dell'housing (lato 270°, cioè -Y in questo stesso sistema di riferimento
-// locale — vedi housing.scad) e incanala la sigaretta singola verso il
-// pannello frontale. La lunghezza/piega verso il pannello dipende dalla
-// profondità del TUO mobile: questo pezzo è volutamente un imbuto dritto
-// da adattare (accorcia/allunga `drop_h`, o uniscilo a un tubo/canalina).
+// dell'housing e incanala la sigaretta singola verso il pannello frontale,
+// spostandosi in orizzontale di `chute_dy` (params.scad) per raggiungerlo:
+// il mobile mette la tramoggia/housing al centro e il pannello vicino al
+// fronte, quindi lo scivolo è un condotto obliquo, non dritto.
 include <params.scad>
 
-drop_w  = roller_len + 6;   // combacia con l'apertura di scarico dell'housing
-drop_d1 = discharge_gap_deg > 0 ? 2 * housing_or * sin(discharge_gap_deg/2) + 6 : 30;
-drop_d2 = cig_d + 10;       // uscita: appena più larga della sigaretta
-drop_h  = 60;
-
-module loft(w1, d1, w2, d2, h) {
+module loft(w1, d1, w2, d2, h, dy2 = 0) {
     hull() {
         translate([0, 0, h]) linear_extrude(0.01) square([w1, d1], center = true);
-        linear_extrude(0.01) square([w2, d2], center = true);
+        translate([0, -dy2, 0]) linear_extrude(0.01) square([w2, d2], center = true);
     }
 }
 
@@ -31,6 +25,10 @@ function lerp(a, b, t) = a + (b - a) * t;
 // buca delle lettere o di una cassaforte con imbuto a zig-zag. La
 // sigaretta (piccola, cade tumbling) passa lo stesso dallo spazio lasciato
 // libero sul lato opposto.
+// centro (in Y) della sezione del condotto all'altezza z0 — il condotto è
+// obliquo (vedi loft/dy2), quindi non è fisso a Y=0 come prima
+function center_y(z0) = lerp(-chute_dy, 0, z0 / drop_h);
+
 module baffle(z0, side, cover_frac, thick, overlap = 2) {
     t = z0 / drop_h;
     d = lerp(id_bottom, id_top, t);
@@ -39,8 +37,8 @@ module baffle(z0, side, cover_frac, thick, overlap = 2) {
     // il bordo esterno affonda `overlap` nella parete (unione solida,
     // non tangente) — lo stesso accorgimento usato altrove per evitare
     // mesh non manifold da superfici coincidenti
-    y_far  = side * (d/2 + overlap);
-    y_near = side * (d/2 - cov);
+    y_far  = center_y(z0) + side * (d/2 + overlap);
+    y_near = center_y(z0) + side * (d/2 - cov);
     translate([0, (y_far + y_near) / 2, z0])
         cube([w, abs(y_far - y_near), thick], center = true);
 }
@@ -48,9 +46,9 @@ module baffle(z0, side, cover_frac, thick, overlap = 2) {
 module chute() {
     union() {
         difference() {
-            loft(drop_w, drop_d1, drop_w - 6, drop_d2, drop_h);
+            loft(drop_w, drop_d1, drop_w - 6, drop_d2, drop_h, chute_dy);
             translate([0, 0, -1])
-                loft(iw_top, id_top, iw_bottom, id_bottom, drop_h + 2);
+                loft(iw_top, id_top, iw_bottom, id_bottom, drop_h + 2, chute_dy);
         }
         // le alette si aggiungono DOPO aver scavato la cavità, altrimenti
         // la sottrazione le rimuoverebbe (sono dimensionate per stare

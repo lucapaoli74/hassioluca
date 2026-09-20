@@ -17,8 +17,10 @@ certificato.
 
 🖨️ **Tutti i pezzi, mobile compreso, entrano nel piano di stampa di una
 Bambu X1C** (256×256×256mm) — i pannelli più grandi del mobile sono
-spezzati in segmenti che si avvitano insieme, vedi
-`hardware/3d-print/README.md`.
+spezzati in segmenti che si avvitano insieme. Il mobile (154×130×363mm) è
+dimensionato dalla geometria reale del meccanismo, non da margini a
+occhio, e i suoi pannelli hanno i fori esatti per avvitarci sopra housing
+e tramoggia — vedi `hardware/3d-print/README.md`.
 
 ## Struttura del repository
 
@@ -146,3 +148,14 @@ consapevole, non per un contesto con bambini piccoli senza supervisione.
   del mobile, pannelli spezzati inclusi) rientri nei 250mm per lato
   (margine di sicurezza sotto i 256mm del piano Bambu X1C) — bounding box
   letto dai vertici reali di ogni STL/DXF esportato, non stimato
+- Il mobile è stato riprogettato da zero: prima aveva quote a occhio (era
+  troppo grande, 180×240×420mm) e nessun punto di fissaggio reale al
+  meccanismo. Ora `cab_w`/`cab_d`/`cab_h` sono formule sulla geometria
+  vera (154×130×363mm), i pannelli laterali portano il pattern di fori
+  dell'housing (più NEMA17 sul lato motore) e il pannello superiore i fori
+  d'angolo della tramoggia; lo scivolo è ridisegnato obliquo per collegare
+  davvero housing e pannello frontale invece di un imbuto dritto "da
+  adattare". Verificato con un `assembly.scad` riscritto che compone tutti
+  i pezzi alle quote reali (rotazioni derivate algebricamente con matrici
+  di rotazione, non a occhio) e renderizzato — vedi le immagini in questa
+  conversazione

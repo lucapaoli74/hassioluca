@@ -8,7 +8,7 @@ variano molto per fornitore.
 
 | Componente | Specifica | Qtà | Note |
 |---|---|---|---|
-| Motore passo-passo | NEMA17, 1.0-1.5A, 34-40mm corpo | 1 | Il rullo ha attrito/carico bassi: non serve un NEMA17 "pesante" |
+| Motore passo-passo | NEMA17, 1.0-1.5A, 34-40mm corpo | 1 | Il rullo ha attrito/carico bassi: non serve un NEMA17 "pesante". Si avvita da FUORI sul pannello laterale "drive" del mobile (foro pattern 31mm già nel pannello) — resta fuori dal mobile, solo l'albero entra |
 | Driver motore | A4988 o DRV8825 | 1 | Pilotato da ESP32 via ESPHome |
 | Alimentatore driver | 12V 1.5-2A (separato dalla logica) | 1 | Alimenta solo il motore |
 | Giunto flessibile albero | 5mm (lato motore) → 6mm (lato rullo) | 1 | Assorbe piccoli disallineamenti |

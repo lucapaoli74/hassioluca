@@ -12,6 +12,15 @@ STL/DXF esportato, margine di sicurezza a 250mm in `x1c_max`,
 lati e retro) sono spezzati in due segmenti che si avvitano insieme lungo
 la giunzione — vedi la sezione Assemblaggio.
 
+**Il mobile non è più un guscio a misura indovinata**: le sue quote
+(`cab_w`/`cab_d`/`cab_h` in `params.scad`) sono calcolate dalla geometria
+reale del meccanismo (rullo, housing, tramoggia, scivolo), e i pannelli
+hanno i fori giusti per avvitarci sopra housing e tramoggia — non solo
+per contenerli a vista. Con i valori di default il mobile è
+154×130×363mm (prima era 180×240×420mm: il calcolo puntuale invece di
+margini forfettari lo ha ristretto parecchio). Vedi `assembly.scad` per
+la vista d'insieme quotata.
+
 ## Come funziona: rullo scanalato (singolarizzatore)
 
 Non è più un carosello di pacchetti: la macchina tiene le sigarette
@@ -57,9 +66,9 @@ inventata qui):
 | `grille.scad` | Griglia di sicurezza tramoggia→rullo | 1 | stampa 3D |
 | `hopper.scad` | Tramoggia (>=100 sigarette) + bordo per coperchio | 1 | stampa 3D |
 | `hopper_lid.scad` | Coperchio della tramoggia (cerniera + serratura) | 1 | stampa 3D |
-| `chute.scad` | Scivolo a labirinto — **da adattare alla profondità del tuo mobile** | 1 | stampa 3D |
-| `front_panel.scad` | Pannello con pulsante, LED, feritoia | 1 | stampa 3D o dima per taglio |
-| `cabinet.scad` | Pannelli del mobile (sopra/sotto + fianchi/retro spezzati in 2) | 8 | stampa 3D, o taglio laser/CNC/sega (esporta `.dxf`) |
+| `chute.scad` | Scivolo a labirinto, obliquo (collega housing e pannello frontale) | 1 | stampa 3D |
+| `front_panel.scad` | Pannello con pulsante, LED, feritoia — copre solo la parte bassa del mobile | 1 | stampa 3D o dima per taglio |
+| `cabinet.scad` | Pannelli del mobile, con fori di fissaggio per housing e tramoggia (sopra/sotto + fianchi/retro spezzati in 2) | 8 | stampa 3D, o taglio laser/CNC/sega (esporta `.dxf`) |
 | `params.scad` | Parametri condivisi — **modifica solo questo file** | — | — |
 | `helpers.scad` | Funzioni geometriche condivise | — | — |
 | `assembly.scad` | Solo anteprima in OpenSCAD, non da stampare | — | — |
@@ -128,6 +137,35 @@ un errore se non lo è (vedi `../../software/esphome`).
   minimi sotto gli sbalzi dei piatti terminali
 - Foro albero del rullo (6mm): rifinisci con un trapano se stampa stretta
 
+## Come si ancora il meccanismo al mobile
+
+Non è un guscio generico: i pannelli hanno i fori esatti per i punti di
+fissaggio che housing e tramoggia già hanno.
+
+- **Housing → pannelli laterali**: l'housing ha 4 orecchiette con foro su
+  ciascuno dei due piatti terminali (`mount_ear_r`/`mount_hole_r` in
+  `params.scad`). I pannelli laterali del mobile hanno lo **stesso
+  identico pattern di 4 fori**, più un foro centrale per l'albero — quindi
+  l'housing si avvita direttamente ai due fianchi, non "da qualche parte
+  dentro alla scatola". Il fianco lato motore ha in più il pattern NEMA17
+  (passo 31mm) e un foro Ø24mm per l'albero: **il motore resta fuori dal
+  mobile**, avvitato da fuori, solo l'albero entra — niente bisogno di
+  fargli spazio dentro.
+- **Tramoggia → pannello superiore**: il pannello superiore ha 4 fori
+  d'angolo allineati esattamente agli angoli del bordo della tramoggia
+  (`hopper.scad`), oltre al ritaglio che la fa sporgere.
+- **Scivolo → housing/pannello frontale**: lo scivolo non è più un
+  imbuto dritto "da adattare" — è disegnato obliquo (`chute_dy` in
+  params.scad) per collegare esattamente lo scarico dell'housing (al
+  centro del mobile) alla feritoia del pannello frontale (vicino al
+  fronte). Un paio di mm di gioco alla giunzione vanno comunque rifiniti/
+  incollati a mano, non è una tolleranza da lavorazione CNC.
+- **Pannello frontale**: copre solo la parte bassa del mobile (fino a
+  `front_panel_h`, sotto i 250mm — non spezzato), quindi la tramoggia
+  resta "a vista" sopra, chiusa dalle sue stesse pareti piene.
+
+Vedi `assembly.scad` per la vista 3D con tutte queste quote applicate.
+
 ## Assemblaggio
 
 1. Stampa 1× ciascuno di `roller.scad`, `housing.scad`, `grille.scad`,
@@ -138,25 +176,29 @@ un errore se non lo è (vedi `../../software/esphome`).
    fascetta/listello interno a cavallo della cucitura per irrigidirla
 2. Monta il rullo nell'housing, verifica che giri libero senza attrito
    eccessivo contro le pareti
-3. Fissa il motore al piatto terminale "drive" (foro NEMA17, pattern
-   31mm) con un giunto flessibile verso l'albero del rullo
-4. Il perno opposto ("idler") scorre nel foro boccola del piatto
-   terminale — se vuoi più durata, sostituiscilo con un piccolo
-   cuscinetto (vedi `../bom.md`)
-5. Assembla il mobile (pannelli + angolari, vedi `../bom.md`); il pannello
-   superiore ha il ritaglio per la tramoggia
-6. Incastra la griglia tra la bocca inferiore della tramoggia e
-   l'apertura di carico dell'housing, poi fissa la tramoggia nel ritaglio
-   del pannello superiore
-7. Fissa lo scivolo sotto l'apertura di scarico, il pannello frontale in
-   fondo allo scivolo (adatta lunghezza/percorso alla profondità del tuo
-   mobile)
-8. Monta il coperchio della tramoggia con la cerniera sul lato fronte,
-   la serratura + il sensore magnetico sul lato retro (fori già presenti
-   nel bordo stampato)
-9. Monta pulsante, LED, sensore di caduta e sensore sportello secondo
-   `../wiring.md`
-10. **Prima di caricare sigarette vere**: fai girare il rullo a vuoto
+3. Avvita l'housing ai due pannelli laterali del mobile usando i fori
+   delle orecchiette (stesso pattern su housing e pannelli, vedi sopra)
+4. Avvita il motore da fuori sul pannello laterale "drive" (pattern
+   NEMA17), collega l'albero all'housing con un giunto flessibile
+   attraverso il foro Ø24mm
+5. Il perno "idler" scorre nel foro di passaggio sul pannello laterale
+   opposto — se vuoi più durata, aggiungi un piccolo cuscinetto lì
+   (vedi `../bom.md`)
+6. Completa il mobile (pannello inferiore, posteriore, angolari agli
+   spigoli, vedi `../bom.md`)
+7. Incastra la griglia tra la bocca inferiore della tramoggia e
+   l'apertura di carico dell'housing, poi avvita la tramoggia ai 4 fori
+   d'angolo del pannello superiore
+8. Fissa lo scivolo sotto l'apertura di scarico dell'housing; il suo
+   fondo arriva vicino alla feritoia del pannello frontale — rifinisci/
+   incolla la giunzione
+9. Avvita il pannello frontale in fondo al mobile
+10. Monta il coperchio della tramoggia con la cerniera sul lato fronte,
+    la serratura + il sensore magnetico sul lato retro (fori già presenti
+    nel bordo stampato)
+11. Monta pulsante, LED, sensore di caduta e sensore sportello secondo
+    `../wiring.md`
+12. **Prima di caricare sigarette vere**: fai girare il rullo a vuoto
     qualche ciclo (con lo sportello chiuso, altrimenti l'interblocco lo
     impedisce), verifica l'allineamento delle aperture, poi carica poche
     decine di sigarette per un primo collaudo prima di riempire la

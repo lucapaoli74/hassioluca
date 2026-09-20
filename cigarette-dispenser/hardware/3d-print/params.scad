@@ -39,6 +39,16 @@ housing_wall    = 3;
 housing_or      = housing_ir + housing_wall;
 end_plate_t     = 4;
 
+// orecchiette di fissaggio sui piatti terminali (drive/idler): stesso
+// calcolo usato in housing.scad, riportato qui come unica fonte di verità
+// così il mobile (cabinet.scad) sa esattamente dove mettere i fori
+// corrispondenti sui pannelli laterali, invece di indovinare le quote.
+mount_ear_r      = housing_or - 6;   // raggio al centro dell'orecchietta
+mount_hole_off   = 8;                // offset del foro dentro l'orecchietta
+mount_hole_d     = 3.4;
+mount_angles     = [45, 135, 225, 315];
+mount_hole_r     = mount_ear_r + mount_hole_off;  // raggio dei fori dall'asse rullo
+
 // apertura di carico (sopra, sotto la tramoggia) e di scarico (sotto)
 load_gap_deg    = 55;   // ampiezza apertura di carico
 discharge_gap_deg = 40; // ampiezza apertura di scarico
@@ -68,16 +78,62 @@ hinge_x      = [-30, 30];  // posizione viti cerniera, lato -Y (fronte)
 latch_hole_d = 4;          // foro per il gancio della serratura, lato +Y (retro)
 reed_hole_d  = 6;          // foro per il sensore magnetico di sportello chiuso
 
-// --- Mobile esterno (cabinet.scad) — pannelli piatti, non stampati -------
+// --- Scivolo (chute.scad) -------------------------------------------------
+drop_w  = roller_len + 6;   // combacia con l'apertura di scarico dell'housing
+drop_d1 = discharge_gap_deg > 0 ? 2 * housing_or * sin(discharge_gap_deg/2) + 6 : 30;
+drop_d2 = cig_d + 10;       // uscita: appena più larga della sigaretta
+drop_h  = 60;
+
+// --- Mobile esterno (cabinet.scad + front_panel.scad) — pannelli piatti --
 // Un guscio 3D pieno di queste dimensioni non è stampabile in un pezzo
-// solo: qui si generano pannelli piatti (taglio laser/CNC/sega) che
+// solo: qui si generano pannelli piatti (stampabili o tagliabili) che
 // racchiudono il meccanismo, lasciando accessibili solo pulsante,
 // feritoia e sportello tramoggia con serratura.
-cab_w        = 180;   // larghezza (sx-dx)
-cab_d        = 240;   // profondità (fronte-retro)
-cab_h        = 420;   // altezza
+//
+// Non sono più quote a caso: il mobile è dimensionato dalla geometria
+// reale del meccanismo (roller_len, housing_or, hopper_*, drop_h) così
+// resta corretto se cambi le sigarette o il numero di scanalature in cima
+// a questo file — e soprattutto i pannelli hanno fori nei punti giusti per
+// avvitare l'housing e la tramoggia, non solo per contenerli a vista.
+//
+// Assi: X = larghezza (asse del rullo, orizzontale, centrato su 0), Y =
+// profondità (0 = fronte del mobile), Z = altezza (0 = fondo del mobile).
+// Il rullo/housing non stanno ruotati "a caso" per starci dentro: la
+// rotazione che li porta in orizzontale con questa stessa convenzione di
+// assi (rotate([90,0,90]) — verificata algebricamente, vedi assembly.scad)
+// è definita una sola volta lì, e sia cabinet.scad sia front_panel.scad
+// condividono queste coordinate senza doverla rifare.
 panel_mat_t  = 9;     // spessore materiale pannelli (legno 9mm o simile — adatta)
-cab_back_margin = 15; // margine tra il bordo posteriore e il ritaglio tramoggia
+
+side_wall_margin  = 12;  // gioco tra il cerchio dei fori housing e il bordo pannello
+depth_margin      = 15;  // gioco tra la tramoggia e i pannelli fronte/retro
+base_clear        = 35;  // spazio sotto lo scivolo per piedini/elettronica
+mech_gap          = 12;  // gioco verticale tra tramoggia/scivolo e l'housing
+lid_clear         = 15;  // spazio sopra la tramoggia per lo sportello
+
+cab_w = max(hopper_top_w, roller_len + 2*end_plate_t) + 2*side_wall_margin;
+cab_d = hopper_top_d + 2*depth_margin;
+
+// centro del rullo/housing dentro al mobile (asse a X=0, cioè a metà cab_w)
+mech_y = cab_d / 2;                        // profondità (centrato)
+mech_z = base_clear + drop_h + housing_or; // altezza da terra
+
+cab_h = lid_clear + hopper_h + mech_gap + 2*housing_or + drop_h + base_clear;
+
+// il pannello frontale sta vicino al fronte (Y piccolo): lo scivolo deve
+// quindi spostarsi in orizzontale dal centro housing (mech_y) fino a lì
+front_y   = 14;                 // profondità del centro feritoia dal fronte
+chute_dy  = mech_y - front_y;   // spostamento orizzontale richiesto allo scivolo
+
+// il pannello frontale copre solo la parte bassa (rullo/scivolo): la
+// tramoggia sopra resta "a vista", chiusa dalle sue stesse pareti piene —
+// così il pannello frontale resta sotto i 250mm senza bisogno di spezzarlo
+front_panel_h = mech_z + housing_or + mech_gap;
+
+chute_top_z    = mech_z - housing_or - mech_gap;  // aggancio allo scarico housing
+chute_bottom_z = chute_top_z - drop_h;             // uscita verso il pannello
+
+cab_back_margin = depth_margin; // margine tra il bordo posteriore e il ritaglio tramoggia
 
 // Piano di stampa Bambu X1C: 256x256x256mm. Qui sotto un margine di
 // sicurezza (bordo letto, adesione, calibro) — nessun pezzo, pannelli del
@@ -85,3 +141,20 @@ cab_back_margin = 15; // margine tra il bordo posteriore e il ritaglio tramoggia
 x1c_max      = 250;
 seam_hole_d  = 4;      // fori M4 lungo la giunzione dei pannelli spezzati
 seam_hole_n  = 5;
+
+// motore NEMA17: fori esterni sul pannello laterale lato "drive" — il
+// motore resta FUORI dal mobile (solo l'albero entra), niente bisogno di
+// spazio interno dedicato al suo corpo
+nema17_hole_spacing = 31;
+nema17_hole_d        = 3.4;
+nema17_shaft_bore_d  = 24;
+idler_shaft_clear_d  = shaft_d + 2;  // foro di passaggio sul pannello lato folle
+
+// segmento del pannello laterale/posteriore in cui cade il centro
+// dell'housing, e sua quota locale dentro quel segmento — usati da
+// cabinet.scad per mettere il cerchio di fissaggio housing nel pezzo
+// giusto, senza tagliarlo a metà lungo una giunzione
+cab_seg_n     = ceil(cab_h / x1c_max);
+cab_seg_h     = cab_h / cab_seg_n;
+mech_seg_i    = floor(mech_z / cab_seg_h);
+mech_local_z  = mech_z - mech_seg_i * cab_seg_h - cab_seg_h / 2;

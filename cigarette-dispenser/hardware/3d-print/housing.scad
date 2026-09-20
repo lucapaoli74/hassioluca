@@ -30,16 +30,18 @@ module housing_tube() {
 
 // orecchiette di fissaggio: sporgono radialmente dal piatto terminale, con
 // foro passante lungo Z (stessa direzione dello spessore del piatto) per
-// avvitare l'alloggiamento al pannello frontale/posteriore del mobile
+// avvitare l'alloggiamento ai pannelli laterali del mobile (cabinet.scad,
+// che riusa mount_ear_r/mount_hole_off/mount_angles da params.scad per
+// mettere i fori corrispondenti esattamente dove servono)
 module mount_ears(t) {
-    for (a = [0, 90, 180, 270])
-        rotate([0, 0, a + 45])
-            translate([housing_or - 6, 0, 0])
+    for (a = mount_angles)
+        rotate([0, 0, a])
+            translate([mount_ear_r, 0, 0])
                 difference() {
                     linear_extrude(height = t)
                         translate([0, -7]) square([16, 14]);
-                    translate([8, 0, -1])
-                        cylinder(d = 3.4, h = t + 2, $fn = 16);
+                    translate([mount_hole_off, 0, -1])
+                        cylinder(d = mount_hole_d, h = t + 2, $fn = 16);
                 }
 }
 

@@ -1,42 +1,55 @@
 // Pannello frontale — stampa 1x (o taglialo da un pannello piatto:
 // legno/plexiglass/alluminio, usando questo file solo come dima/misure).
-// Ospita: pulsante di erogazione, LED di stato, feritoia di uscita
-// sigaretta allineata allo scivolo (chute.scad).
+// Copre solo la parte bassa del mobile (rullo/scivolo): la tramoggia sopra
+// resta chiusa dalle sue stesse pareti, quindi questo pannello sta sotto i
+// 250mm e non va spezzato per la stampa. Ospita: pulsante di erogazione,
+// LED di stato, feritoia di uscita allineata allo scivolo (chute.scad).
 //
 // SICUREZZA: la feritoia deve restare lunga quanto la sigaretta (non si
 // può restringere sotto quella misura, è un vincolo fisico del prodotto),
 // quindi da sola NON impedisce di infilare una mano — è lo scivolo dietro
 // di essa (le alette sfalsate in chute.scad) a impedire di raggiungere in
 // linea retta il rullo. Qui riduciamo solo la larghezza al minimo utile.
+//
+// Stessa convenzione di assi del mobile (params.scad): X = larghezza
+// (centrata su 0), Z = altezza da terra, Y = spessore/profondità.
 include <params.scad>
 
-panel_w = 160;
-panel_h = 200;
+panel_w = cab_w;
+panel_h = front_panel_h;
 panel_t = 4;
 
 button_d   = 16;   // pulsante momentaneo antivandalo 16mm, foro standard
 led_d      = 8;
-slot_w     = roller_len + 8;   // un po' più larga dell'uscita dello scivolo
+slot_w     = drop_w + 8;       // un po' più larga dell'uscita dello scivolo
 slot_h     = cig_d + 6;        // stretta il giusto per far uscire la sigaretta
+slot_z     = chute_bottom_z;   // allineata all'uscita reale dello scivolo
+button_z   = panel_h * 0.55;
+led_z      = button_z + 30;
 
 module front_panel() {
     difference() {
-        cube([panel_w, panel_h, panel_t]);
-        // feritoia di uscita, in basso, centrata
-        translate([panel_w/2, slot_h/2 + 15, -1])
-            linear_extrude(height = panel_t + 2)
-                square([slot_w, slot_h], center = true);
-        // pulsante, al centro
-        translate([panel_w/2, panel_h/2, -1])
-            cylinder(d = button_d, h = panel_t + 2, $fn = 32);
+        translate([-panel_w/2, 0, 0])
+            cube([panel_w, panel_t, panel_h]);
+        // feritoia di uscita, allineata allo scivolo
+        translate([0, -1, slot_z])
+            rotate([-90, 0, 0])
+                linear_extrude(height = panel_t + 2)
+                    square([slot_w, slot_h], center = true);
+        // pulsante
+        translate([0, -1, button_z])
+            rotate([-90, 0, 0])
+                cylinder(d = button_d, h = panel_t + 2, $fn = 32);
         // LED di stato, sopra al pulsante
-        translate([panel_w/2, panel_h/2 + 30, -1])
-            cylinder(d = led_d, h = panel_t + 2, $fn = 24);
+        translate([0, -1, led_z])
+            rotate([-90, 0, 0])
+                cylinder(d = led_d, h = panel_t + 2, $fn = 24);
         // fori di fissaggio agli angoli
-        for (x = [10, panel_w - 10])
-            for (y = [10, panel_h - 10])
-                translate([x, y, -1])
-                    cylinder(d = 4, h = panel_t + 2, $fn = 16);
+        for (x = [-panel_w/2 + 10, panel_w/2 - 10])
+            for (z = [10, panel_h - 10])
+                translate([x, -1, z])
+                    rotate([-90, 0, 0])
+                        cylinder(d = 4, h = panel_t + 2, $fn = 16);
     }
 }
 
