@@ -1,11 +1,12 @@
 // Coperchio della tramoggia — stampa 1x. Si appoggia sul bordo aggiunto in
 // hopper.scad (hopper_rim), con un labbro che scende dentro l'apertura
 // per allinearsi e non lasciare fessure per le dita. Si apre con una
-// cerniera comune (non stampata: vedi bom.md) fissata sul lato fronte, e
-// si blocca con la serratura elettrica sul lato retro — vedi
-// software/esphome (switch "Serratura tramoggia") e hardware/wiring.md
-// per il sensore magnetico che conferma allo sportello di essere chiuso
-// prima che il firmware autorizzi un'erogazione.
+// cerniera STAMPATA (nocche qui + 3 su hopper.scad, un perno che è solo
+// uno spezzone del tuo filamento da 1.75mm — vedi helpers.scad) fissata
+// sul lato fronte, e si blocca con la serratura elettrica sul lato retro —
+// vedi software/esphome (switch "Serratura tramoggia") e
+// hardware/wiring.md per il sensore magnetico che conferma allo sportello
+// di essere chiuso prima che il firmware autorizzi un'erogazione.
 include <params.scad>
 include <helpers.scad>
 
@@ -31,13 +32,18 @@ module skirt() {
         }
 }
 
-module hinge_tab(x) {
-    translate([x, -lid_d/2 + rim_w/2, 0])
-        difference() {
-            cylinder(d = 10, h = lid_t, center = true, $fn = 20);
-            cylinder(d = hinge_hole_d, h = lid_t + 2, center = true, $fn = 16);
-        }
-}
+// Nocche MOBILI della cerniera stampata (le 3 fisse sono sul bordo D, vedi
+// hopper.scad): agli slot dispari 1/3 dello stesso pettine a 5 slot, così
+// si incastrano tra le nocche di D invece di scontrarci.
+//
+// Quota Z: in assembly.scad D sta a translate z=front_panel_h, E sta a
+// translate z=front_panel_h+hopper_h (nessuna rotazione su nessuno dei
+// due) — per far coincidere in mondo la quota hinge_z di D (locale a D)
+// con quella di E, serve E_local_z = D_hinge_z - hopper_h. Y invece è
+// identica su entrambi senza conversioni (stesso offset mech_y per
+// entrambi i pezzi).
+hinge_y = -lid_d/2 + rim_w/2;   // = -hopper_top_d/2 - rim_w/2, stessa Y di D
+hinge_z = -rim_t/2;             // = (hopper_h - rim_t/2) - hopper_h
 
 module latch_catch() {
     // linguetta con foro per il gancio/perno della serratura elettrica
@@ -53,9 +59,11 @@ module hopper_lid() {
         union() {
             lid_plate();
             skirt();
-            for (x = hinge_x) hinge_tab(x);
+            hinge_knuckle_solid(-hinge_knuckle_pitch, hinge_y, hinge_z);
+            hinge_knuckle_solid(hinge_knuckle_pitch, hinge_y, hinge_z);
             latch_catch();
         }
+        hinge_pin_cut(hinge_y, hinge_z);
         // Lettera "E" (vedi assembly-guide.md): angolo posteriore destro,
         // lontano da cerniere (fronte) e gancio serratura (retro sinistra)
         label_cut("E", 45, 50, lid_t/2, size = 6);

@@ -19,13 +19,17 @@ module roller() {
             rotate([0, 0, i * 360 / flutes])
                 translate([r_pitch, 0, -1])
                     cylinder(r = groove_d/2, h = roller_len + 2, $fn = 32);
-        // foro per il giunto dell'albero motore
+        // foro per lo stelo dell'accoppiatore stampato (coupler.scad),
+        // lato motore = Z0 (vedi housing.scad: drive_end_plate sta a
+        // Z negativo, prima di questo rullo)
         translate([0, 0, -1])
             cylinder(d = shaft_d, h = roller_len + 2, $fn = 32);
-        // foro per la vite di bloccaggio del giunto
-        translate([-roller_r - 1, 0, roller_len/2])
+        // foro per la spina di bloccaggio (spezzone di filo/chiodo 3mm, o
+        // una spina stampata) — a roller_pin_z dal lato motore, dentro la
+        // profondità d'innesto dell'accoppiatore (coupler_roller_len)
+        translate([-roller_r - 1, 0, roller_pin_z])
             rotate([0, 90, 0])
-                cylinder(d = 3.2, h = roller_r*2 + 2, $fn = 16);
+                cylinder(d = coupler_pin_d, h = roller_r*2 + 2, $fn = 16);
         label_cut("A", (shaft_d/2 + core_r)/2, 0, roller_len);
     }
 }

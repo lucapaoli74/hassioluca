@@ -17,11 +17,14 @@ certificato.
 
 🖨️ **Tutti i pezzi, mobile compreso, entrano nel piano di stampa di una
 Bambu X1C** (256×256×256mm) — i pannelli più grandi del mobile sono
-spezzati in segmenti che si avvitano insieme. Il mobile (132×128×316mm,
-ridotto al minimo che rispetta ancora capienza e vincoli di montaggio) è
-dimensionato dalla geometria reale del meccanismo, non da margini a
-occhio, e i suoi pannelli hanno i fori esatti per avvitarci sopra housing
-e tramoggia — vedi `hardware/3d-print/README.md`.
+spezzati in segmenti che si incastrano (giunto a pettine) e si incollano,
+niente più viti/staffe. Il mobile (132×128×316mm, ridotto al minimo che
+rispetta ancora capienza e vincoli di montaggio) è dimensionato dalla
+geometria reale del meccanismo, non da margini a occhio, e i suoi
+pannelli hanno i punti di fissaggio esatti per housing e tramoggia —
+**quasi tutta la ferramenta comprata è stata sostituita da incastri e
+viti stampate** (restano solo le 4 viti del motore), vedi
+`hardware/3d-print/README.md`.
 
 ## Struttura del repository
 
@@ -39,6 +42,7 @@ cigarette-dispenser/
 │   │   ├── chute.scad          scivolo a labirinto anti-intrusione
 │   │   ├── front_panel.scad    pannello con pulsante, LED, feritoia
 │   │   ├── cabinet.scad        pannelli del mobile (stampa 3D o taglio)
+│   │   ├── coupler.scad        accoppiatore stampato motore↔rullo
 │   │   ├── assembly.scad       anteprima assemblaggio (non da stampare)
 │   │   └── README.md           come funziona, sicurezza, impostazioni di stampa
 │   ├── bom.md                ← parti standard da comprare
@@ -170,3 +174,22 @@ consapevole, non per un contesto con bambini piccoli senza supervisione.
   pessimistico, ma con meno margine. Ogni pezzo ri-verificato manifold
   (mesh chiusa) e ogni pezzo del mobile ri-verificato sotto i 250mm dal
   bounding box reale del `.dxf` esportato, non stimato
+- Quasi tutta la ferramenta comprata è stata sostituita da incastri e
+  viti stampate: spigoli verticali del mobile e giunzioni dei pannelli
+  spezzati sono ora incastri da incollare (perni di centraggio + giunto a
+  pettine — quest'ultimo verificato per costruzione, non solo a occhio:
+  l'unione dei denti dei due lati copre l'intera giunzione senza vuoti,
+  l'intersezione è vuota, cioè zero sovrapposizioni); housing/tramoggia/
+  pannello frontale si avvitano con viti stampate (filettatura propria,
+  non metrica) invece che con viti+dadi comprati; la cerniera del
+  coperchio tramoggia è nocche stampate con un perno di filamento invece
+  di una cerniera comprata; i piedini sono stampati nel pannello di
+  fondo. Resta comprato solo ciò che è elettronico più le 4 viti che
+  fissano il motore (filettate nel suo corpo metallico). Aggiunto anche
+  un accoppiatore stampato motore↔rullo (`coupler.scad`) al posto del
+  giunto flessibile comprato — l'unico pezzo di questa revisione non
+  stampato e provato sotto carico reale in questa sessione, con una nota
+  di rischio dedicata e un percorso di riserva (giunto comprato) in
+  `hardware/bom.md`. Ogni pezzo modificato ri-verificato manifold; le
+  posizioni delle giunzioni verificate algebricamente con le stesse
+  trasformazioni usate per il resto dell'assemblaggio, non a occhio

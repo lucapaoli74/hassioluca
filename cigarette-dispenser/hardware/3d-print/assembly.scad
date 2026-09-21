@@ -53,26 +53,30 @@ translate([0, mech_y, chute_bottom_z])
 color("white") front_panel();
 
 // --- mobile: pannelli come guscio semitrasparente, alle quote reali -----
+// Usa le versioni _3d() (stessa fonte del file da stampare/esportare), non
+// i moduli 2D grezzi: così l'anteprima mostra anche i giunti a pettine, le
+// linguette/tasche di centraggio, le svasature e i piedini — se qualcosa
+// non incastra è lo stesso identico solido che finirebbe stampato, non una
+// versione semplificata.
 cab_col = [0.55, 0.6, 0.66];
-module panel_extrude(t) { linear_extrude(height = t) children(); }
 
 // Rotazioni verificate algebricamente (stessa ricerca a matrice usata per
 // rullo/housing): rotate([90,0,90]) manda gli assi locali del pannello
 // (x=profondità, y=altezza, z=spessore) in (Y,Z,X) mondo; rotate([90,0,0])
 // manda quelli del retro (x=larghezza, y=altezza, z=spessore) in (X,Z,-Y).
 color(cab_col, 0.18) {
-    translate([0, cab_d/2, cab_h]) panel_extrude(panel_mat_t) top_panel();
-    translate([0, cab_d/2, -panel_mat_t]) panel_extrude(panel_mat_t) bottom_panel();
+    translate([0, cab_d/2, cab_h]) top_panel_3d();
+    translate([0, cab_d/2, -panel_mat_t]) bottom_panel_3d();
     for (i = [0:cab_seg_n - 1])
         translate([-cab_w/2, cab_d/2, i*cab_seg_h + cab_seg_h/2])
             rotate([90, 0, 90])
-                panel_extrude(panel_mat_t) side_panel_seg(i, true);
+                side_panel_seg_3d(i, true, "J", 0, 0);
     for (i = [0:cab_seg_n - 1])
         translate([cab_w/2 - panel_mat_t, cab_d/2, i*cab_seg_h + cab_seg_h/2])
             rotate([90, 0, 90])
-                panel_extrude(panel_mat_t) side_panel_seg(i, false);
+                side_panel_seg_3d(i, false, "L", 0, 0);
     for (i = [0:cab_seg_n - 1])
         translate([0, cab_d, i*cab_seg_h + cab_seg_h/2])
             rotate([90, 0, 0])
-                panel_extrude(panel_mat_t) back_panel_seg(i);
+                back_panel_seg_3d(i, "N", 0, 0);
 }

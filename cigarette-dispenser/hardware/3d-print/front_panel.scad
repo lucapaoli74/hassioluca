@@ -28,6 +28,12 @@ slot_z     = chute_bottom_z;   // allineata all'uscita reale dello scivolo
 button_z   = panel_h * 0.55;
 led_z      = button_z + 30;
 
+// fori di fissaggio ai fianchi (J/L): centrati sullo spessore dei pannelli
+// laterali (non sul loro bordo — un foro esattamente sul bordo manca il
+// materiale), vedi side_panel_seg_3d() in cabinet.scad per il foro
+// filettato corrispondente, bucato di taglio nel bordo anteriore del fianco
+fix_x = cab_w/2 - panel_mat_t/2;
+
 module front_panel() {
     difference() {
         translate([-panel_w/2, 0, 0])
@@ -45,12 +51,19 @@ module front_panel() {
         translate([0, -1, led_z])
             rotate([-90, 0, 0])
                 cylinder(d = led_d, h = panel_t + 2, $fn = 24);
-        // fori di fissaggio agli angoli
-        for (x = [-panel_w/2 + 10, panel_w/2 - 10])
-            for (z = [10, panel_h - 10])
+        // fori di fissaggio: passaggio vite stampata (helpers.scad) verso
+        // il fianco, con svasatura per la testa esagonale sulla faccia
+        // esterna (y=0, quella vista dall'utente) così non sporge
+        for (x = [-fix_x, fix_x])
+            for (z = [10, panel_h - 10]) {
                 translate([x, -1, z])
                     rotate([-90, 0, 0])
-                        cylinder(d = 4, h = panel_t + 2, $fn = 16);
+                        cylinder(d = printed_screw_clear_d, h = panel_t + 2, $fn = 24);
+                translate([x, -0.01, z])
+                    rotate([-90, 0, 0])
+                        cylinder(d = printed_screw_counterbore_d,
+                                 h = printed_screw_counterbore_h + 0.01, $fn = 32);
+            }
         // Lettera "G" (vedi assembly-guide.md): incisa sulla faccia interna
         // (verso il mobile, y = panel_t), tra la feritoia e il pulsante
         label_cut_y("G", -30, panel_t, 30, size = 7);

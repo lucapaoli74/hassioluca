@@ -29,6 +29,28 @@ roller_r   = r_pitch;                             // raggio esterno rullo (crest
 core_r     = r_pitch - groove_d/2;                // raggio al fondo scanalatura
 roller_len = cig_l + 2*clear_ax;
 
+// --- Accoppiatore stampato rullo<->motore (coupler.scad) -------------------
+// Sostituisce il giunto flessibile comprato: un pezzo stampato con un grano
+// (vite in miniatura, vedi sopra) che preme sull'alberino del motore da un
+// lato, e un perno passante (spina stampata o uno spezzino di filo/chiodo
+// da 3mm) dall'altro, nello stesso foro trasversale che il rullo aveva già
+// per il giunto comprato — vedi roller.scad. È il pezzo più sperimentale
+// di questa revisione: non è stato possibile stampare e provare sotto
+// carico reale in questa sessione, verifica la tenuta prima di fidartene
+// per l'uso quotidiano (vedi la nota in hardware/3d-print/README.md).
+motor_shaft_d     = 5;     // alberino NEMA17 tipico — MISURA IL TUO MOTORE
+coupler_od        = 15;
+coupler_motor_len = 11;    // profondità del foro lato motore
+coupler_motor_clear = 0.4; // gioco sul diametro alberino motore
+coupler_roller_len  = 14;  // quanto lo stelo lato rullo entra nel foro albero del rullo
+coupler_roller_clear = 0.15; // gioco sul diametro (shaft_d) per un innesto a scorrimento, non a pressione
+coupler_septum_t  = 3;     // parete piena tra i due fori, al centro del pezzo
+coupler_pin_d     = 3.2;   // stesso diametro del foro trasversale in roller.scad
+// quota del foro trasversale sul rullo (spina di bloccaggio), dal lato
+// motore (Z=0 nel sistema nativo di roller.scad) — prima era a metà rullo,
+// spostato qui apposta perché cada dentro l'innesto del nuovo accoppiatore
+roller_pin_z = coupler_roller_len / 2;
+
 // --- Alloggiamento (housing a "C") --------------------------------------
 // Deve coprire anche la sporgenza della sigaretta oltre le creste (la
 // scanalatura è più larga della sigaretta per il gioco, quindi la
@@ -45,9 +67,13 @@ end_plate_t     = 4;
 // corrispondenti sui pannelli laterali, invece di indovinare le quote.
 mount_ear_r      = housing_or - 6;   // raggio al centro dell'orecchietta
 mount_hole_off   = 8;                // offset del foro dentro l'orecchietta
-mount_hole_d     = 3.4;
 mount_angles     = [45, 135, 225, 315];
 mount_hole_r     = mount_ear_r + mount_hole_off;  // raggio dei fori dall'asse rullo
+// l'orecchietta ospita ora una bocchetta filettata stampata (screw_boss,
+// vedi sotto): allargata un po' rispetto a quando era solo un foro per
+// vite M3, per lasciare parete piena intorno al filetto
+mount_ear_w      = 18;
+mount_ear_h      = 16;
 
 // apertura di carico (sopra, sotto la tramoggia) e di scarico (sotto)
 load_gap_deg    = 55;   // ampiezza apertura di carico
@@ -77,8 +103,23 @@ hopper_wall    = 2.4;
 // --- Bordo/coperchio/serratura tramoggia (hopper.scad + hopper_lid.scad) -
 rim_w        = 10;   // sporgenza del bordo oltre l'apertura
 rim_t        = 4;
-hinge_hole_d = 3.2;
-hinge_x      = [-30, 30];  // posizione viti cerniera, lato -Y (fronte)
+// Fori d'angolo che avvitano il bordo (D) al pannello superiore (H) — la
+// filettatura vera sta in H (vedi top_panel_3d in cabinet.scad), qui c'è
+// solo il foro di passaggio, condiviso tra hopper.scad e cabinet.scad
+// (stessa posizione, niente sfasamento da indovinare)
+hopper_corner_x = hopper_top_w/2 + rim_w/2;
+hopper_corner_y = hopper_top_d/2 + rim_w/2;
+
+// Cerniera stampata (sostituisce la cerniera comprata): nocche alternate
+// sul bordo (D, 3 nocche fisse) e sul coperchio (E, 2 nocche mobili), un
+// perno passante comune — non una vite ma uno spezzone del TUO filamento
+// da 1.75mm (quasi gratis, ce l'hai già se stampi il resto). hinge_pin_d è
+// il foro (con gioco) per quel filamento: se stampi con un filamento da
+// 2.85mm, aggiustalo.
+hinge_pin_d           = 1.9;
+hinge_knuckle_od      = 7;
+hinge_knuckle_pitch   = 10;  // passo tra il centro di una nocca e la successiva
+hinge_knuckle_print_w = 9;   // < pitch: lascia 0.5mm di gioco per lato tra nocche vicine
 latch_hole_d = 4;          // foro per il gancio della serratura, lato +Y (retro)
 reed_hole_d  = 6;          // foro per il sensore magnetico di sportello chiuso
 
@@ -173,8 +214,61 @@ cab_back_margin = depth_margin; // margine tra il bordo posteriore e il ritaglio
 // sicurezza (bordo letto, adesione, calibro) — nessun pezzo, pannelli del
 // mobile compresi, deve superare questa misura in nessuna dimensione.
 x1c_max      = 250;
-seam_hole_d  = 4;      // fori M4 lungo la giunzione dei pannelli spezzati
-seam_hole_n  = 5;
+
+// --- Viti stampate (helpers.scad: printed_screw/printed_screw_hole/screw_boss)
+// Filettatura "propria", grossa apposta per l'FDM — non imita una vite
+// metrica comprata, deve solo combaciare con se stessa (vite e bocchetta
+// escono dalla stessa funzione). Usata per gli UNICI punti che restano
+// smontabili: housing<->fianchi, tramoggia<->pannello superiore, pannello
+// frontale<->mobile. Se la tua combinazione stampante/filamento stringe
+// troppo o gira a vuoto, `printed_screw_clearance` è il primo valore da
+// ritoccare (una prova di stampa rapida: stampa 1 vite + 1 bocchetta corta
+// prima di stampare tutto il resto).
+printed_screw_d        = 6;    // diametro nominale (esterno del filetto)
+printed_screw_pitch    = 2.2;  // passo — grosso apposta, un M3/M4 vero di solito non tiene stampato
+printed_screw_tooth_h  = 0.8;  // profondità del dente
+printed_screw_clearance = 0.25; // gioco radiale bocchetta/vite (per lato)
+printed_screw_head_d   = 14;   // testa esagonale — si stringe anche solo con le dita
+printed_screw_head_h   = 3;
+// lunghezza di presa: uso semplicemente lo spessore del materiale che c'è
+// già in quel punto (end_plate_t sulle orecchiette housing, panel_mat_t sui
+// pannelli del mobile) invece di una bocchetta sporgente apposta — meno
+// geometria nuova, e per un fissaggio a basso carico come questo basta
+// anche un ingaggio di 4mm su una filettatura da 6mm di diametro
+// foro di passaggio (non filettato) sul pannello che la vite attraversa
+// prima di entrare nella bocchetta filettata sull'altro pezzo
+printed_screw_clear_d  = printed_screw_d + 1.4;
+printed_screw_counterbore_d = printed_screw_head_d + 0.8;
+printed_screw_counterbore_h = printed_screw_head_h + 0.4;
+
+// Grano di bloccaggio (versione in miniatura della vite stampata sopra,
+// stessa tecnica/stesso modulo con parametri diversi): preme sul lato
+// piatto o tondo dell'alberino motore dentro coupler.scad — la stessa
+// tecnica ("grano stampato contro un albero tondo") è già ampiamente usata
+// per pulegge/ingranaggi stampati, è la parte meno sperimentale
+// dell'accoppiatore.
+grub_d          = 4;
+grub_pitch      = 1.6;
+grub_tooth_h    = 0.6;
+grub_clearance  = 0.2;
+grub_head_d     = 9;
+grub_head_h     = 2.5;
+
+// --- Spine di centraggio stampate (helpers.scad: dowel_peg/dowel_socket) ----
+// Ai 4 spigoli verticali del mobile (fianco<->retro) al posto degli
+// angolari metallici: allineano i pannelli mentre si incollano, non sono
+// pensate per reggere da sole senza colla.
+dowel_d         = 5;
+dowel_h         = 5;
+dowel_clearance = 0.2;
+
+// --- Giunto a pettine (helpers.scad: finger_teeth) --------------------------
+// Alla giunzione dei pannelli spezzati (fianchi/retro): sostituisce le viti
+// M4 + dadi + listello interno con un incastro a denti, incollato — molta
+// più superficie di contatto della sola fila di viti, quindi niente
+// rinforzo interno separato.
+finger_w      = 16;  // larghezza nominale di ogni dente (adattata per coprire esattamente cab_d/cab_w)
+finger_depth  = 10;  // quanto un dente affonda nel pannello opposto
 
 // motore NEMA17: fori esterni sul pannello laterale lato "drive" — il
 // motore resta FUORI dal mobile (solo l'albero entra), niente bisogno di

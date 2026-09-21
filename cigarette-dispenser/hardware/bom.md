@@ -4,19 +4,43 @@ Componenti generici, reperibili da qualunque rivenditore di elettronica/
 stampa 3D. Nessun link incluso: cerca per le specifiche indicate, i prezzi
 variano molto per fornitore.
 
+## Cosa NON serve più comprare
+
+Rispetto a una prima versione, quasi tutta la minuteria meccanica è stata
+sostituita da incastri ed elementi stampati (vedi `3d-print/README.md`,
+sezione "Niente più ferramenta"): niente più angolari/viti agli spigoli
+del mobile, niente M4+dadi+listello alle giunzioni dei pannelli spezzati,
+niente dadi/inserti per housing/tramoggia/pannello frontale (vite
+stampata in una bocchetta filettata stampata), niente cerniera comprata
+per il coperchio tramoggia (nocche stampate + perno di filamento), niente
+piedini di gomma (stampati integrati). **Le uniche viti comprate rimaste
+sono le 4 del motore** (filettate nel suo corpo metallico, non c'è
+alternativa stampata) — tutto il resto qui sotto è quello che resta
+davvero da comprare.
+
 ## Meccanica / motion
 
 | Componente | Specifica | Qtà | Note |
 |---|---|---|---|
-| Motore passo-passo | NEMA17, 1.0-1.5A, 34-40mm corpo | 1 | Il rullo ha attrito/carico bassi: non serve un NEMA17 "pesante". Si avvita da FUORI sul pannello laterale "drive" del mobile (foro pattern 31mm già nel pannello) — resta fuori dal mobile, solo l'albero entra |
+| Motore passo-passo | NEMA17, 1.0-1.5A, 34-40mm corpo | 1 | Il rullo ha attrito/carico bassi: non serve un NEMA17 "pesante". Si avvita da FUORI sul pannello laterale "drive" del mobile (foro pattern 31mm già nel pannello) — resta fuori dal mobile, solo l'albero entra. **Misura il diametro del suo alberino** (tipicamente 5mm) e confrontalo con `motor_shaft_d` in `3d-print/params.scad` prima di stampare l'accoppiatore |
 | Driver motore | A4988 o DRV8825 | 1 | Pilotato da ESP32 via ESPHome |
 | Alimentatore driver | 12V 1.5-2A (separato dalla logica) | 1 | Alimenta solo il motore |
-| Giunto flessibile albero | 5mm (lato motore) → 6mm (lato rullo) | 1 | Assorbe piccoli disallineamenti |
 | Cuscinetto 688ZZ (opzionale) | 8×16×5mm | 1 | Sul perno folle dell'housing, per durata; una boccola stampata basta per uso domestico |
 | Pulsante momentaneo antivandalo | Ø16mm, IP65, illuminato o no | 1 | Pulsante frontale di erogazione — vedi `3d-print/front_panel.scad` |
-| Viti M3×10 testa svasata | — | ~30 | Fissaggio housing/piatti/pannello |
-| Viti M3×20 | — | 4 | Fissaggio motore |
-| Dadi M3 / inserti termici M3 | — | ~20 | Se non stampi fori autofilettanti |
+| Viti M3×20 | — | 4 | **Le uniche viti comprate**: fissano il motore al suo pattern NEMA17 (fori filettati nel corpo motore, non ci si avvita una vite stampata) |
+| Colla (cianoacrilica gel o epossidica bicomponente) | ~20-30ml | 1 | Incolla le giunzioni permanenti del mobile (spigoli e giunzioni dei pannelli spezzati) — vedi `3d-print/README.md` |
+| Filamento 1.75mm (lo stesso che stampi) | uno spezzone di ~6cm | — | Perno della cerniera stampata del coperchio tramoggia — non è una parte a sé, è un ritaglio del filamento che già usi |
+
+**Giunto motore↔rullo**: nella cartella `3d-print` c'è ora `coupler.scad`,
+un accoppiatore stampato (grano di bloccaggio sull'alberino motore + spina
+trasversale lato rullo, riusa lo stesso foro che il rullo aveva già). È il
+pezzo più sperimentale di questa revisione — non è stato possibile
+stamparlo e provarlo sotto carico reale in questa sessione. Se dopo il
+collaudo a vuoto (vedi il passo finale in `3d-print/README.md`) noti
+slittamento, la soluzione di riserva è tornare a un giunto flessibile
+comprato (5mm→6mm, reperibile in qualunque negozio di stampa 3D/CNC) —
+in tal caso serve anche una vite di bloccaggio M3 o un grano M3, non
+inclusi sopra perché non fanno parte del percorso di default.
 
 ## Elettronica / controllo
 
@@ -46,16 +70,14 @@ l'apertura della tramoggia non sono sicuri da toccare a corpo libero. Vedi
 `3d-print/cabinet.scad` per i pannelli quotati — **ogni pezzo, spezzato dove
 serve, entra nel piano di stampa di una Bambu X1C (256×256×256mm)**; lo
 stesso file esporta anche `.dxf` se preferisci tagliarli invece di
-stamparli. Dettagli assemblaggio in `3d-print/README.md`.
+stamparli. Gli spigoli e le giunzioni dei pannelli spezzati sono incastri
+stampati (perni di centraggio, giunto a pettine) da incollare — niente più
+staffe, viti M4 o listelli di rinforzo. Dettagli assemblaggio in
+`3d-print/README.md`.
 
 | Componente | Specifica | Qtà | Note |
 |---|---|---|---|
-| Pannelli | stampa 3D (PETG/PLA, infill 15-20%), o legno multistrato 9mm/alluminio composito/plexiglass tagliati dalla stessa sagoma | 8 (sopra, sotto, 2 fianchi × 2 segmenti, retro × 2 segmenti) | Il fronte è `front_panel.scad`, non spezzato |
-| Viti M4×16 + dadi | per unire i segmenti spezzati lungo la giunzione | ~20 | 5 fori per giunzione, vedi `seam_hole_n` in `params.scad` |
-| Listello/fascetta interna | legno o profilo stampato, a cavallo di ogni giunzione | 4 (una per ogni coppia di segmenti) | Irrigidisce la cucitura tra due metà dello stesso pannello |
-| Angolari interni + viti | angolari in metallo o plastica, ~20×20mm | 8-12 | Uniscono i pannelli agli spigoli del mobile (giunto a battuta) |
-| Cerniera piccola | 40-60mm, qualunque tipo (piano, a libro) | 1 | Per il coperchio della tramoggia (`hopper_lid.scad`), più affidabile di una cerniera stampata su uno sportello aperto spesso |
-| Piedini in gomma | autoadesivi | 4 | Sul pannello inferiore |
+| Pannelli | stampa 3D (PETG/PLA, infill 15-20%), o legno multistrato 9mm/alluminio composito/plexiglass tagliati dalla stessa sagoma | 8 (sopra, sotto, 2 fianchi × 2 segmenti, retro × 2 segmenti) | Il fronte è `front_panel.scad`, non spezzato. Se tagli da pannello piatto invece di stampare: gli incastri (linguette/pettine) restano nel disegno ma sono pensati per la stampa — sulla giunzione dei segmenti valuta comunque un rinforzo incollato, sugli spigoli un angolare interno come nella versione precedente |
 | Sigarette | JPS (o altro formato king-size ~84×7.9mm) | — | Misura le tue prima di stampare — vedi `3d-print/README.md` |
 
 ## Nota sulla sicurezza meccanica
