@@ -108,6 +108,7 @@ inventata qui):
 | `params.scad` | Parametri condivisi — **modifica solo questo file** | — | — |
 | `helpers.scad` | Funzioni geometriche condivise (viti stampate, incastri, cerniera, lettere incise — vedi sotto) | — | — |
 | `assembly.scad` | Solo anteprima in OpenSCAD, non da stampare | — | — |
+| `distributore-sigarette-H2D.3mf` | Tutti i 36 pezzi in un unico file, impacchettati per il piatto Bambu H2D — vedi sezione dedicata sotto | — | non è generato da un file `.scad`, è un merge delle mesh già esportate |
 
 ## Niente più ferramenta: come si tiene insieme il mobile
 
@@ -271,6 +272,47 @@ Il sensore di caduta (`../wiring.md`) è la tua rete di sicurezza software:
 conferma che sia effettivamente caduta una sigaretta, e il firmware segnala
 un errore se non lo è (vedi `../../software/esphome`).
 
+## File unico per Bambu Studio: `distributore-sigarette-H2D.3mf`
+
+In alternativa ai singoli STL: un unico file `.3mf` con tutti e 36 i pezzi
+(16 unici + 20 viti **Q**), dimensionato sul piatto della **Bambu H2D**
+(325×320×325mm in modalità singolo ugello, margine di sicurezza a
+315×305mm) invece che sulla X1C. Generato leggendo la mesh reale di ogni
+STL già verificato manifold (non un merge alla cieca) e riusando gli stessi
+namespace XML dell'export nativo di OpenSCAD (`xmlns:m/p/b/s`, `p:UUID`) —
+la causa più probabile del file `.3mf` non valido di una versione
+precedente di questa sessione. Verificato in sessione, non solo generato:
+- ogni pezzo resta manifold nel file unito (controllo incrociato con due
+  parser indipendenti, il mio e la libreria Python `trimesh`: 36/36 mesh
+  "watertight", stessi bounding box)
+- nessuna sovrapposizione tra le "ingombro" 2D dei pezzi (controllo
+  geometrico esaustivo su tutte le coppie, non solo a occhio)
+- tutte le coordinate entro un intervallo contenuto (0-667mm), niente
+  vertici fuori piano/NaN
+
+I 36 pezzi sono impacchettati in **4 gruppi** (dimensionati per il piatto
+H2D, con 6mm di gioco tra pezzi), posizionati distanti tra loro nel file
+così restano facili da selezionare a occhio nella vista 3D di Bambu Studio:
+
+| Gruppo | Pezzi |
+|---|---|
+| 1 | J, K (fianco motore), E, F, B, A, P, 1 vite Q |
+| 2 | L, M (fianco folle), 15 viti Q |
+| 3 | N, O (retro), 2 viti Q |
+| 4 | G, H, I, D, C, 2 viti Q |
+
+**Limite onesto**: questo è un file `.3mf` standard (spec 3MF core), non un
+vero "progetto Bambu Studio" — il formato "più piatti" di Bambu Studio è
+un'estensione proprietaria non documentata pubblicamente, e dopo il
+problema con la versione precedente ho preferito non tentare di
+riprodurla alla cieca (rischio concreto di un altro file che non si apre).
+All'importazione i 36 pezzi arrivano quindi su un solo piatto virtuale,
+raggruppati spazialmente come in tabella: usa "Organizza" (Bambu Studio
+propone da sola di creare piatti aggiuntivi per i pezzi che non ci stanno),
+oppure seleziona a mano ogni gruppo nella vista 3D (sono ben separati) e
+spostalo su un piatto nuovo. Se preferisci partire dai singoli STL invece
+che da questo file unito, resta disponibile lo ZIP con i 36 file separati.
+
 ## Impostazioni di stampa consigliate
 
 - Materiale: **PETG** (l'attrito ripetuto rullo/sigaretta e sportello usura
@@ -279,6 +321,13 @@ un errore se non lo è (vedi `../../software/esphome`).
 - Nessun supporto necessario per `roller.scad`/`hopper.scad`/`chute.scad`
   se orientati come esportati; `housing.scad` potrebbe volere supporti
   minimi sotto gli sbalzi dei piatti terminali
+- `front_panel.scad`: corretto in questa sessione un orientamento di
+  export sbagliato (il pezzo nativo ha Z=altezza, Y=spessore — esportato
+  così com'era stamperebbe dritto in piedi, 135mm di parete sottile non
+  supportata). L'istruzione top-level del file ora lo distende da sola
+  (`translate([0,0,panel_t]) rotate([-90,0,0])`), quindi se lo esporti di
+  nuovo da questo file arriva già piatto (132×135.67mm, 4mm di altezza) —
+  non serve più ruotarlo a mano nello slicer
 - Foro albero del rullo (6mm): rifinisci con un trapano se stampa stretta
 - **Viti stampate** (`screws.scad`, **Q**): stampane 1 come prova prima
   di stampare le altre 19 e il resto del mobile — se non entra nella

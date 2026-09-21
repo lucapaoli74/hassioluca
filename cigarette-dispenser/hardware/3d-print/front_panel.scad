@@ -70,4 +70,14 @@ module front_panel() {
     }
 }
 
-front_panel();
+// La geometria nativa sopra ha Z = altezza pannello (135mm), Y = spessore
+// (4mm) — corretto per come i fori sono tagliati (rotate([-90,0,0]) al
+// loro interno), ma se esportato così com'è il pezzo stamperebbe DRITTO
+// IN PIEDI (135mm di parete sottile non supportata), non disteso come
+// tutti gli altri pannelli del mobile. Per l'export STL/3MF va disteso:
+// stessa rotazione usata per i fori, applicata a tutto il pezzo, con una
+// translate di compensazione perché lo spessore (ex-Y, ora Z) resti in
+// [0, panel_t] invece di [-panel_t, 0] — verificato per punti:
+// rotate([-90,0,0]) manda (x,y,z) -> (x,z,-y), poi +panel_t su z riporta
+// il range a positivo.
+translate([0, 0, panel_t]) rotate([-90, 0, 0]) front_panel();

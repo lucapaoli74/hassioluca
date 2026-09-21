@@ -45,6 +45,7 @@ cigarette-dispenser/
 │   │   ├── coupler.scad        accoppiatore stampato motore↔rullo
 │   │   ├── screws.scad         vite stampata (×20, filettatura propria)
 │   │   ├── assembly.scad       anteprima assemblaggio (non da stampare)
+│   │   ├── distributore-sigarette-H2D.3mf   36 pezzi uniti, per piatto Bambu H2D
 │   │   └── README.md           come funziona, sicurezza, impostazioni di stampa
 │   ├── bom.md                ← parti standard da comprare
 │   └── wiring.md             ← schema di cablaggio, mappa GPIO
@@ -226,3 +227,24 @@ consapevole, non per un contesto con bambini piccoli senza supervisione.
   spessore), quindi non c'è "doppio spessore" da forare in linea retta —
   se serve comunque un rinforzo lì, l'opzione è una staffa stampata a
   cavallo della giunzione (non inclusa di default)
+- Su richiesta dell'utente, unito tutto in un unico `.3mf`
+  (`distributore-sigarette-H2D.3mf`) dimensionato sul piatto della Bambu
+  H2D (325×320×325mm a singolo ugello, verificato via ricerca web — non
+  assunto a memoria) invece che sulla X1C, impacchettando i 36 pezzi in 4
+  gruppi. A differenza del tentativo fallito di `.3mf` di una versione
+  precedente di questa sessione: gli stessi namespace XML dell'export
+  nativo di OpenSCAD sono stati riusati com'erano (non riscritti a mano),
+  e il file è stato verificato con **due parser indipendenti** (uno mio,
+  uno con la libreria `trimesh`) che concordano su 36/36 mesh manifold e
+  sugli stessi bounding box, oltre a un controllo esaustivo di
+  sovrapposizioni tra tutte le coppie di pezzi e di coordinate fuori
+  intervallo/NaN. Nel farlo, trovato e corretto anche un bug preesistente
+  reale: `front_panel.scad` esportava il pannello frontale ruotato di 90°
+  (stamperebbe dritto in piedi, parete sottile non supportata alta
+  135mm) invece che disteso come gli altri pannelli — ora l'export lo
+  distende da solo. **Limite onesto**: il formato "più piatti" di Bambu
+  Studio è un'estensione proprietaria non documentata pubblicamente; non
+  avendo un Bambu Studio reale per provarla, non è stata replicata (per
+  non rischiare un altro file "non valido") — i pezzi arrivano quindi su
+  un piatto virtuale unico ma raggruppati spazialmente, pronti per
+  "Organizza" o per lo spostamento manuale su più piatti
