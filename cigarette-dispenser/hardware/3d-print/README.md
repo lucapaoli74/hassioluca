@@ -104,6 +104,7 @@ inventata qui):
 | `front_panel.scad` | Pannello con pulsante, LED, feritoia — copre solo la parte bassa del mobile | 1 | stampa 3D o dima per taglio |
 | `cabinet.scad` | Pannelli del mobile, con incastri fianco↔retro, giunto a pettine ai segmenti spezzati e fori di fissaggio per housing e tramoggia (sopra/sotto + fianchi/retro spezzati in 2) | 8 | stampa 3D, o taglio laser/CNC/sega (esporta `.dxf`) |
 | `coupler.scad` | Accoppiatore stampato albero motore↔rullo (grano + spina, sostituisce il giunto comprato) | 1 | stampa 3D |
+| `screws.scad` | Vite stampata (testa esagonale, filettatura propria) — housing↔fianchi, tramoggia↔pannello superiore, pannello frontale↔fianchi | 16 | stampa 3D |
 | `params.scad` | Parametri condivisi — **modifica solo questo file** | — | — |
 | `helpers.scad` | Funzioni geometriche condivise (viti stampate, incastri, cerniera, lettere incise — vedi sotto) | — | — |
 | `assembly.scad` | Solo anteprima in OpenSCAD, non da stampare | — | — |
@@ -134,14 +135,17 @@ smontabile o no:
 - **Smontabili (vite stampata, non ferramenta comprata)**: housing↔fianchi,
   tramoggia↔pannello superiore, pannello frontale↔fianchi — restano
   smontabili perché servono per manutenzione (motore, rullo, tramoggia).
-  `printed_screw`/`printed_screw_hole` in `helpers.scad` generano una
-  filettatura grossa "propria" (passo 2.2mm, non imita una vite metrica —
-  un M3 vero di solito non tiene stampato), sempre generata dalla stessa
-  funzione su entrambi i lati quindi combaciano sempre tra loro. Se la tua
-  combinazione stampante/filamento stringe troppo o gira a vuoto,
-  `printed_screw_clearance` in `params.scad` è il primo valore da
-  ritoccare — stampa una vite + una bocchetta corta come prova prima di
-  stampare tutto il resto.
+  Le bocchette filettate femmina (`printed_screw_hole`/`screw_boss` in
+  `helpers.scad`) sono già negli altri pezzi; la vite maschio vera e
+  propria è **Q** in `screws.scad` — stampane **16** (8 per housing, 4
+  per la tramoggia, 4 per il pannello frontale, vedi la tabella
+  Legenda). Stessa filettatura grossa "propria" (passo 2.2mm, non imita
+  una vite metrica — un M3 vero di solito non tiene stampato) generata
+  dalla stessa funzione su entrambi i lati, quindi combaciano sempre tra
+  loro. Se la tua combinazione stampante/filamento stringe troppo o gira
+  a vuoto, `printed_screw_clearance` in `params.scad` è il primo valore
+  da ritoccare — stampa 1 vite (**Q**) come prova prima di stampare
+  tutto il resto.
 - **Cerniera del coperchio tramoggia** (**E**↔**D**): nocche stampate
   alternate (3 su **D**, 2 su **E**) con un perno comune — non una vite,
   uno spezzone del tuo stesso filamento da 1.75mm.
@@ -153,9 +157,10 @@ L'unica ferramenta comprata rimasta sono le 4 viti che fissano il motore
 al suo pattern NEMA17 (filettate nel corpo metallico del motore, lì non
 c'è alternativa stampata).
 
-## Legenda pezzi (A-P): una lettera incisa su ogni pezzo
+## Legenda pezzi (A-Q): una lettera incisa su ogni pezzo
 
-I 16 pezzi stampabili hanno tutti una lettera incisa (o su una piccola
+I 17 pezzi stampabili (di cui **Q** da stampare 16 volte: sono le viti)
+hanno tutti una lettera incisa (o su una piccola
 targhetta sporgente, dove il pezzo è troppo sottile per un'incisione) così
 si riconoscono senza doverli confrontare a occhio col disegno mentre li
 stacchi dal piatto di stampa — modulo `label_cut`/`label_tag` in
@@ -179,6 +184,7 @@ stacchi dal piatto di stampa — modulo `label_cut`/`label_tag` in
 | **N** | Retro, segmento inferiore | `cabinet.scad` → `back_panel_seg_3d(0,...)` | sopra il foro passacavi |
 | **O** | Retro, segmento superiore | `cabinet.scad` → `back_panel_seg_3d(1,...)` | centro pannello |
 | **P** | Accoppiatore motore↔rullo | `coupler.scad` | faccia accessibile lato motore, fuori dal foro alberino |
+| **Q** ×16 | Vite stampata | `screws.scad` | faccia esterna della testa esagonale |
 
 **Nota per `cabinet.scad`**: i moduli 2D originali (`top_panel()`,
 `side_panel_seg(i, is_drive)`, ecc.) restano invariati e senza lettera —
@@ -259,11 +265,13 @@ un errore se non lo è (vedi `../../software/esphome`).
   se orientati come esportati; `housing.scad` potrebbe volere supporti
   minimi sotto gli sbalzi dei piatti terminali
 - Foro albero del rullo (6mm): rifinisci con un trapano se stampa stretta
-- **Viti/bocchette stampate** (`helpers.scad`): stampa una vite + una
-  bocchetta corta come prova prima di stampare tutto il resto — se non
-  entra, allarga `printed_screw_clearance` in `params.scad`; se gira a
-  vuoto appena inserita, riducilo. Stampa le viti in verticale (asse del
-  filetto lungo Z) per una filettatura più pulita
+- **Viti stampate** (`screws.scad`, **Q**): stampane 1 come prova prima
+  di stampare le altre 15 e il resto del mobile — se non entra nella
+  bocchetta filettata di un altro pezzo, allarga
+  `printed_screw_clearance` in `params.scad`; se gira a vuoto appena
+  inserita, riducilo. Si stampano già in verticale come esportate (asse
+  del filetto lungo Z, testa in basso sul piatto) per una filettatura
+  più pulita
 - `coupler.scad`: stampa con l'asse lungo Z come esportato (foro alberino
   motore rivolto verso il basso, sul piatto); il foro del grano radiale
   potrebbe volere un piccolo supporto a seconda della stampante
@@ -304,15 +312,16 @@ Vedi `assembly.scad` per la vista 3D con tutte queste quote applicate.
 
 ## Assemblaggio
 
-Lettere tra parentesi = legenda A-P qui sopra. "Incolla" = colla
+Lettere tra parentesi = legenda A-Q qui sopra. "Incolla" = colla
 cianoacrilica gel o epossidica bicomponente, vedi `../bom.md`.
 
 1. Stampa 1× ciascuno di **A** `roller.scad`, **B** `housing.scad`,
    **C** `grille.scad`, **D** `hopper.scad`, **E** `hopper_lid.scad`,
    **F** `chute.scad`, **G** `front_panel.scad`, **P** `coupler.scad`;
-   stampa (o taglia) gli 8 pezzi di `cabinet.scad` (**H** sopra, **I**
-   sotto, **J**+**K** fianco motore in 2 segmenti, **L**+**M** fianco
-   folle in 2 segmenti, **N**+**O** retro in 2 segmenti)
+   stampa **16×** la vite **Q** `screws.scad`; stampa (o taglia) gli 8
+   pezzi di `cabinet.scad` (**H** sopra, **I** sotto, **J**+**K** fianco
+   motore in 2 segmenti, **L**+**M** fianco folle in 2 segmenti, **N**+**O**
+   retro in 2 segmenti)
 2. Incolla ogni coppia di segmenti (**J**+**K**, **L**+**M**, **N**+**O**)
    lungo la giunzione a pettine — i denti si incastrano da soli in
    posizione, tienili premuti/con un peso finché la colla non fa presa
@@ -321,10 +330,9 @@ cianoacrilica gel o epossidica bicomponente, vedi `../bom.md`.
    (**N**, **O**) — di nuovo, l'incastro allinea da solo, la colla tiene
 4. Monta **A** dentro **B**, verifica che giri libero senza attrito
    eccessivo contro le pareti
-5. Avvita **B** ai pannelli **J**+**K** e **L**+**M** con 8 viti stampate
-   (`printed_screw` in `helpers.scad`) nei fori delle orecchiette — non
-   servono dadi, si avvitano direttamente nella bocchetta filettata
-   dell'housing
+5. Avvita **B** ai pannelli **J**+**K** e **L**+**M** con 8 viti **Q**
+   nei fori delle orecchiette — non servono dadi, si avvitano
+   direttamente nella bocchetta filettata dell'housing
 6. Avvita il motore da fuori su **J** (pattern NEMA17, le uniche 4 viti
    comprate). Monta **P** sull'albero motore (grano di bloccaggio) e
    infilalo nel foro albero di **A** attraverso il foro Ø24mm, blocca con
@@ -338,12 +346,12 @@ cianoacrilica gel o epossidica bicomponente, vedi `../bom.md`.
    struttura
 9. Incastra **C** tra la bocca inferiore di **D** e l'apertura di carico
    di **B**, poi avvita **D** ai 4 fori d'angolo di **H** con 4 viti
-   stampate — poi incolla **H** a filo sui bordi superiori della pila di
+   **Q** — poi incolla **H** a filo sui bordi superiori della pila di
    pareti
 10. Fissa **F** sotto l'apertura di scarico di **B**; il suo fondo arriva
     vicino alla feritoia di **G** — rifinisci/incolla la giunzione
-11. Avvita **G** in fondo al mobile con 4 viti stampate nei fori di
-    taglio dei bordi anteriori di **J**/**L**
+11. Avvita **G** in fondo al mobile con 4 viti **Q** nei fori di taglio
+    dei bordi anteriori di **J**/**L**
 12. Monta **E** infilando il perno (spezzone di filamento 1.75mm) nelle
     nocche alternate di **E** e **D**; la serratura + il sensore
     magnetico vanno sul lato retro (fori già presenti nel bordo stampato)

@@ -43,6 +43,7 @@ cigarette-dispenser/
 │   │   ├── front_panel.scad    pannello con pulsante, LED, feritoia
 │   │   ├── cabinet.scad        pannelli del mobile (stampa 3D o taglio)
 │   │   ├── coupler.scad        accoppiatore stampato motore↔rullo
+│   │   ├── screws.scad         vite stampata (×16, filettatura propria)
 │   │   ├── assembly.scad       anteprima assemblaggio (non da stampare)
 │   │   └── README.md           come funziona, sicurezza, impostazioni di stampa
 │   ├── bom.md                ← parti standard da comprare
@@ -193,3 +194,10 @@ consapevole, non per un contesto con bambini piccoli senza supervisione.
   `hardware/bom.md`. Ogni pezzo modificato ri-verificato manifold; le
   posizioni delle giunzioni verificate algebricamente con le stesse
   trasformazioni usate per il resto dell'assemblaggio, non a occhio
+- Corretta una lacuna reale segnalata dall'utente: le bocchette filettate
+  femmina per le viti stampate erano già nei vari pezzi, ma la vite
+  maschio vera e propria non era mai stata istanziata come pezzo a sé
+  stampabile — il progetto Bambu Studio non le conteneva. Aggiunto
+  `screws.scad` (lettera **Q**, da stampare ×16) e rigenerato il
+  progetto Bambu Studio con tutti i 17 pezzi (32 istanze di stampa
+  contando le 16 copie della vite)
