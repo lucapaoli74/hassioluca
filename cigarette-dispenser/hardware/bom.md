@@ -72,7 +72,9 @@ serve, entra nel piano di stampa di una Bambu X1C (256×256×256mm)**; lo
 stesso file esporta anche `.dxf` se preferisci tagliarli invece di
 stamparli. Gli spigoli e le giunzioni dei pannelli spezzati sono incastri
 stampati (perni di centraggio, giunto a pettine) da incollare — niente più
-staffe, viti M4 o listelli di rinforzo. Dettagli assemblaggio in
+staffe, viti M4 o listelli di rinforzo comprati; i 4 spigoli verticali
+hanno in più una vite stampata di rinforzo (compresa nelle 20 **Q** di
+`3d-print/screws.scad`, non ferramenta a parte). Dettagli assemblaggio in
 `3d-print/README.md`.
 
 | Componente | Specifica | Qtà | Note |

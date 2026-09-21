@@ -107,6 +107,19 @@ dowel_ly_open    = [-50, 50];   // segmento senza vincoli
 
 function dowel_positions(has_mount) = has_mount ? dowel_ly_mount : dowel_ly_open;
 
+// --- Vite di rinforzo agli spigoli verticali fianco<->retro -----------------
+// In aggiunta alla linguetta/colla: una vite stampata vera e propria, per
+// spigolo, che attraversa il bordo posteriore del fianco e si infila in un
+// foro filettato sul retro. Quota scelta lontana dalle linguette (che
+// restano a ±18/±60 o ±50) e dal cerchio fori housing (che nel segmento
+// has_mount arriva fino a ~50.7): -40 sta a metà tra le due linguette del
+// segmento housing, 0 sta a metà tra le due linguette del segmento libero.
+// NOTA: questo rinforza lo SPIGOLO (fianco<->retro), non la giunzione a
+// pettine tra segmenti sovrapposti (fianco sopra<->fianco sotto) — quella è
+// un incastro complanare, vedi la nota in side_panel_seg_3d() più sotto per
+// il perché lì una vite dritta non può funzionare.
+function corner_screw_ly(has_mount) = has_mount ? -40 : 0;
+
 // linguetta: sporge dal bordo POSTERIORE del fianco (x locale = +cab_d/2)
 // per dowel_h, alta dowel_d, sulle quote date — un'estrusione lungo Z (lo
 // spessore pannello) la rende un blocchetto a tutto spessore, non serve
@@ -265,6 +278,16 @@ module side_panel_seg_3d(i, is_drive, letter, lx, ly) {
                 translate([-cab_d/2 - 0.5, gz - cab_seg_h/2, panel_mat_t/2])
                     rotate([0, 90, 0])
                         printed_screw_hole(8.5);
+        // vite di rinforzo spigolo fianco<->retro, bordo POSTERIORE (x
+        // locale = +cab_d/2, opposto al foro G sopra). rotate([0,-90,0])
+        // manda l'estrusione nativa (lungo +Z) lungo -X locale — per punti:
+        // ruotando (0,0,z) attorno a Y di -90° si ottiene (-z,0,0), quindi
+        // un cieco che entra DAL bordo posteriore verso l'interno, verso
+        // -X, esattamente come serve qui (stesso ragionamento della G, sul
+        // bordo opposto)
+        translate([cab_d/2 + 0.5, corner_screw_ly(has_mount), panel_mat_t/2])
+            rotate([0, -90, 0])
+                printed_screw_hole(8.5);
     }
 }
 
@@ -284,6 +307,17 @@ module back_panel_seg_3d(i, letter, lx, ly) {
                 cube([panel_mat_t + 1, dowel_d + dowel_clearance, dowel_h + dowel_clearance + 0.5]);
             translate([cab_w/2 - panel_mat_t - 0.5, -ly_d - dowel_d/2 - dowel_clearance/2, -0.5])
                 cube([panel_mat_t + 1, dowel_d + dowel_clearance, dowel_h + dowel_clearance + 0.5]);
+        }
+        // vite di rinforzo spigolo: foro di passaggio passante + svasatura
+        // per la testa, sulla faccia esterna (z=panel_mat_t) — un punto per
+        // fianco (drive a -X, idler a +X), stessa quota Y del foro
+        // filettato sul fianco ma con segno invertito (stessa relazione
+        // ly_N=-ly_J già usata sopra per le tasche linguetta/dowel)
+        corner_y = -corner_screw_ly(has_mount);
+        for (corner_x = [-(cab_w/2 - panel_mat_t/2), cab_w/2 - panel_mat_t/2]) {
+            translate([corner_x, corner_y, -0.5])
+                cylinder(d = printed_screw_clear_d, h = panel_mat_t + 1, $fn = 24);
+            cbore(corner_x, corner_y);
         }
     }
 }

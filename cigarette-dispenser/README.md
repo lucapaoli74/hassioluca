@@ -43,7 +43,7 @@ cigarette-dispenser/
 │   │   ├── front_panel.scad    pannello con pulsante, LED, feritoia
 │   │   ├── cabinet.scad        pannelli del mobile (stampa 3D o taglio)
 │   │   ├── coupler.scad        accoppiatore stampato motore↔rullo
-│   │   ├── screws.scad         vite stampata (×16, filettatura propria)
+│   │   ├── screws.scad         vite stampata (×20, filettatura propria)
 │   │   ├── assembly.scad       anteprima assemblaggio (non da stampare)
 │   │   └── README.md           come funziona, sicurezza, impostazioni di stampa
 │   ├── bom.md                ← parti standard da comprare
@@ -212,3 +212,17 @@ consapevole, non per un contesto con bambini piccoli senza supervisione.
   OpenSCAD, ognuno un file STL valido a sé, zero XML scritto a mano) —
   formato più semplice e senza ambiguità, da trascinare tutti insieme
   sul piano di Bambu Studio
+- Su richiesta dell'utente, aggiunto un rinforzo a vite ai 4 spigoli
+  verticali del mobile (fianco↔retro), in aggiunta a linguetta+colla:
+  foro filettato bucato di taglio nel bordo posteriore di ogni fianco,
+  foro di passaggio + svasatura sul retro corrispondente — stessa tecnica
+  già usata per l'aggancio del pannello frontale, coassialità verificata
+  algebricamente con le stesse trasformazioni di coordinate (non a
+  occhio) e ogni pezzo modificato ri-verificato manifold. La vite **Q**
+  passa da ×16 a ×20. Spiegazione data anche perché **non** si può
+  rinforzare allo stesso modo la giunzione a pettine tra i due segmenti
+  di un fianco/retro: è un incastro complanare (in ogni punto c'è
+  materiale di un solo segmento, mai di entrambi sovrapposti nello
+  spessore), quindi non c'è "doppio spessore" da forare in linea retta —
+  se serve comunque un rinforzo lì, l'opzione è una staffa stampata a
+  cavallo della giunzione (non inclusa di default)

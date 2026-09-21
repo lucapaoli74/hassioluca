@@ -104,7 +104,7 @@ inventata qui):
 | `front_panel.scad` | Pannello con pulsante, LED, feritoia — copre solo la parte bassa del mobile | 1 | stampa 3D o dima per taglio |
 | `cabinet.scad` | Pannelli del mobile, con incastri fianco↔retro, giunto a pettine ai segmenti spezzati e fori di fissaggio per housing e tramoggia (sopra/sotto + fianchi/retro spezzati in 2) | 8 | stampa 3D, o taglio laser/CNC/sega (esporta `.dxf`) |
 | `coupler.scad` | Accoppiatore stampato albero motore↔rullo (grano + spina, sostituisce il giunto comprato) | 1 | stampa 3D |
-| `screws.scad` | Vite stampata (testa esagonale, filettatura propria) — housing↔fianchi, tramoggia↔pannello superiore, pannello frontale↔fianchi | 16 | stampa 3D |
+| `screws.scad` | Vite stampata (testa esagonale, filettatura propria) — housing↔fianchi, tramoggia↔pannello superiore, pannello frontale↔fianchi, rinforzo ai 4 spigoli verticali | 20 | stampa 3D |
 | `params.scad` | Parametri condivisi — **modifica solo questo file** | — | — |
 | `helpers.scad` | Funzioni geometriche condivise (viti stampate, incastri, cerniera, lettere incise — vedi sotto) | — | — |
 | `assembly.scad` | Solo anteprima in OpenSCAD, non da stampare | — | — |
@@ -118,18 +118,32 @@ condivisi (`printed_screw`/`printed_screw_hole`/`screw_boss`,
 `hinge_pin_cut`). Due famiglie, a seconda che la giunzione debba restare
 smontabile o no:
 
-- **Permanenti (stampa e incolla, niente viti)**:
+- **Permanenti (stampa e incolla) + rinforzo a vite agli spigoli**:
   - **Spigoli verticali del mobile** (fianco↔retro, i 4 spigoli dove il
     fianco potrebbe altrimenti sembrare "appoggiato" al retro): una
     linguetta stampata sul fianco entra in una tasca cieca sul retro —
-    centra i pezzi mentre la colla fa presa, la tenuta vera è la colla
-    sulla superficie di contatto, non l'incastro da solo.
+    centra i pezzi mentre la colla fa presa. In più, ad ogni spigolo, una
+    vite stampata (**Q**) attraversa di taglio il bordo posteriore del
+    fianco e si avvita in un foro filettato sul retro (foro di passaggio
+    + svasatura sul retro, filettatura sul fianco — stessa tecnica del
+    foro **G**, vedi sotto) — la colla resta la tenuta principale, la
+    vite aggiunge rigidità meccanica vera (non solo allineamento) senza
+    rendere lo spigolo smontabile: si avvita e non si toglie più. **Non**
+    rinforza la giunzione a pettine tra i due segmenti dello stesso
+    fianco/retro (vedi punto sotto per il perché).
   - **Giunzione dei pannelli spezzati** (fianchi e retro, dove un pezzo
     supererebbe i 250mm): un giunto a pettine (denti che si alternano,
     verificato per costruzione — l'unione dei due lati copre l'intera
     giunzione senza vuoti e senza sovrapposizioni, non è stato solo
     renderizzato e guardato). Molta più superficie di contatto della
     vecchia fila di viti M4, quindi niente listello di rinforzo separato.
+    **Qui non c'è una vite di rinforzo**: è un incastro complanare, in
+    ogni punto della giunzione c'è materiale di un solo segmento, mai di
+    entrambi sovrapposti nello spessore — non c'è "doppio spessore" da
+    forare in linea retta come agli spigoli. Se vuoi comunque rinforzarla,
+    l'opzione è una staffa/piastrina stampata a cavallo della giunzione,
+    avvitata su entrambi i lati (non inclusa di default, chiedi se la
+    vuoi).
   - **Sopra/sotto**: appoggiano a filo sui bordi della pila di pareti
     (già allineata dagli incastri di cui sopra) e si incollano lì.
 - **Smontabili (vite stampata, non ferramenta comprata)**: housing↔fianchi,
@@ -137,15 +151,16 @@ smontabile o no:
   smontabili perché servono per manutenzione (motore, rullo, tramoggia).
   Le bocchette filettate femmina (`printed_screw_hole`/`screw_boss` in
   `helpers.scad`) sono già negli altri pezzi; la vite maschio vera e
-  propria è **Q** in `screws.scad` — stampane **16** (8 per housing, 4
-  per la tramoggia, 4 per il pannello frontale, vedi la tabella
-  Legenda). Stessa filettatura grossa "propria" (passo 2.2mm, non imita
-  una vite metrica — un M3 vero di solito non tiene stampato) generata
-  dalla stessa funzione su entrambi i lati, quindi combaciano sempre tra
-  loro. Se la tua combinazione stampante/filamento stringe troppo o gira
-  a vuoto, `printed_screw_clearance` in `params.scad` è il primo valore
-  da ritoccare — stampa 1 vite (**Q**) come prova prima di stampare
-  tutto il resto.
+  propria è **Q** in `screws.scad` — stampane **20** (8 per housing, 4
+  per la tramoggia, 4 per il pannello frontale, 4 per il rinforzo agli
+  spigoli, vedi la tabella Legenda). Stessa filettatura grossa "propria"
+  (passo 2.2mm, non imita una vite metrica — un M3 vero di solito non
+  tiene stampato) generata dalla stessa funzione su entrambi i lati,
+  quindi combaciano sempre tra loro. Se la tua combinazione
+  stampante/filamento stringe troppo o gira a vuoto,
+  `printed_screw_clearance` in `params.scad` è il primo valore da
+  ritoccare — stampa 1 vite (**Q**) come prova prima di stampare tutto
+  il resto.
 - **Cerniera del coperchio tramoggia** (**E**↔**D**): nocche stampate
   alternate (3 su **D**, 2 su **E**) con un perno comune — non una vite,
   uno spezzone del tuo stesso filamento da 1.75mm.
@@ -159,7 +174,7 @@ c'è alternativa stampata).
 
 ## Legenda pezzi (A-Q): una lettera incisa su ogni pezzo
 
-I 17 pezzi stampabili (di cui **Q** da stampare 16 volte: sono le viti)
+I 17 pezzi stampabili (di cui **Q** da stampare 20 volte: sono le viti)
 hanno tutti una lettera incisa (o su una piccola
 targhetta sporgente, dove il pezzo è troppo sottile per un'incisione) così
 si riconoscono senza doverli confrontare a occhio col disegno mentre li
@@ -184,7 +199,7 @@ stacchi dal piatto di stampa — modulo `label_cut`/`label_tag` in
 | **N** | Retro, segmento inferiore | `cabinet.scad` → `back_panel_seg_3d(0,...)` | sopra il foro passacavi |
 | **O** | Retro, segmento superiore | `cabinet.scad` → `back_panel_seg_3d(1,...)` | centro pannello |
 | **P** | Accoppiatore motore↔rullo | `coupler.scad` | faccia accessibile lato motore, fuori dal foro alberino |
-| **Q** ×16 | Vite stampata | `screws.scad` | faccia esterna della testa esagonale |
+| **Q** ×20 | Vite stampata | `screws.scad` | faccia esterna della testa esagonale |
 
 **Nota per `cabinet.scad`**: i moduli 2D originali (`top_panel()`,
 `side_panel_seg(i, is_drive)`, ecc.) restano invariati e senza lettera —
@@ -266,7 +281,7 @@ un errore se non lo è (vedi `../../software/esphome`).
   minimi sotto gli sbalzi dei piatti terminali
 - Foro albero del rullo (6mm): rifinisci con un trapano se stampa stretta
 - **Viti stampate** (`screws.scad`, **Q**): stampane 1 come prova prima
-  di stampare le altre 15 e il resto del mobile — se non entra nella
+  di stampare le altre 19 e il resto del mobile — se non entra nella
   bocchetta filettata di un altro pezzo, allarga
   `printed_screw_clearance` in `params.scad`; se gira a vuoto appena
   inserita, riducilo. Si stampano già in verticale come esportate (asse
@@ -307,6 +322,14 @@ fissaggio che housing e tramoggia già hanno.
   del mobile (fino a `front_panel_h`, sotto i 250mm — non spezzato),
   quindi la tramoggia resta "a vista" sopra, chiusa dalle sue stesse
   pareti piene.
+- **Fianchi → retro, ai 4 spigoli verticali**: oltre a linguetta+colla
+  (vedi sopra), una vite stampata per spigolo bucata di taglio nel bordo
+  posteriore di ciascun fianco (**J**/**K**/**L**/**M**), filettata lì,
+  con foro di passaggio e svasatura sul retro corrispondente (**N**/**O**)
+  — stessa tecnica del foro **G**, sul bordo opposto. Quota scelta
+  lontano dalle linguette di centraggio e dal cerchio fori housing (dove
+  presente); coassialità verificata algebricamente con la stessa
+  trasformazione di coordinate usata per il foro **G**, non a occhio.
 
 Vedi `assembly.scad` per la vista 3D con tutte queste quote applicate.
 
@@ -318,7 +341,7 @@ cianoacrilica gel o epossidica bicomponente, vedi `../bom.md`.
 1. Stampa 1× ciascuno di **A** `roller.scad`, **B** `housing.scad`,
    **C** `grille.scad`, **D** `hopper.scad`, **E** `hopper_lid.scad`,
    **F** `chute.scad`, **G** `front_panel.scad`, **P** `coupler.scad`;
-   stampa **16×** la vite **Q** `screws.scad`; stampa (o taglia) gli 8
+   stampa **20×** la vite **Q** `screws.scad`; stampa (o taglia) gli 8
    pezzi di `cabinet.scad` (**H** sopra, **I** sotto, **J**+**K** fianco
    motore in 2 segmenti, **L**+**M** fianco folle in 2 segmenti, **N**+**O**
    retro in 2 segmenti)
@@ -327,7 +350,11 @@ cianoacrilica gel o epossidica bicomponente, vedi `../bom.md`.
    posizione, tienili premuti/con un peso finché la colla non fa presa
 3. Incolla i 4 spigoli verticali del mobile: le linguette sui fianchi
    (**J**, **K**, **L**, **M**) entrano nelle tasche cieche sul retro
-   (**N**, **O**) — di nuovo, l'incastro allinea da solo, la colla tiene
+   (**N**, **O**) — di nuovo, l'incastro allinea da solo, la colla tiene.
+   Prima che la colla faccia presa del tutto, avvita anche le 4 viti
+   **Q** di rinforzo spigolo (una per **J**-**N**, **K**-**O**, **L**-**N**,
+   **M**-**O**): tengono i pannelli premuti l'uno contro l'altro mentre la
+   colla asciuga, e restano poi come rinforzo permanente
 4. Monta **A** dentro **B**, verifica che giri libero senza attrito
    eccessivo contro le pareti
 5. Avvita **B** ai pannelli **J**+**K** e **L**+**M** con 8 viti **Q**
