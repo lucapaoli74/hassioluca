@@ -197,7 +197,18 @@ consapevole, non per un contesto con bambini piccoli senza supervisione.
 - Corretta una lacuna reale segnalata dall'utente: le bocchette filettate
   femmina per le viti stampate erano già nei vari pezzi, ma la vite
   maschio vera e propria non era mai stata istanziata come pezzo a sé
-  stampabile — il progetto Bambu Studio non le conteneva. Aggiunto
-  `screws.scad` (lettera **Q**, da stampare ×16) e rigenerato il
-  progetto Bambu Studio con tutti i 17 pezzi (32 istanze di stampa
-  contando le 16 copie della vite)
+  stampabile — il pacchetto per Bambu Studio non le conteneva. Aggiunto
+  `screws.scad` (lettera **Q**, da stampare ×16)
+- Il pacchetto multi-pezzo unito a mano in un unico file `.3mf` (XML
+  scritto direttamente, senza poter aprire un vero Bambu Studio per
+  provarlo in questa sessione) dava "configurazione non valida"
+  all'apertura — molto probabilmente per via delle posizioni dei pezzi
+  sulla griglia interna del file, arrivate oltre i 600mm dall'origine
+  senza badare a un piano di stampa reale, oltre alla mancanza dei
+  metadati che l'export nativo di OpenSCAD normalmente include
+  (namespace/UUID dell'estensione "production" del formato 3MF). Non
+  essendo verificabile senza un Bambu Studio reale, la consegna è ora un
+  pacchetto di **32 file `.stl` singoli** (esportati uno per uno da
+  OpenSCAD, ognuno un file STL valido a sé, zero XML scritto a mano) —
+  formato più semplice e senza ambiguità, da trascinare tutti insieme
+  sul piano di Bambu Studio
