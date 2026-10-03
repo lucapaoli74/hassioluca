@@ -3,6 +3,10 @@
 Ogni versione rilasciata ha qui la sua voce: il testo diventa le note della
 release mostrate nel pannello (Impostazioni → Aggiornamenti).
 
+## [0.1.4] - 2026-10-04
+
+- Diagnostica: se la porta RTSP non risponde controlla anche ping, porte 80/8000/443, test di Windows, programmi già collegati alla telecamera e antivirus installato.
+
 ## [0.1.3] - 2026-10-03
 
 - Pulsante "Diagnostica" nella pagina della webcam: verifica porta, dialogo RTSP (credenziali, percorso, codec) e ffmpeg, con un rapporto da copiare senza password.

@@ -56,7 +56,7 @@ func DiagnoseCamera(ctx context.Context, cam Camera) string {
 	if err != nil {
 		line("\n[1] Porta %s: NON RAGGIUNGIBILE (%v)", host, err)
 		line("    → la telecamera non è raggiungibile da questo PC o RTSP è spento")
-		return b.String()
+		return b.String() + networkDiagnosis(ctx, host)
 	}
 	line("\n[1] Porta %s: aperta (%d ms)", host, time.Since(start).Milliseconds())
 
