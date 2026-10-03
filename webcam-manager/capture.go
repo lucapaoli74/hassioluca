@@ -361,8 +361,8 @@ func rtspFrameWith(ctx context.Context, bin, u, transport string) ([]byte, error
 		"-rtsp_transport", transport, "-i", u,
 		"-frames:v", "1", "-f", "image2", "-c:v", "mjpeg", "-q:v", "2", "pipe:1")
 	hideWindow(cmd)
-	var stderr bytes.Buffer
-	cmd.Stderr = &stderr
+	stderr := &tailBuffer{}
+	cmd.Stderr = stderr
 	out, err := cmd.Output()
 	if err != nil {
 		if ctx.Err() != nil {
@@ -445,8 +445,8 @@ func rtspLive(ctx context.Context, bin, u, transport string, emit func([]byte) e
 		"-rtsp_transport", transport, "-i", u,
 		"-an", "-vf", "fps=8,scale='min(1280,iw)':-2", "-f", "mjpeg", "-q:v", "6", "pipe:1")
 	hideWindow(cmd)
-	var stderr bytes.Buffer
-	cmd.Stderr = &stderr
+	stderr := &tailBuffer{}
+	cmd.Stderr = stderr
 	stdout, err := cmd.StdoutPipe()
 	if err != nil {
 		return err
@@ -470,4 +470,27 @@ func rtspLive(ctx context.Context, bin, u, transport string, emit func([]byte) e
 			return err
 		}
 	}
+}
+
+// tailBuffer conserva solo gli ultimi 4 KB scritti: i messaggi di ffmpeg di
+// uno stream live che dura giorni non devono accumularsi in memoria.
+type tailBuffer struct {
+	mu  sync.Mutex
+	buf []byte
+}
+
+func (t *tailBuffer) Write(p []byte) (int, error) {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	t.buf = append(t.buf, p...)
+	if len(t.buf) > 4096 {
+		t.buf = append([]byte(nil), t.buf[len(t.buf)-4096:]...)
+	}
+	return len(p), nil
+}
+
+func (t *tailBuffer) String() string {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	return string(t.buf)
 }
