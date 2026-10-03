@@ -348,7 +348,7 @@ let lastFound = [];
 pages.ricerca = async (page) => {
   page.innerHTML = `<h1>Ricerca telecamere</h1>
     <div class="card">
-      <p class="help" style="margin-top:0">Cerca le telecamere IP nella rete locale con <b>ONVIF</b> (WS-Discovery) e con una scansione delle porte tipiche (RTSP 554, web, Hikvision, Dahua…). Dura circa 15 secondi.</p>
+      <p class="help" style="margin-top:0">Cerca le telecamere IP nella rete locale con <b>ONVIF</b> (WS-Discovery) e con una scansione delle porte tipiche (RTSP 554, web, Hikvision, Dahua…). Dura circa un minuto (la scansione è volutamente lenta per non allarmare gli antivirus).</p>
       <div class="toolbar" style="margin:0"><button class="primary" id="rc-go">🔎 Avvia ricerca</button>
       <span class="spacer"></span><span class="help">Credenziali da provare sulle telecamere:</span>
       <input id="rc-user" placeholder="utente" style="width:130px" value="admin"><input id="rc-pass" type="password" placeholder="password" style="width:150px"></div>

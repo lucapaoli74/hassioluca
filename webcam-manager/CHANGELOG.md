@@ -3,6 +3,10 @@
 Ogni versione rilasciata ha qui la sua voce: il testo diventa le note della
 release mostrate nel pannello (Impostazioni → Aggiornamenti).
 
+## [0.1.5] - 2026-10-04
+
+- Ricerca telecamere molto più leggera (poche connessioni alla volta, meno porte): non viene più scambiata per un attacco dagli antivirus.
+
 ## [0.1.4] - 2026-10-04
 
 - Diagnostica: se la porta RTSP non risponde controlla anche ping, porte 80/8000/443, test di Windows, programmi già collegati alla telecamera e antivirus installato.

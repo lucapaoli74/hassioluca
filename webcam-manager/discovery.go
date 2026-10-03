@@ -45,13 +45,17 @@ type Suggestion struct {
 }
 
 // Porte tipiche delle telecamere IP: RTSP, web, SDK Hikvision/Dahua/XMEye.
-var scanPorts = []int{554, 80, 8080, 8000, 81, 88, 8899, 37777, 34567, 443}
+// Poche porte e pochi tentativi in parallelo: una scansione aggressiva viene
+// scambiata dagli antivirus per un attacco e il programma viene bloccato.
+var scanPorts = []int{554, 80, 8000, 8080, 37777}
+
+const scanWorkers = 24
 
 // Discover cerca le telecamere nella rete locale combinando ONVIF
 // WS-Discovery (multicast) e una scansione delle porte sulle sottoreti /24
 // delle schede di rete del computer.
 func Discover(ctx context.Context) ([]FoundDevice, error) {
-	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
+	ctx, cancel := context.WithTimeout(ctx, 75*time.Second)
 	defer cancel()
 	devices := map[string]*FoundDevice{}
 	var mu sync.Mutex
@@ -188,12 +192,13 @@ func portScan(ctx context.Context, hosts []string) map[string][]int {
 	res := map[string][]int{}
 	var mu sync.Mutex
 	var wg sync.WaitGroup
-	for w := 0; w < 256; w++ {
+	for w := 0; w < scanWorkers; w++ {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			d := net.Dialer{Timeout: 600 * time.Millisecond}
+			d := net.Dialer{Timeout: 700 * time.Millisecond}
 			for j := range jobs {
+				time.Sleep(20 * time.Millisecond) // ritmo tranquillo
 				c, err := d.DialContext(ctx, "tcp", net.JoinHostPort(j.ip, strconv.Itoa(j.port)))
 				if err != nil {
 					continue
