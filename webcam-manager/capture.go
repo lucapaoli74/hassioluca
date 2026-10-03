@@ -15,8 +15,10 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"runtime"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -28,8 +30,22 @@ var httpClient = &http.Client{Timeout: 20 * time.Second}
 // browser resta collegato e sono chiusi tramite il context.
 var streamClient = &http.Client{}
 
+// effectiveSource corregge il tipo di sorgente quando l'indirizzo non lascia
+// dubbi (es. un URL rtsp:// impostato per errore come "snapshot").
+func effectiveSource(cam Camera) string {
+	u := strings.ToLower(strings.TrimSpace(cam.URL))
+	if strings.HasPrefix(u, "rtsp://") || strings.HasPrefix(u, "rtsps://") {
+		return "rtsp"
+	}
+	if cam.Source == "rtsp" && (strings.HasPrefix(u, "http://") || strings.HasPrefix(u, "https://")) {
+		return "snapshot"
+	}
+	return cam.Source
+}
+
 // CaptureFrame restituisce un singolo JPEG dalla telecamera.
 func CaptureFrame(ctx context.Context, cam Camera) ([]byte, error) {
+	cam.Source = effectiveSource(cam)
 	switch cam.Source {
 	case "snapshot":
 		return fetchSnapshot(ctx, cam)
@@ -218,7 +234,84 @@ func ffmpegPath() (string, error) {
 	if p, err := exec.LookPath(name); err == nil {
 		return p, nil
 	}
-	return "", errors.New("le telecamere RTSP richiedono ffmpeg: copialo accanto all'eseguibile")
+	// posizioni comuni (il servizio di Windows non vede il PATH dell'utente)
+	var extra []string
+	if runtime.GOOS == "windows" {
+		extra = []string{`C:\ffmpeg\bin\ffmpeg.exe`, `C:\ffmpeg\ffmpeg.exe`,
+			filepath.Join(os.Getenv("ProgramFiles"), "ffmpeg", "bin", "ffmpeg.exe"),
+			filepath.Join(systemDataDir(), "ffmpeg.exe")}
+	} else {
+		extra = []string{"/usr/bin/ffmpeg", "/usr/local/bin/ffmpeg", "/opt/homebrew/bin/ffmpeg"}
+	}
+	ffmpegInst.Lock()
+	if ffmpegInst.extraDir != "" {
+		extra = append(extra, filepath.Join(ffmpegInst.extraDir, name))
+	}
+	ffmpegInst.Unlock()
+	for _, p := range extra {
+		if _, err := os.Stat(p); err == nil {
+			return p, nil
+		}
+	}
+	if autoInstallFFmpeg() {
+		return "", errors.New("ffmpeg (necessario per le telecamere RTSP) non c'è ancora: lo sto scaricando in automatico, riprova tra qualche minuto")
+	}
+	return "", errors.New("per le telecamere RTSP serve ffmpeg: copia ffmpeg.exe nella cartella del programma (accanto a webcam-manager.exe)")
+}
+
+var credsInURL = regexp.MustCompile(`(rtsps?://)[^/@\s]+@`)
+
+// hideCreds toglie utente e password dagli URL contenuti nei messaggi.
+func hideCreds(s string) string { return credsInURL.ReplaceAllString(s, "${1}***@") }
+
+// rtspTransports ricorda, per ogni URL, il trasporto che ha funzionato.
+var (
+	rtspMu         sync.Mutex
+	rtspTransports = map[string]string{}
+)
+
+// transportsFor restituisce l'ordine in cui provare TCP e UDP: prima quello
+// che ha già funzionato. Alcune telecamere (es. EZVIZ più vecchie) vanno solo in UDP.
+func transportsFor(u string) []string {
+	rtspMu.Lock()
+	defer rtspMu.Unlock()
+	if rtspTransports[u] == "udp" {
+		return []string{"udp", "tcp"}
+	}
+	return []string{"tcp", "udp"}
+}
+
+func rememberTransport(u, t string) {
+	rtspMu.Lock()
+	rtspTransports[u] = t
+	rtspMu.Unlock()
+}
+
+// ffmpegError riassume l'errore di ffmpeg in modo comprensibile.
+func ffmpegError(stderr string, err error) error {
+	msg := strings.TrimSpace(stderr)
+	if msg == "" {
+		msg = err.Error()
+	}
+	if lines := strings.Split(msg, "\n"); len(lines) > 3 {
+		msg = strings.Join(lines[len(lines)-3:], " / ")
+	}
+	low := strings.ToLower(msg)
+	hint := ""
+	switch {
+	case strings.Contains(low, "401") || strings.Contains(low, "unauthorized"):
+		hint = " — credenziali rifiutate (per EZVIZ: utente admin, password = codice di verifica)"
+	case strings.Contains(low, "404") || strings.Contains(low, "not found"):
+		hint = " — percorso dello stream sbagliato"
+	case strings.Contains(low, "connection refused"):
+		hint = " — la porta RTSP è chiusa (attiva RTSP nell'app della telecamera)"
+	case strings.Contains(low, "timed out") || strings.Contains(low, "timeout") || errors.Is(err, context.DeadlineExceeded):
+		hint = " — la telecamera non risponde"
+	}
+	if len(msg) > 300 {
+		msg = msg[len(msg)-300:]
+	}
+	return fmt.Errorf("ffmpeg: %s%s", hideCreds(msg), hint)
 }
 
 // rtspURL inserisce le credenziali nell'URL RTSP se non sono già presenti.
@@ -236,23 +329,42 @@ func rtspFrame(ctx context.Context, cam Camera) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	ctx, cancel := context.WithTimeout(ctx, 25*time.Second)
+	u := rtspURL(cam)
+	var firstErr error
+	for _, transport := range transportsFor(u) {
+		out, err := rtspFrameWith(ctx, bin, u, transport)
+		if err == nil {
+			rememberTransport(u, transport)
+			return out, nil
+		}
+		if firstErr == nil {
+			firstErr = err
+		}
+		if ctx.Err() != nil {
+			break
+		}
+	}
+	return nil, firstErr
+}
+
+func rtspFrameWith(ctx context.Context, bin, u, transport string) ([]byte, error) {
+	ctx, cancel := context.WithTimeout(ctx, 20*time.Second)
 	defer cancel()
 	cmd := exec.CommandContext(ctx, bin, "-hide_banner", "-loglevel", "error",
-		"-rtsp_transport", "tcp", "-i", rtspURL(cam),
+		"-rtsp_transport", transport, "-i", u,
 		"-frames:v", "1", "-f", "image2", "-c:v", "mjpeg", "-q:v", "2", "pipe:1")
+	hideWindow(cmd)
 	var stderr bytes.Buffer
 	cmd.Stderr = &stderr
 	out, err := cmd.Output()
 	if err != nil {
-		msg := strings.TrimSpace(stderr.String())
-		if msg == "" {
-			msg = err.Error()
+		if ctx.Err() != nil {
+			err = context.DeadlineExceeded
 		}
-		return nil, fmt.Errorf("ffmpeg: %s", msg)
+		return nil, ffmpegError(stderr.String(), err)
 	}
 	if len(out) < 2 || out[0] != 0xFF || out[1] != 0xD8 {
-		return nil, errors.New("ffmpeg non ha prodotto un JPEG")
+		return nil, errors.New("ffmpeg non ha prodotto un'immagine (lo stream è video?)")
 	}
 	return out, nil
 }
@@ -260,6 +372,7 @@ func rtspFrame(ctx context.Context, cam Camera) ([]byte, error) {
 // LiveStream invia fotogrammi JPEG a emit finché ctx non viene annullato o
 // emit restituisce un errore (browser disconnesso).
 func LiveStream(ctx context.Context, cam Camera, emit func([]byte) error) error {
+	cam.Source = effectiveSource(cam)
 	switch cam.Source {
 	case "mjpeg":
 		resp, err := doCameraRequest(ctx, streamClient, cam.URL, cam.Username, cam.Password)
@@ -282,27 +395,22 @@ func LiveStream(ctx context.Context, cam Camera, emit func([]byte) error) error 
 		if err != nil {
 			return err
 		}
-		cmd := exec.CommandContext(ctx, bin, "-hide_banner", "-loglevel", "error",
-			"-rtsp_transport", "tcp", "-i", rtspURL(cam),
-			"-an", "-vf", "fps=8,scale='min(1280,iw)':-2", "-f", "mjpeg", "-q:v", "6", "pipe:1")
-		stdout, err := cmd.StdoutPipe()
-		if err != nil {
-			return err
-		}
-		if err := cmd.Start(); err != nil {
-			return err
-		}
-		defer func() { _ = cmd.Process.Kill(); _ = cmd.Wait() }()
-		r := bufio.NewReaderSize(stdout, 64<<10)
-		for {
-			frame, err := nextJPEG(r)
-			if err != nil {
-				return err
-			}
-			if err := emit(frame); err != nil {
-				return err
+		u := rtspURL(cam)
+		var lastErr error
+		for _, transport := range transportsFor(u) {
+			got := false
+			lastErr = rtspLive(ctx, bin, u, transport, func(f []byte) error {
+				if !got {
+					got = true
+					rememberTransport(u, transport)
+				}
+				return emit(f)
+			})
+			if got || ctx.Err() != nil {
+				return lastErr // il flusso era partito: lo riavvia chi ci chiama
 			}
 		}
+		return lastErr
 	default: // snapshot: interroga la telecamera circa una volta al secondo
 		for {
 			start := time.Now()
@@ -318,6 +426,41 @@ func LiveStream(ctx context.Context, cam Camera, emit func([]byte) error) error 
 				return ctx.Err()
 			case <-time.After(time.Second - time.Since(start)):
 			}
+		}
+	}
+}
+
+// rtspLive converte lo stream RTSP in fotogrammi JPEG con ffmpeg.
+func rtspLive(ctx context.Context, bin, u, transport string, emit func([]byte) error) error {
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
+	cmd := exec.CommandContext(ctx, bin, "-hide_banner", "-loglevel", "error",
+		"-rtsp_transport", transport, "-i", u,
+		"-an", "-vf", "fps=8,scale='min(1280,iw)':-2", "-f", "mjpeg", "-q:v", "6", "pipe:1")
+	hideWindow(cmd)
+	var stderr bytes.Buffer
+	cmd.Stderr = &stderr
+	stdout, err := cmd.StdoutPipe()
+	if err != nil {
+		return err
+	}
+	if err := cmd.Start(); err != nil {
+		return err
+	}
+	defer func() { cancel(); _ = cmd.Wait() }()
+	// se in 20 secondi non arriva nulla, si prova l'altro trasporto
+	first := time.AfterFunc(20*time.Second, cancel)
+	r := bufio.NewReaderSize(stdout, 64<<10)
+	for {
+		frame, err := nextJPEG(r)
+		if err != nil {
+			first.Stop()
+			_ = cmd.Wait()
+			return ffmpegError(stderr.String(), err)
+		}
+		first.Stop()
+		if err := emit(frame); err != nil {
+			return err
 		}
 	}
 }

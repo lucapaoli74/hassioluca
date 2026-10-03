@@ -3,6 +3,12 @@
 Ogni versione rilasciata ha qui la sua voce: il testo diventa le note della
 release mostrate nel pannello (Impostazioni → Aggiornamenti).
 
+## [0.1.1] - 2026-10-03
+
+- Telecamere RTSP: il tipo di sorgente si riconosce dall'indirizzo (rtsp://), prova TCP e poi UDP (necessario per alcune EZVIZ), messaggi d'errore più chiari senza password.
+- ffmpeg viene scaricato automaticamente su Windows se manca; pulsante "Installa ffmpeg" in Impostazioni.
+- Ricerca: aggiunto il percorso EZVIZ /h264_stream (modelli C1/C2/C3).
+
 ## [0.1.0] - 2026-10-03
 
 Prima versione di prova.

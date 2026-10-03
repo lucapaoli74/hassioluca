@@ -322,3 +322,19 @@ func TestForecastRender(t *testing.T) {
 		_ = os.WriteFile(p, out, 0o644)
 	}
 }
+
+func TestRTSPSourceAndErrors(t *testing.T) {
+	cam := Camera{Source: "snapshot", URL: "rtsp://admin:SEGRETO@127.0.0.1:1/h264_stream"}
+	if effectiveSource(cam) != "rtsp" {
+		t.Fatal("URL rtsp:// non riconosciuto")
+	}
+	_, err := CaptureFrame(context.Background(), cam)
+	if err == nil {
+		t.Fatal("atteso errore")
+	}
+	msg := err.Error()
+	if strings.Contains(msg, "SEGRETO") {
+		t.Fatalf("password nel messaggio: %s", msg)
+	}
+	t.Log(msg)
+}

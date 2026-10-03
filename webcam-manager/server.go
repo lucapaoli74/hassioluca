@@ -101,6 +101,16 @@ func (s *Server) Handler() http.Handler {
 		a.Reload()
 		writeJSON(w, map[string]string{"ok": "Configurazione ripristinata"})
 	})
+	mux.HandleFunc("GET /api/ffmpeg", func(w http.ResponseWriter, r *http.Request) {
+		writeJSON(w, GetFFmpegStatus())
+	})
+	mux.HandleFunc("POST /api/ffmpeg/install", func(w http.ResponseWriter, r *http.Request) {
+		if err := StartFFmpegInstall(); err != nil {
+			httpError(w, http.StatusBadRequest, err.Error())
+			return
+		}
+		writeJSON(w, GetFFmpegStatus())
+	})
 	mux.HandleFunc("GET /api/logs", func(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, recentLog.Lines())
 	})

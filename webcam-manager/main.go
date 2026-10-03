@@ -76,6 +76,9 @@ func NewApp(dataDir, listen string) (*App, error) {
 		return nil, err
 	}
 	a := &App{dataDir: dataDir, store: store, archive: archive, listen: listen}
+	ffmpegInst.Lock()
+	ffmpegInst.extraDir = dataDir
+	ffmpegInst.Unlock()
 	a.data = NewDataManager()
 	wuGlobalKey = func() string { return store.Get().WUApiKey }
 	a.renderer = NewRenderer(a.logoDir(), a.data)

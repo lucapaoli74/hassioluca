@@ -484,7 +484,15 @@ async function editCamera(page, id) {
       <div class="toolbar"><button class="primary" id="cm-save">💾 Salva</button><a class="btn" href="#webcam">Annulla</a><span class="spacer"></span>${isNew ? "" : '<button class="danger" id="cm-del">Elimina</button>'}</div></div>
     <div class="preview card"><h3 style="margin-top:0">Prova</h3><img class="cam-img" id="cm-img" alt=""><div id="cm-msg" class="help" style="margin-top:6px">Premi “Prova” per verificare URL e credenziali.</div>
       <div class="toolbar" style="margin-top:10px"><button id="cm-test">📸 Prova cattura</button><button id="cm-live">🔴 Live</button>${isNew ? "" : `<a class="btn" href="#sovrimpressioni/${encodeURIComponent(cam.id)}">🖌️ Sovrimpressioni</a>`}</div></div></div>`;
-  $("#cm-form").appendChild(renderForm(cam, cameraFields, k => { if (k === "name" && isNew) { cam.id = uniqueId(cam.name, cfg.cameras); $("#cm-form .form").redraw(); } }));
+  $("#cm-form").appendChild(renderForm(cam, cameraFields, k => {
+    if (k === "name" && isNew) { cam.id = uniqueId(cam.name, cfg.cameras); $("#cm-form .form").redraw(); }
+    // il tipo di sorgente segue l'indirizzo: rtsp:// → RTSP
+    if (k === "url") {
+      const u = cam.url.trim().toLowerCase();
+      const src = u.startsWith("rtsp") ? "rtsp" : (u.startsWith("http") && cam.source === "rtsp") ? "snapshot" : cam.source;
+      if (src !== cam.source) { cam.source = src; const sel = $("#cm-form select"); if (sel) sel.value = src; }
+    }
+  }));
 
   // pubblicazione su siti: una riga per sito con nome file e periodicità
   const pubBox = $("#cm-pubs");
@@ -1041,7 +1049,16 @@ pages.impostazioni = async (page, arg) => {
       <div class="card"><h3 style="margin-top:0">Informazioni</h3><table>
       <tr><td>Versione</td><td><b>${esc(info.version)}</b></td></tr><tr><td>Computer</td><td>${esc(info.hostname)}</td></tr>
       <tr><td>Cartella dati</td><td><code>${esc(info.data_dir)}</code></td></tr>
-      <tr><td>ffmpeg (per RTSP)</td><td>${info.ffmpeg ? '<span class="badge ok">trovato</span>' : '<span class="badge warn">non trovato</span> <span class="help">copia ffmpeg.exe nella cartella del programma per usare le telecamere RTSP</span>'}</td></tr></table></div>`;
+      <tr><td>ffmpeg (per RTSP)</td><td id="ff-cell"></td></tr></table></div>`;
+    const ffDraw = async () => {
+      const f = await api("GET", "/api/ffmpeg"); const cell = $("#ff-cell"); if (!cell) return;
+      cell.innerHTML = f.found ? `<span class="badge ok">trovato</span> <span class="help">${esc(f.path)}</span>`
+        : f.running ? '<span class="badge warn">download in corso…</span>'
+        : `<span class="badge warn">non trovato</span> <button class="small" id="ff-inst">⬇️ Installa ffmpeg</button> ${f.error ? `<span class="err-text">${esc(f.error)}</span>` : ""}`;
+      const b = $("#ff-inst"); if (b) b.onclick = e => busy(e.target, async () => { await api("POST", "/api/ffmpeg/install"); ffDraw(); });
+      if (f.running) setTimeout(ffDraw, 3000);
+    };
+    ffDraw();
     $("#g-loc").appendChild(renderForm(loc, [
       { k: "name", label: "Nome della località", wide: true, placeholder: "Camping Coggiolo Sant'Anna Pelago (MO)", help: "Segnaposto {location} nelle scritte." },
       { k: "altitude", label: "Altitudine (m s.l.m.)", type: "number", help: "Segnaposto {altitude}." },

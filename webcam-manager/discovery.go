@@ -292,7 +292,9 @@ func suggestURLs(d *FoundDevice) []Suggestion {
 		add("RTSP secondario", "rtsp", "rtsp://"+ip+":554/Streaming/Channels/102")
 		// spesso è una EZVIZ (marchio consumer di Hikvision): stessi percorsi più questi
 		add("RTSP EZVIZ", "rtsp", "rtsp://"+ip+":554/H.264")
+		add("RTSP EZVIZ (modelli C1/C2/C3)", "rtsp", "rtsp://"+ip+":554/h264_stream")
 	case "EZVIZ":
+		add("RTSP EZVIZ (modelli C1/C2/C3)", "rtsp", "rtsp://"+ip+":554/h264_stream")
 		add("RTSP EZVIZ principale", "rtsp", "rtsp://"+ip+":554/h264/ch1/main/av_stream")
 		add("RTSP EZVIZ secondario", "rtsp", "rtsp://"+ip+":554/h264/ch1/sub/av_stream")
 		add("RTSP EZVIZ (modelli recenti)", "rtsp", "rtsp://"+ip+":554/H.264")
