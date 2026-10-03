@@ -11,6 +11,7 @@ import (
 	"image"
 	"image/color"
 	"image/jpeg"
+	"net"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -337,4 +338,54 @@ func TestRTSPSourceAndErrors(t *testing.T) {
 		t.Fatalf("password nel messaggio: %s", msg)
 	}
 	t.Log(msg)
+}
+
+func TestDiagnoseRTSPHandshake(t *testing.T) {
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer ln.Close()
+	go func() {
+		c, err := ln.Accept()
+		if err != nil {
+			return
+		}
+		defer c.Close()
+		r := bufio.NewReader(c)
+		for {
+			var reqLines []string
+			for {
+				l, err := r.ReadString('\n')
+				if err != nil {
+					return
+				}
+				if strings.TrimSpace(l) == "" {
+					break
+				}
+				reqLines = append(reqLines, l)
+			}
+			req := strings.Join(reqLines, "")
+			cseq := ""
+			for _, l := range reqLines {
+				if strings.HasPrefix(l, "CSeq:") {
+					cseq = strings.TrimSpace(l[5:])
+				}
+			}
+			switch {
+			case strings.HasPrefix(req, "OPTIONS"):
+				fmt.Fprintf(c, "RTSP/1.0 200 OK\r\nCSeq: %s\r\nServer: Finta EZVIZ\r\nPublic: OPTIONS, DESCRIBE, SETUP, PLAY\r\n\r\n", cseq)
+			case strings.HasPrefix(req, "DESCRIBE") && !strings.Contains(req, "Authorization: Digest"):
+				fmt.Fprintf(c, "RTSP/1.0 401 Unauthorized\r\nCSeq: %s\r\nWWW-Authenticate: Digest realm=\"cam\", nonce=\"n1\"\r\n\r\n", cseq)
+			default:
+				sdp := "v=0\r\nm=video 0 RTP/AVP 96\r\na=rtpmap:96 H264/90000\r\n"
+				fmt.Fprintf(c, "RTSP/1.0 200 OK\r\nCSeq: %s\r\nContent-Type: application/sdp\r\nContent-Length: %d\r\n\r\n%s", cseq, len(sdp), sdp)
+			}
+		}
+	}()
+	rep := DiagnoseCamera(context.Background(), Camera{Source: "rtsp", URL: "rtsp://admin:SEGRETO@" + ln.Addr().String() + "/h264_stream"})
+	t.Log("\n" + rep)
+	if !strings.Contains(rep, "200 OK — credenziali e percorso CORRETTI") || !strings.Contains(rep, "H264/90000") || strings.Contains(rep, "SEGRETO") {
+		t.Fatal("rapporto inatteso")
+	}
 }

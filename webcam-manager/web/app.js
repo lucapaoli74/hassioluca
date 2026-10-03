@@ -483,7 +483,7 @@ async function editCamera(page, id) {
       <div class="card"><h3 style="margin-top:0">Pubblicazione</h3><div id="cm-pubs"></div></div>
       <div class="toolbar"><button class="primary" id="cm-save">💾 Salva</button><a class="btn" href="#webcam">Annulla</a><span class="spacer"></span>${isNew ? "" : '<button class="danger" id="cm-del">Elimina</button>'}</div></div>
     <div class="preview card"><h3 style="margin-top:0">Prova</h3><img class="cam-img" id="cm-img" alt=""><div id="cm-msg" class="help" style="margin-top:6px">Premi “Prova” per verificare URL e credenziali.</div>
-      <div class="toolbar" style="margin-top:10px"><button id="cm-test">📸 Prova cattura</button><button id="cm-live">🔴 Live</button>${isNew ? "" : `<a class="btn" href="#sovrimpressioni/${encodeURIComponent(cam.id)}">🖌️ Sovrimpressioni</a>`}</div></div></div>`;
+      <div class="toolbar" style="margin-top:10px"><button id="cm-test">📸 Prova cattura</button><button id="cm-diag">🩺 Diagnostica</button><button id="cm-live">🔴 Live</button>${isNew ? "" : `<a class="btn" href="#sovrimpressioni/${encodeURIComponent(cam.id)}">🖌️ Sovrimpressioni</a>`}</div></div></div>`;
   $("#cm-form").appendChild(renderForm(cam, cameraFields, k => {
     if (k === "name" && isNew) { cam.id = uniqueId(cam.name, cfg.cameras); $("#cm-form .form").redraw(); }
     // il tipo di sorgente segue l'indirizzo: rtsp:// → RTSP
@@ -523,6 +523,14 @@ async function editCamera(page, id) {
       $("#cm-img").src = URL.createObjectURL(blob);
       $("#cm-msg").innerHTML = `<span class="ok-text">✔ Immagine ricevuta (${Math.round(blob.size / 1024)} KB)</span>`;
     } catch (err) { $("#cm-msg").innerHTML = `<span class="err-text">✖ ${esc(err.message)}</span>`; }
+  });
+  $("#cm-diag").onclick = e => busy(e.target, async () => {
+    $("#cm-msg").textContent = "Diagnostica in corso (fino a 30 secondi)…";
+    const r = await api("POST", "/api/diagnose-camera", cam);
+    $("#cm-msg").textContent = "";
+    openModal(`<h2 style="margin-top:0">🩺 Diagnostica telecamera</h2><p class="help">Il rapporto non contiene la password: copialo e invialo a chi ti assiste.</p>
+      <pre class="log" id="dg-rep">${esc(r.report)}</pre><div class="toolbar"><button class="primary" id="dg-copy">📋 Copia</button></div>`);
+    $("#dg-copy").onclick = () => { navigator.clipboard.writeText(r.report).then(() => toast("Copiato"), () => { const sel = getSelection(); sel.selectAllChildren($("#dg-rep")); toast("Seleziona e copia con Ctrl+C"); }); };
   });
   $("#cm-live").onclick = e => busy(e.target, async () => showLive(cam.name || cam.url, await liveSession(cam)));
   $("#cm-save").onclick = e => busy(e.target, async () => {

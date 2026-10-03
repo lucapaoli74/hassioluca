@@ -3,6 +3,10 @@
 Ogni versione rilasciata ha qui la sua voce: il testo diventa le note della
 release mostrate nel pannello (Impostazioni → Aggiornamenti).
 
+## [0.1.3] - 2026-10-03
+
+- Pulsante "Diagnostica" nella pagina della webcam: verifica porta, dialogo RTSP (credenziali, percorso, codec) e ffmpeg, con un rapporto da copiare senza password.
+
 ## [0.1.2] - 2026-10-03
 
 - RTSP: regola del firewall di Windows anche per ffmpeg (necessaria in UDP), errore con l'esito di entrambi i tentativi TCP/UDP e messaggi di ffmpeg più dettagliati.

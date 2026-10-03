@@ -124,6 +124,14 @@ func (s *Server) Handler() http.Handler {
 		writeJSON(w, map[string]string{"ok": "1"})
 	})
 	mux.HandleFunc("POST /api/test-camera", s.testCamera)
+	mux.HandleFunc("POST /api/diagnose-camera", func(w http.ResponseWriter, r *http.Request) {
+		var cam Camera
+		if !readJSON(w, r, &cam) {
+			return
+		}
+		s.fillCameraPassword(&cam)
+		writeJSON(w, map[string]string{"report": DiagnoseCamera(r.Context(), cam)})
+	})
 	mux.HandleFunc("POST /api/overlay-preview", s.overlayPreview)
 	mux.HandleFunc("POST /api/test-site", s.testSite)
 	mux.HandleFunc("POST /api/sites/{id}/resync-history", func(w http.ResponseWriter, r *http.Request) {
