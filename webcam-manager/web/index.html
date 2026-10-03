@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Webcam Manager</title>
+<link rel="stylesheet" href="app.css">
+</head>
+<body>
+<div id="layout">
+  <nav id="menu">
+    <div class="brand">📷 Webcam Manager</div>
+    <a href="#stato" data-page="stato"><span>📊</span> Stato</a>
+    <a href="#live" data-page="live"><span>🔴</span> Vista live</a>
+    <a href="#ricerca" data-page="ricerca"><span>🔎</span> Ricerca telecamere</a>
+    <a href="#webcam" data-page="webcam"><span>🎥</span> Webcam</a>
+    <a href="#sovrimpressioni" data-page="sovrimpressioni"><span>🖌️</span> Sovrimpressioni</a>
+    <a href="#dati" data-page="dati"><span>🌡️</span> Dati live</a>
+    <a href="#siti" data-page="siti"><span>🌐</span> Siti FTP</a>
+    <a href="#storico" data-page="storico"><span>🗓️</span> Storico</a>
+    <a href="#impostazioni" data-page="impostazioni"><span>⚙️</span> Impostazioni</a>
+    <div class="version" id="version"></div>
+    <div class="version credits">made by Paoli Luca 2026<br><a href="mailto:paoli.lu@gmail.com" style="color:inherit">paoli.lu@gmail.com</a></div>
+  </nav>
+  <button id="menu-toggle" aria-label="Menu">☰</button>
+  <main id="page"></main>
+</div>
+<div id="modal" class="hidden"><div class="modal-box"><button class="modal-close" aria-label="Chiudi">✕</button><div id="modal-body"></div></div></div>
+<div id="toasts"></div>
+<script src="app.js"></script>
+</body>
+</html>

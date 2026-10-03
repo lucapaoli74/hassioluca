@@ -1,0 +1,208 @@
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Webcam</title>
+<style>
+  :root { --bg: #0f141b; --panel: #18202b; --text: #e6ebf1; --muted: #8e9aaa; --line: #2a3442; --accent: #3b82f6; --has: #1e3a5f; }
+  * { box-sizing: border-box; }
+  body { margin: 0; font: 15px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; background: var(--bg); color: var(--text); }
+  header { padding: 14px 18px; display: flex; flex-wrap: wrap; gap: 12px; align-items: center; border-bottom: 1px solid var(--line); }
+  header h1 { font-size: 20px; margin: 0; flex: 1; min-width: 200px; }
+  select, button { font: inherit; background: var(--panel); color: var(--text); border: 1px solid var(--line); border-radius: 7px; padding: 7px 12px; cursor: pointer; }
+  button:hover, select:hover { border-color: var(--accent); }
+  button.sel { background: var(--accent); border-color: var(--accent); }
+  main { max-width: 1280px; margin: 0 auto; padding: 16px; }
+  .tabs { display: flex; gap: 6px; margin-bottom: 14px; flex-wrap: wrap; }
+  .big { width: 100%; border-radius: 8px; background: #000; display: block; aspect-ratio: 16/9; object-fit: contain; }
+  .muted { color: var(--muted); font-size: 13px; }
+  .row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin: 10px 0; }
+  .spacer { flex: 1; }
+  input[type=range] { flex: 1; min-width: 160px; accent-color: var(--accent); }
+  .cal { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; max-width: 520px; }
+  .cal div { text-align: center; padding: 8px 0; border-radius: 6px; font-size: 14px; }
+  .cal .h { color: var(--muted); font-size: 12px; }
+  .cal .d { color: #4b5563; }
+  .cal .d.has { background: var(--has); color: var(--text); cursor: pointer; }
+  .cal .d.has:hover, .cal .d.cur { background: var(--accent); }
+  .thumbs { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px; margin-top: 14px; }
+  .thumbs a { position: relative; display: block; cursor: pointer; }
+  .thumbs img { width: 100%; aspect-ratio: 16/9; object-fit: cover; border-radius: 5px; display: block; background: #000; }
+  .thumbs span { position: absolute; left: 5px; bottom: 5px; background: rgba(0,0,0,.65); padding: 0 6px; border-radius: 4px; font-size: 13px; }
+  #viewer { position: fixed; inset: 0; background: rgba(0,0,0,.94); display: none; flex-direction: column; z-index: 10; }
+  #viewer.open { display: flex; }
+  #viewer img { flex: 1; min-height: 0; width: 100%; object-fit: contain; }
+  #viewer .bar { display: flex; gap: 8px; align-items: center; padding: 10px; justify-content: center; flex-wrap: wrap; }
+  .empty { padding: 30px; text-align: center; color: var(--muted); }
+  footer { text-align: center; color: var(--muted); font-size: 12px; padding: 20px; }
+</style>
+</head>
+<body>
+<header><h1 id="title">Webcam</h1><select id="cam" hidden></select></header>
+<main>
+  <div class="tabs">
+    <button data-tab="now" class="sel">Adesso</button>
+    <button data-tab="tl" id="tab-tl" hidden>Timelapse</button>
+    <button data-tab="arch" id="tab-arch" hidden>Archivio</button>
+  </div>
+  <section id="now"><img class="big" id="now-img" alt=""><div class="muted" id="now-info"></div></section>
+  <section id="tl" hidden>
+    <img class="big" id="tl-img" alt="">
+    <div class="row"><button id="tl-play">▶︎ Play</button><input type="range" id="tl-pos" min="0" value="0"><span id="tl-time" class="muted"></span>
+      <select id="tl-speed"><option value="300">lento</option><option value="150" selected>normale</option><option value="60">veloce</option></select></div>
+    <div class="muted" id="tl-info"></div>
+  </section>
+  <section id="arch" hidden>
+    <div class="row"><button id="m-prev">◀</button><b id="m-label" style="min-width:150px;text-align:center"></b><button id="m-next">▶</button>
+      <span class="spacer"></span><button id="last-day">Ultimo giorno</button></div>
+    <div class="cal" id="cal"></div>
+    <div class="row" id="day-bar" hidden><b id="day-label"></b><span class="spacer"></span><button id="day-play">▶︎ Riproduci la giornata</button></div>
+    <div class="thumbs" id="thumbs"></div>
+  </section>
+</main>
+<div id="viewer"><img id="v-img" alt=""><div class="bar"><button id="v-prev">◀ Prec.</button><b id="v-label"></b><button id="v-next">Succ. ▶</button><button id="v-play">▶︎</button><a id="v-dl" download><button>Scarica</button></a><button id="v-close">✕ Chiudi</button></div></div>
+<footer>Pubblicato con Webcam Manager · made by Paoli Luca 2026 · <a href="mailto:paoli.lu@gmail.com" style="color:inherit">paoli.lu@gmail.com</a></footer>
+<script>
+"use strict";
+const $ = s => document.querySelector(s);
+const MESI = ["gennaio","febbraio","marzo","aprile","maggio","giugno","luglio","agosto","settembre","ottobre","novembre","dicembre"];
+const GIORNI = ["domenica","lunedì","martedì","mercoledì","giovedì","venerdì","sabato"];
+let cams = [], cam = null, days = {}, dayKeys = [], month = null, curDay = null, list = [], vIdx = 0, vTimer = null, nowTimer = null;
+const getJSON = u => fetch(u + (u.includes("?") ? "&" : "?") + "t=" + Date.now()).then(r => { if (!r.ok) throw new Error(r.status); return r.json(); });
+const pad = n => String(n).padStart(2, "0");
+const slotUrl = (day, hhmm, thumb) => `${encodeURIComponent(cam.id)}/${day.replace(/-/g, "/")}/${hhmm}${thumb ? "_t" : ""}.jpg`;
+const hm = s => s.slice(0, 2) + ":" + s.slice(2);
+const longDay = d => { const t = new Date(d + "T12:00:00"); return `${GIORNI[t.getDay()]} ${t.getDate()} ${MESI[t.getMonth()]} ${t.getFullYear()}`; };
+
+async function init() {
+  const idx = await getJSON("cameras.json");
+  cams = idx.cameras || [];
+  if (idx.title) { $("#title").textContent = idx.title; document.title = idx.title; }
+  if (!cams.length) { document.querySelector("main").innerHTML = `<div class="empty">Nessuna webcam con storico.</div>`; return; }
+  const sel = $("#cam");
+  sel.innerHTML = cams.map(c => `<option value="${c.id}">${c.name.replace(/</g, "&lt;")}</option>`).join("");
+  sel.hidden = cams.length < 2;
+  const wanted = new URLSearchParams(location.search).get("cam");
+  if (wanted && cams.some(c => c.id === wanted)) sel.value = wanted;
+  sel.onchange = () => selectCam(sel.value);
+  selectCam(sel.value);
+}
+
+async function selectCam(id) {
+  cam = cams.find(c => c.id === id);
+  if (cams.length < 2) $("#title").textContent = $("#title").textContent === "Webcam" ? cam.name : $("#title").textContent;
+  $("#tab-tl").hidden = !cam.timelapse;
+  $("#tab-arch").hidden = !cam.archive_minutes;
+  clearInterval(nowTimer);
+  const refresh = () => { $("#now-img").src = cam.current + "?t=" + Date.now(); $("#now-info").textContent = "Aggiornata alle " + new Date().toLocaleTimeString("it-IT", { hour: "2-digit", minute: "2-digit" }) + " · si aggiorna da sola"; };
+  refresh(); nowTimer = setInterval(refresh, 60000);
+  days = {}; dayKeys = [];
+  if (cam.archive_minutes) {
+    try { days = await getJSON(`${encodeURIComponent(cam.id)}/days.json`); } catch (_) { }
+    dayKeys = Object.keys(days).sort();
+    const last = dayKeys[dayKeys.length - 1];
+    month = last ? last.slice(0, 7) : new Date().toISOString().slice(0, 7);
+    curDay = null; drawCal(); $("#thumbs").innerHTML = ""; $("#day-bar").hidden = true;
+  }
+  showTab(document.querySelector(".tabs .sel").dataset.tab);
+}
+
+function showTab(t) {
+  if ((t === "tl" && !cam.timelapse) || (t === "arch" && !cam.archive_minutes)) t = "now";
+  document.querySelectorAll(".tabs button").forEach(b => b.classList.toggle("sel", b.dataset.tab === t));
+  for (const s of ["now", "tl", "arch"]) $("#" + s).hidden = s !== t;
+  if (t === "tl") loadTimelapse(); else stopTl();
+}
+document.querySelectorAll(".tabs button").forEach(b => b.onclick = () => showTab(b.dataset.tab));
+
+// ---------- timelapse ----------
+let tl = [], tlIdx = 0, tlTimer = null;
+async function loadTimelapse() {
+  stopTl();
+  try { const j = await getJSON(`${encodeURIComponent(cam.id)}/timelapse/timelapse.json`); tl = j.frames || []; } catch (_) { tl = []; }
+  if (!tl.length) { $("#tl-info").textContent = "Timelapse non ancora disponibile."; $("#tl-img").removeAttribute("src"); return; }
+  const base = `${encodeURIComponent(cam.id)}/timelapse/`;
+  tl.forEach(f => { f.url = base + f.f + "?v=" + f.t; new Image().src = f.url; }); // precarica
+  $("#tl-pos").max = tl.length - 1;
+  const from = new Date(tl[0].t * 1000), to = new Date(tl[tl.length - 1].t * 1000);
+  $("#tl-info").textContent = `${tl.length} fotogrammi, dalle ${from.toLocaleTimeString("it-IT", { hour: "2-digit", minute: "2-digit" })} alle ${to.toLocaleTimeString("it-IT", { hour: "2-digit", minute: "2-digit" })}`;
+  tlShow(0); playTl();
+}
+function tlShow(i) {
+  tlIdx = i; const f = tl[i]; if (!f) return;
+  $("#tl-img").src = f.url; $("#tl-pos").value = i;
+  $("#tl-time").textContent = new Date(f.t * 1000).toLocaleString("it-IT", { weekday: "short", hour: "2-digit", minute: "2-digit" });
+}
+function playTl() {
+  stopTl(); $("#tl-play").textContent = "⏸ Pausa";
+  tlTimer = setInterval(() => tlShow(tlIdx >= tl.length - 1 ? 0 : tlIdx + 1), Number($("#tl-speed").value));
+}
+function stopTl() { clearInterval(tlTimer); tlTimer = null; $("#tl-play").textContent = "▶︎ Play"; }
+$("#tl-play").onclick = () => tlTimer ? stopTl() : playTl();
+$("#tl-pos").oninput = e => { stopTl(); tlShow(Number(e.target.value)); };
+$("#tl-speed").onchange = () => { if (tlTimer) playTl(); };
+
+// ---------- archivio ----------
+function drawCal() {
+  const [y, m] = month.split("-").map(Number);
+  $("#m-label").textContent = `${MESI[m - 1]} ${y}`;
+  const first = new Date(y, m - 1, 1), n = new Date(y, m, 0).getDate();
+  let html = ["L", "M", "M", "G", "V", "S", "D"].map(d => `<div class="h">${d}</div>`).join("");
+  html += "<div></div>".repeat((first.getDay() + 6) % 7);
+  for (let d = 1; d <= n; d++) {
+    const key = `${y}-${pad(m)}-${pad(d)}`;
+    html += `<div class="d${days[key] ? " has" : ""}${key === curDay ? " cur" : ""}" data-day="${key}">${d}</div>`;
+  }
+  $("#cal").innerHTML = html;
+  $("#cal").querySelectorAll(".has").forEach(el => el.onclick = () => openDay(el.dataset.day));
+  $("#m-prev").disabled = !dayKeys.length || month <= dayKeys[0].slice(0, 7);
+  $("#m-next").disabled = !dayKeys.length || month >= dayKeys[dayKeys.length - 1].slice(0, 7);
+}
+function shiftMonth(delta) {
+  const [y, m] = month.split("-").map(Number);
+  const d = new Date(y, m - 1 + delta, 1);
+  month = `${d.getFullYear()}-${pad(d.getMonth() + 1)}`; drawCal();
+}
+$("#m-prev").onclick = () => shiftMonth(-1);
+$("#m-next").onclick = () => shiftMonth(1);
+$("#last-day").onclick = () => { const d = dayKeys[dayKeys.length - 1]; if (d) { month = d.slice(0, 7); openDay(d); } };
+
+function openDay(day) {
+  curDay = day; drawCal();
+  $("#day-bar").hidden = false; $("#day-label").textContent = longDay(day);
+  $("#thumbs").innerHTML = days[day].map((s, i) => `<a data-i="${i}"><img loading="lazy" src="${slotUrl(day, s, true)}" alt=""><span>${hm(s)}</span></a>`).join("");
+  $("#thumbs").querySelectorAll("a").forEach(a => a.onclick = () => openViewer(day, Number(a.dataset.i)));
+}
+$("#day-play").onclick = () => { openViewer(curDay, 0); play(); };
+
+// viewer: scorre tutte le immagini, anche attraverso i giorni
+function flat() { const out = []; for (const d of dayKeys) for (const s of days[d]) out.push([d, s]); return out; }
+function openViewer(day, i) {
+  list = flat(); vIdx = list.findIndex(([d, s]) => d === day && s === days[day][i]);
+  $("#viewer").classList.add("open"); showV();
+}
+function showV() {
+  const [d, s] = list[vIdx];
+  const url = slotUrl(d, s, false);
+  $("#v-img").src = url; $("#v-dl").href = url; $("#v-dl").download = `${cam.id}-${d}-${s}.jpg`;
+  $("#v-label").textContent = `${longDay(d)} · ${hm(s)}`;
+  if (list[vIdx + 1]) new Image().src = slotUrl(list[vIdx + 1][0], list[vIdx + 1][1], false);
+}
+function step(n) { vIdx = Math.max(0, Math.min(list.length - 1, vIdx + n)); showV(); }
+function play() { stop(); $("#v-play").textContent = "⏸"; vTimer = setInterval(() => { if (vIdx >= list.length - 1 || list[vIdx + 1][0] !== list[vIdx][0]) stop(); else step(1); }, 700); }
+function stop() { clearInterval(vTimer); vTimer = null; $("#v-play").textContent = "▶︎"; }
+$("#v-prev").onclick = () => { stop(); step(-1); };
+$("#v-next").onclick = () => { stop(); step(1); };
+$("#v-play").onclick = () => vTimer ? stop() : play();
+$("#v-close").onclick = () => { stop(); $("#viewer").classList.remove("open"); };
+document.addEventListener("keydown", e => {
+  if (!$("#viewer").classList.contains("open")) return;
+  if (e.key === "ArrowLeft") { stop(); step(-1); }
+  if (e.key === "ArrowRight") { stop(); step(1); }
+  if (e.key === "Escape") $("#v-close").onclick();
+});
+init().catch(e => document.querySelector("main").innerHTML = `<div class="empty">Storico non disponibile (${e.message}).</div>`);
+</script>
+</body>
+</html>

@@ -1,0 +1,20 @@
+#cloud-config
+# Installazione automatica di Webcam Manager al primo avvio di una VM
+# Debian 12 / Ubuntu 22.04+ (Proxmox, VMware vCenter, qualsiasi hypervisor
+# con cloud-init). Modifica i valori in "runcmd" prima dell'uso.
+#
+# Proxmox:  vedi proxmox-create-vm.sh (lo usa da solo)
+# vCenter:  vedi README.md → "Installazione su VMware vCenter"
+hostname: webcam-manager
+timezone: Europe/Rome
+package_update: true
+packages:
+  - curl
+  - ffmpeg
+  - qemu-guest-agent
+  - open-vm-tools
+runcmd:
+  - [ systemctl, enable, --now, qemu-guest-agent ]
+  - >-
+    curl -fsSL https://raw.githubusercontent.com/lucapaoli74/hassioluca/main/webcam-manager/deploy/install-linux.sh
+    | bash -s -- --location "Camping Coggiolo Sant'Anna Pelago (MO)" --altitude 1250 --password "CAMBIAMI" --port 8080

@@ -1,0 +1,16 @@
+name: "Webcam Manager: richiesta di modifica"
+description: Una funzione nuova o da cambiare
+labels: ["webcam-manager", "modifica"]
+body:
+  - type: textarea
+    id: what
+    attributes: { label: Cosa vorresti, description: "Descrivi la modifica e perché serve" }
+    validations: { required: true }
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options: [Webcam e ricerca, Vista live, Sovrimpressioni, Dati live / meteo, Siti FTP / OneDrive, Storico e mini-sito, Notifiche email, Installazione / aggiornamenti, Altro]
+  - type: dropdown
+    id: priority
+    attributes: { label: Urgenza, options: [Bloccante, Importante, Quando possibile] }

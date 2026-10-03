@@ -1,0 +1,9 @@
+/dist/
+/data/
+/installer/files/
+/webcam-manager
+/webcam-manager.exe
+*.log
+notes.txt
+ff.zip
+ffmpeg-*/
