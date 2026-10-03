@@ -150,9 +150,33 @@ func (s *Scheduler) worker(ctx context.Context, camID string, trigger chan struc
 		case <-ctx.Done():
 			return
 		case <-trigger:
-		case <-time.After(time.Duration(cam.IntervalSeconds) * time.Second):
+		case <-time.After(s.nextDelay(cam)):
 		}
 	}
+}
+
+// nextDelay restituisce l'attesa prima della prossima cattura. Se la
+// telecamera continua a non rispondere i tentativi si diradano (fino a uno
+// ogni 15 minuti): alcune telecamere bloccano chi riprova troppo spesso, e
+// comunque è inutile insistere. "Cattura ora" riprova subito.
+func (s *Scheduler) nextDelay(cam Camera) time.Duration {
+	base := time.Duration(cam.IntervalSeconds) * time.Second
+	s.mu.Lock()
+	st := s.camStatus[cam.ID]
+	failing := st != nil && !st.FailingSince.IsZero()
+	var since time.Duration
+	if failing {
+		since = time.Since(st.FailingSince)
+	}
+	s.mu.Unlock()
+	if !failing {
+		return base
+	}
+	d := base
+	for d < since && d < 15*time.Minute {
+		d *= 2
+	}
+	return min(max(d, base), max(base, 15*time.Minute))
 }
 
 func (s *Scheduler) camera(id string) (Camera, bool) {

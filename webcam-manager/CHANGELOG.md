@@ -3,6 +3,10 @@
 Ogni versione rilasciata ha qui la sua voce: il testo diventa le note della
 release mostrate nel pannello (Impostazioni → Aggiornamenti).
 
+## [0.1.6] - 2026-10-04
+
+- Se una telecamera non risponde i tentativi automatici si diradano fino a uno ogni 15 minuti (alcune telecamere bloccano chi riprova troppo spesso); "Cattura ora" riprova subito.
+
 ## [0.1.5] - 2026-10-04
 
 - Ricerca telecamere molto più leggera (poche connessioni alla volta, meno porte): non viene più scambiata per un attacco dagli antivirus.
