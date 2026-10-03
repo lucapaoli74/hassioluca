@@ -228,10 +228,12 @@ func ffmpegPath() (string, error) {
 	if exe, err := os.Executable(); err == nil {
 		local := filepath.Join(filepath.Dir(exe), name)
 		if _, err := os.Stat(local); err == nil {
+			allowFFmpegFirewall(local)
 			return local, nil
 		}
 	}
 	if p, err := exec.LookPath(name); err == nil {
+		allowFFmpegFirewall(p)
 		return p, nil
 	}
 	// posizioni comuni (il servizio di Windows non vede il PATH dell'utente)
@@ -250,6 +252,7 @@ func ffmpegPath() (string, error) {
 	ffmpegInst.Unlock()
 	for _, p := range extra {
 		if _, err := os.Stat(p); err == nil {
+			allowFFmpegFirewall(p)
 			return p, nil
 		}
 	}
@@ -292,6 +295,9 @@ func ffmpegError(stderr string, err error) error {
 	msg := strings.TrimSpace(stderr)
 	if msg == "" {
 		msg = err.Error()
+		if errors.Is(err, context.DeadlineExceeded) {
+			msg = "nessuna risposta entro il tempo limite"
+		}
 	}
 	if lines := strings.Split(msg, "\n"); len(lines) > 3 {
 		msg = strings.Join(lines[len(lines)-3:], " / ")
@@ -306,7 +312,7 @@ func ffmpegError(stderr string, err error) error {
 	case strings.Contains(low, "connection refused"):
 		hint = " — la porta RTSP è chiusa (attiva RTSP nell'app della telecamera)"
 	case strings.Contains(low, "timed out") || strings.Contains(low, "timeout") || errors.Is(err, context.DeadlineExceeded):
-		hint = " — la telecamera non risponde"
+		hint = " — la telecamera non invia video (è già collegata a un altro programma, es. iSpy? molte EZVIZ accettano un solo collegamento)"
 	}
 	if len(msg) > 300 {
 		msg = msg[len(msg)-300:]
@@ -330,27 +336,28 @@ func rtspFrame(ctx context.Context, cam Camera) ([]byte, error) {
 		return nil, err
 	}
 	u := rtspURL(cam)
-	var firstErr error
+	var errs []string
 	for _, transport := range transportsFor(u) {
+		start := time.Now()
 		out, err := rtspFrameWith(ctx, bin, u, transport)
 		if err == nil {
 			rememberTransport(u, transport)
 			return out, nil
 		}
-		if firstErr == nil {
-			firstErr = err
-		}
+		// l'errore riporta entrambi i tentativi, per capire dove si blocca
+		errs = append(errs, fmt.Sprintf("%s (%.0f s): %s", strings.ToUpper(transport), time.Since(start).Seconds(),
+			strings.TrimPrefix(err.Error(), "ffmpeg: ")))
 		if ctx.Err() != nil {
 			break
 		}
 	}
-	return nil, firstErr
+	return nil, fmt.Errorf("ffmpeg non riceve immagini · %s", strings.Join(errs, " · "))
 }
 
 func rtspFrameWith(ctx context.Context, bin, u, transport string) ([]byte, error) {
 	ctx, cancel := context.WithTimeout(ctx, 20*time.Second)
 	defer cancel()
-	cmd := exec.CommandContext(ctx, bin, "-hide_banner", "-loglevel", "error",
+	cmd := exec.CommandContext(ctx, bin, "-hide_banner", "-loglevel", "warning",
 		"-rtsp_transport", transport, "-i", u,
 		"-frames:v", "1", "-f", "image2", "-c:v", "mjpeg", "-q:v", "2", "pipe:1")
 	hideWindow(cmd)
@@ -434,7 +441,7 @@ func LiveStream(ctx context.Context, cam Camera, emit func([]byte) error) error 
 func rtspLive(ctx context.Context, bin, u, transport string, emit func([]byte) error) error {
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
-	cmd := exec.CommandContext(ctx, bin, "-hide_banner", "-loglevel", "error",
+	cmd := exec.CommandContext(ctx, bin, "-hide_banner", "-loglevel", "warning",
 		"-rtsp_transport", transport, "-i", u,
 		"-an", "-vf", "fps=8,scale='min(1280,iw)':-2", "-f", "mjpeg", "-q:v", "6", "pipe:1")
 	hideWindow(cmd)

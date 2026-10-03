@@ -3,6 +3,10 @@
 Ogni versione rilasciata ha qui la sua voce: il testo diventa le note della
 release mostrate nel pannello (Impostazioni → Aggiornamenti).
 
+## [0.1.2] - 2026-10-03
+
+- RTSP: regola del firewall di Windows anche per ffmpeg (necessaria in UDP), errore con l'esito di entrambi i tentativi TCP/UDP e messaggi di ffmpeg più dettagliati.
+
 ## [0.1.1] - 2026-10-03
 
 - Telecamere RTSP: il tipo di sorgente si riconosce dall'indirizzo (rtsp://), prova TCP e poi UDP (necessario per alcune EZVIZ), messaggi d'errore più chiari senza password.

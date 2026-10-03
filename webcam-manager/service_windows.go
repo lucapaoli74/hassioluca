@@ -168,6 +168,7 @@ func uninstallService() error {
 		return err
 	}
 	_ = exec.Command("netsh", "advfirewall", "firewall", "delete", "rule", "name="+firewallRule).Run()
+	removeFFmpegFirewall()
 	fmt.Println("Servizio rimosso. Configurazione e storico restano in", systemDataDir())
 	return nil
 }

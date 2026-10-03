@@ -517,7 +517,7 @@ async function editCamera(page, id) {
   }
 
   $("#cm-test").onclick = e => busy(e.target, async () => {
-    $("#cm-msg").textContent = "Cattura in corso…";
+    $("#cm-msg").textContent = cam.url.trim().toLowerCase().startsWith("rtsp") ? "Cattura in corso… (RTSP: fino a 40 secondi, prova TCP e poi UDP)" : "Cattura in corso…";
     try {
       const blob = await api("POST", "/api/test-camera", cam);
       $("#cm-img").src = URL.createObjectURL(blob);
