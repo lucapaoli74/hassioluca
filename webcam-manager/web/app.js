@@ -483,7 +483,7 @@ async function editCamera(page, id) {
       <div class="card"><h3 style="margin-top:0">Pubblicazione</h3><div id="cm-pubs"></div></div>
       <div class="toolbar"><button class="primary" id="cm-save">💾 Salva</button><a class="btn" href="#webcam">Annulla</a><span class="spacer"></span>${isNew ? "" : '<button class="danger" id="cm-del">Elimina</button>'}</div></div>
     <div class="preview card"><h3 style="margin-top:0">Prova</h3><img class="cam-img" id="cm-img" alt=""><div id="cm-msg" class="help" style="margin-top:6px">Premi “Prova” per verificare URL e credenziali.</div>
-      <div class="toolbar" style="margin-top:10px"><button id="cm-test">📸 Prova cattura</button><button id="cm-diag">🩺 Diagnostica</button><button id="cm-live">🔴 Live</button>${isNew ? "" : `<a class="btn" href="#sovrimpressioni/${encodeURIComponent(cam.id)}">🖌️ Sovrimpressioni</a>`}</div></div></div>`;
+      <div class="toolbar" style="margin-top:10px"><button id="cm-test">📸 Prova cattura</button><button id="cm-diag">🩺 Diagnostica</button><button id="cm-find">🔎 Trova altri flussi</button><button id="cm-live">🔴 Live</button>${isNew ? "" : `<a class="btn" href="#sovrimpressioni/${encodeURIComponent(cam.id)}">🖌️ Sovrimpressioni</a>`}</div></div></div>`;
   $("#cm-form").appendChild(renderForm(cam, cameraFields, k => {
     if (k === "name" && isNew) { cam.id = uniqueId(cam.name, cfg.cameras); $("#cm-form .form").redraw(); }
     // il tipo di sorgente segue l'indirizzo: rtsp:// → RTSP
@@ -523,6 +523,30 @@ async function editCamera(page, id) {
       $("#cm-img").src = URL.createObjectURL(blob);
       $("#cm-msg").innerHTML = `<span class="ok-text">✔ Immagine ricevuta (${Math.round(blob.size / 1024)} KB)</span>`;
     } catch (err) { $("#cm-msg").innerHTML = `<span class="err-text">✖ ${esc(err.message)}</span>`; }
+  });
+  $("#cm-find").onclick = e => busy(e.target, async () => {
+    if (!cam.url.trim().toLowerCase().startsWith("rtsp")) throw new Error("Serve un indirizzo rtsp:// con IP e credenziali");
+    $("#cm-msg").textContent = "Cerco i flussi disponibili sulla telecamera…";
+    const r = await api("POST", "/api/find-streams", cam);
+    $("#cm-msg").textContent = "";
+    // l'indirizzo completo per Live/Aggiungi riusa le credenziali della webcam attuale
+    const creds = (() => { try { const u = new URL(cam.url.replace(/^rtsp/i, "http")); return u.username ? `${u.username}:${u.password}@` : ""; } catch (_) { return ""; } })();
+    const full = s => s.url.replace("rtsp://", "rtsp://" + creds);
+    const main = r.streams.filter(s => !s.same);
+    openModal(`<h2 style="margin-top:0">🔎 Flussi trovati sulla telecamera</h2>
+      ${r.streams.length ? `<p class="help">${main.length} flussi diversi. Per una telecamera a due obiettivi, il secondo è di solito il percorso con <b>ch2</b>, <b>201</b> o <b>channel=2</b>. I percorsi segnati “uguale a…” portano allo stesso video.</p>
+      <table>${r.streams.map((s, i) => `<tr><td><code>${esc(s.path)}</code>${s.same ? ` <span class="help">uguale a ${esc(s.same)}</span>` : ""}</td><td><span class="badge">${esc(s.codec)}</span></td>
+        <td style="white-space:nowrap"><button class="small" data-l="${i}">🔴 Live</button> <button class="small primary" data-a="${i}">➕ Aggiungi come nuova webcam</button></td></tr>`).join("")}</table>`
+        : `<p>Nessun percorso noto ha risposto. Indica il modello della telecamera a chi ti assiste.</p>`}`);
+    document.querySelectorAll("#modal [data-l]").forEach(b => b.onclick = ev => busy(ev.target, async () => {
+      const s = r.streams[Number(b.dataset.l)];
+      showLive(s.path, await liveSession({ source: "rtsp", url: full(s), username: cam.username, password: cam.password, id: cam.id }));
+    }));
+    document.querySelectorAll("#modal [data-a]").forEach(b => b.onclick = () => {
+      const s = r.streams[Number(b.dataset.a)];
+      closeModal();
+      addFromDiscovery({ source: "rtsp", url: full(s), username: cam.username, password: cam.password === "********" ? "" : cam.password }, (cam.name || "Webcam") + " obiettivo 2");
+    });
   });
   $("#cm-diag").onclick = e => busy(e.target, async () => {
     $("#cm-msg").textContent = "Diagnostica in corso (fino a 30 secondi)…";

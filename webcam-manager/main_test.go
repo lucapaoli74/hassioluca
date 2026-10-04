@@ -14,6 +14,7 @@ import (
 	"net"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"os"
 	"path/filepath"
 	"strings"
@@ -387,5 +388,70 @@ func TestDiagnoseRTSPHandshake(t *testing.T) {
 	t.Log("\n" + rep)
 	if !strings.Contains(rep, "200 OK — credenziali e percorso CORRETTI") || !strings.Contains(rep, "H264/90000") || strings.Contains(rep, "SEGRETO") {
 		t.Fatal("rapporto inatteso")
+	}
+}
+
+func TestProbeRTSPPathsDualLens(t *testing.T) {
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer ln.Close()
+	sdps := map[string]string{
+		"/h264_stream":             "v=0\r\no=- 1 1 IN IP4 x\r\nm=video 0 RTP/AVP 96\r\na=rtpmap:96 H264/90000\r\na=fmtp:96 sprop=AAA\r\n",
+		"/h264/ch1/main/av_stream": "v=0\r\no=- 2 2 IN IP4 x\r\nm=video 0 RTP/AVP 96\r\na=rtpmap:96 H264/90000\r\na=fmtp:96 sprop=AAA\r\n",
+		"/h264/ch2/main/av_stream": "v=0\r\no=- 3 3 IN IP4 x\r\nm=video 0 RTP/AVP 96\r\na=rtpmap:96 H265/90000\r\na=fmtp:96 sprop=BBB\r\n",
+	}
+	go func() {
+		for {
+			c, err := ln.Accept()
+			if err != nil {
+				return
+			}
+			go func(c net.Conn) {
+				defer c.Close()
+				r := bufio.NewReader(c)
+				for {
+					first, err := r.ReadString('\n')
+					if err != nil {
+						return
+					}
+					auth := false
+					cseq := ""
+					for {
+						l, _ := r.ReadString('\n')
+						if strings.TrimSpace(l) == "" {
+							break
+						}
+						if strings.HasPrefix(l, "Authorization: Digest") {
+							auth = true
+						}
+						if strings.HasPrefix(l, "CSeq:") {
+							cseq = strings.TrimSpace(l[5:])
+						}
+					}
+					f := strings.Fields(first)
+					u, _ := url.Parse(f[1])
+					if !auth {
+						fmt.Fprintf(c, "RTSP/1.0 401 Unauthorized\r\nCSeq: %s\r\nWWW-Authenticate: Digest realm=\"r\", nonce=\"n\"\r\n\r\n", cseq)
+						continue
+					}
+					sdp, ok := sdps[u.Path]
+					if !ok {
+						fmt.Fprintf(c, "RTSP/1.0 404 Not Found\r\nCSeq: %s\r\n\r\n", cseq)
+						continue
+					}
+					fmt.Fprintf(c, "RTSP/1.0 200 OK\r\nCSeq: %s\r\nContent-Length: %d\r\n\r\n%s", cseq, len(sdp), sdp)
+				}
+			}(c)
+		}
+	}()
+	got, err := ProbeRTSPPaths(context.Background(), ln.Addr().String(), "admin", "x")
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Logf("%+v", got)
+	if len(got) != 3 || got[1].Same != "/h264_stream" || got[2].Codec != "H265" || got[2].Same != "" {
+		t.Fatalf("risultato inatteso: %+v", got)
 	}
 }

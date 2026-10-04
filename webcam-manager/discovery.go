@@ -303,6 +303,7 @@ func suggestURLs(d *FoundDevice) []Suggestion {
 		add("RTSP EZVIZ principale", "rtsp", "rtsp://"+ip+":554/h264/ch1/main/av_stream")
 		add("RTSP EZVIZ secondario", "rtsp", "rtsp://"+ip+":554/h264/ch1/sub/av_stream")
 		add("RTSP EZVIZ (modelli recenti)", "rtsp", "rtsp://"+ip+":554/H.264")
+		add("RTSP EZVIZ secondo obiettivo", "rtsp", "rtsp://"+ip+":554/h264/ch2/main/av_stream")
 	case "Dahua":
 		add("Snapshot Dahua", "snapshot", "http://"+ip+"/cgi-bin/snapshot.cgi")
 		add("RTSP principale", "rtsp", "rtsp://"+ip+":554/cam/realmonitor?channel=1&subtype=0")

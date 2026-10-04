@@ -3,6 +3,10 @@
 Ogni versione rilasciata ha qui la sua voce: il testo diventa le note della
 release mostrate nel pannello (Impostazioni → Aggiornamenti).
 
+## [0.1.8] - 2026-10-04
+
+- Pulsante "Trova altri flussi" nella pagina della webcam: prova i percorsi RTSP noti sulla stessa telecamera (utile per le telecamere a due obiettivi) e permette di vederli in live o aggiungerli come nuove webcam.
+
 ## [0.1.7] - 2026-10-04
 
 - Installazione guidata con doppio clic: il programma chiede località, altitudine e password, ottiene i permessi di amministratore, si copia in Program Files e si installa come servizio. Se è già installato mostra lo stato e apre il pannello (o lo aggiorna con la nuova versione).

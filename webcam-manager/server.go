@@ -124,6 +124,32 @@ func (s *Server) Handler() http.Handler {
 		writeJSON(w, map[string]string{"ok": "1"})
 	})
 	mux.HandleFunc("POST /api/test-camera", s.testCamera)
+	mux.HandleFunc("POST /api/find-streams", func(w http.ResponseWriter, r *http.Request) {
+		var cam Camera
+		if !readJSON(w, r, &cam) {
+			return
+		}
+		s.fillCameraPassword(&cam)
+		u, err := url.Parse(rtspURL(cam))
+		if err != nil || u.Host == "" {
+			httpError(w, http.StatusBadRequest, "indirizzo non valido")
+			return
+		}
+		user, pass := cam.Username, cam.Password
+		if u.User != nil {
+			user = u.User.Username()
+			pass, _ = u.User.Password()
+		}
+		found, err := ProbeRTSPPaths(r.Context(), u.Host, user, pass)
+		if err != nil {
+			httpError(w, http.StatusBadGateway, err.Error())
+			return
+		}
+		if found == nil {
+			found = []FoundStream{}
+		}
+		writeJSON(w, map[string]any{"streams": found, "user": user})
+	})
 	mux.HandleFunc("POST /api/diagnose-camera", func(w http.ResponseWriter, r *http.Request) {
 		var cam Camera
 		if !readJSON(w, r, &cam) {
