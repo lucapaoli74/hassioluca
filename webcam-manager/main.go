@@ -186,6 +186,7 @@ func main() {
 	fs.StringVar(&adminPasswordFlag, "admin-password", "", "con install: imposta la password del pannello")
 	fs.StringVar(&locationFlag, "location", "", "con install: nome della località (es. \"Camping Coggiolo Sant'Anna Pelago (MO)\")")
 	fs.IntVar(&altitudeFlag, "altitude", -1, "con install: altitudine in metri s.l.m.")
+	update := fs.Bool("update", false, "con setup-install: aggiorna il servizio esistente")
 	fs.Usage = usage
 	flag.CommandLine = fs
 	_ = fs.Parse(args)
@@ -193,7 +194,15 @@ func main() {
 	var err error
 	switch cmd {
 	case "":
+		// doppio clic su Windows: menu di installazione guidata
+		if !isService() && os.Getenv("WEBCAM_MANAGER_RELAUNCH") == "" && launchedByDoubleClick() && interactiveSetup(*dataDir) {
+			return
+		}
 		err = run(*dataDir, *listen)
+	case "setup-install":
+		err = setupInstall(*dataDir, *listen, *update)
+	case "start-and-open":
+		err = startAndOpen(*dataDir)
 	case "install":
 		err = installService(*dataDir, *listen)
 	case "uninstall":
@@ -243,6 +252,7 @@ func relaunch() error {
 		return err
 	}
 	cmd := exec.Command(exe, os.Args[1:]...)
+	cmd.Env = append(os.Environ(), "WEBCAM_MANAGER_RELAUNCH=1") // niente menu dopo l'aggiornamento
 	cmd.Stdout, cmd.Stderr, cmd.Stdin = os.Stdout, os.Stderr, os.Stdin
 	return cmd.Start()
 }

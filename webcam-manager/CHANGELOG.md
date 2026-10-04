@@ -3,6 +3,10 @@
 Ogni versione rilasciata ha qui la sua voce: il testo diventa le note della
 release mostrate nel pannello (Impostazioni → Aggiornamenti).
 
+## [0.1.7] - 2026-10-04
+
+- Installazione guidata con doppio clic: il programma chiede località, altitudine e password, ottiene i permessi di amministratore, si copia in Program Files e si installa come servizio. Se è già installato mostra lo stato e apre il pannello (o lo aggiorna con la nuova versione).
+
 ## [0.1.6] - 2026-10-04
 
 - Se una telecamera non risponde i tentativi automatici si diradano fino a uno ogni 15 minuti (alcune telecamere bloccano chi riprova troppo spesso); "Cattura ora" riprova subito.
