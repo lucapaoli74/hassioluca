@@ -100,6 +100,7 @@ function renderForm(obj, fields, onChange) {
         if (f.readonly) input.readOnly = true;
       }
       input.id = id;
+      input.dataset.k = f.k;
       const update = () => {
         let v;
         if (f.type === "checkbox") v = input.checked;
@@ -125,6 +126,8 @@ function renderForm(obj, fields, onChange) {
   };
   draw();
   box.redraw = draw;
+  // aggiorna un solo campo senza ridisegnare il modulo (che farebbe perdere il fuoco)
+  box.setValue = (k, v) => { const el = box.querySelector(`[data-k="${k}"]`); if (el && el !== document.activeElement) el.value = v ?? ""; };
   return box;
 }
 
@@ -485,7 +488,7 @@ async function editCamera(page, id) {
     <div class="preview card"><h3 style="margin-top:0">Prova</h3><img class="cam-img" id="cm-img" alt=""><div id="cm-msg" class="help" style="margin-top:6px">Premi “Prova” per verificare URL e credenziali.</div>
       <div class="toolbar" style="margin-top:10px"><button id="cm-test">📸 Prova cattura</button><button id="cm-diag">🩺 Diagnostica</button><button id="cm-find">🔎 Trova altri flussi</button><button id="cm-live">🔴 Live</button>${isNew ? "" : `<a class="btn" href="#sovrimpressioni/${encodeURIComponent(cam.id)}">🖌️ Sovrimpressioni</a>`}</div></div></div>`;
   $("#cm-form").appendChild(renderForm(cam, cameraFields, k => {
-    if (k === "name" && isNew) { cam.id = uniqueId(cam.name, cfg.cameras); $("#cm-form .form").redraw(); }
+    if (k === "name" && isNew) { cam.id = uniqueId(cam.name, cfg.cameras); $("#cm-form .form").setValue("id", cam.id); }
     // il tipo di sorgente segue l'indirizzo: rtsp:// → RTSP
     if (k === "url") {
       const u = cam.url.trim().toLowerCase();
@@ -913,7 +916,7 @@ async function editData(page, id) {
   const form = renderForm(ds, dataFields, k => {
     if (k === "variable") { const v = (ds.type === "wunderground" ? wuVars : meteoVars).find(m => m[0] === ds.variable); if (v) { ds.unit = v[2]; ds.name = v[1]; form.redraw(); } }
     if (k === "type") { if (ds.type === "wunderground" && !wuVars.some(v => v[0] === ds.variable)) ds.variable = "temp"; if (ds.type === "open_meteo" && !meteoVars.some(v => v[0] === ds.variable)) ds.variable = "temperature_2m"; form.redraw(); }
-    if (k === "name" && isNew) { ds.id = uniqueId(ds.name, cfg.data_sources); }
+    if (k === "name" && isNew) { ds.id = uniqueId(ds.name, cfg.data_sources); form.setValue("id", ds.id); }
   });
   $("#dt-form").appendChild(form);
   $("#dt-test").onclick = e => busy(e.target, async () => {
@@ -984,7 +987,7 @@ async function editSite(page, id) {
       ${isNew ? "" : '<button id="si-resync" title="Ricarica tutto lo storico sul sito">Ripubblica storico</button><button class="danger" id="si-del">Elimina</button>'}<a class="btn" href="#siti">Annulla</a></div>`;
   const form = renderForm(site, siteFields, k => {
     if (k === "protocol") { site.port = { ftp: 21, ftps: 21, sftp: 22 }[site.protocol] || 0; if (site.protocol === "onedrive" && !site.oauth_tenant) site.oauth_tenant = "consumers"; form.redraw(); drawOd(); }
-    if (k === "name" && isNew) { site.id = uniqueId(site.name, cfg.sites); form.redraw(); }
+    if (k === "name" && isNew) { site.id = uniqueId(site.name, cfg.sites); form.setValue("id", site.id); }
   });
   $("#si-form").appendChild(form);
   const od = document.createElement("div");

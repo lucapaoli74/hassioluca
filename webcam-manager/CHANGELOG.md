@@ -3,6 +3,10 @@
 Ogni versione rilasciata ha qui la sua voce: il testo diventa le note della
 release mostrate nel pannello (Impostazioni → Aggiornamenti).
 
+## [0.1.9] - 2026-10-04
+
+- Corretto: creando un nuovo sito, webcam o dato live il campo Nome perdeva il fuoco a ogni lettera.
+
 ## [0.1.8] - 2026-10-04
 
 - Pulsante "Trova altri flussi" nella pagina della webcam: prova i percorsi RTSP noti sulla stessa telecamera (utile per le telecamere a due obiettivi) e permette di vederli in live o aggiungerli come nuove webcam.
