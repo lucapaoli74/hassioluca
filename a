@@ -10,7 +10,7 @@ export DEBIAN_FRONTEND=noninteractive
 
 echo ">>> 1/6 Aggiornamento del sistema e programmi di base"
 apt-get update -qq
-apt-get -y -qq upgrade
+apt-get -y -qq -o Dpkg::Options::="--force-confdef" -o Dpkg::Options::="--force-confold" upgrade
 apt-get -y -qq install ca-certificates curl git ufw fail2ban unattended-upgrades restic openssl
 dpkg-reconfigure -f noninteractive unattended-upgrades
 
