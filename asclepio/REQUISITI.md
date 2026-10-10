@@ -55,9 +55,30 @@ I tipi di esame **non sono scritti nel codice**: sono configurazione.
   nei dispositivi medici software.
 
 ## Accesso (login)
-- Il medico accede con **SSO Google o Microsoft** (OAuth2/OpenID Connect, via django-allauth).
-- **Nessuna registrazione libera**: entra solo un indirizzo email già creato dall'admin
-  (lista consentita). Un account Google/Microsoft qualsiasi viene rifiutato.
+Tre modi di accesso: **Google**, **Microsoft 365**, **nome utente e password**.
+
+### Creazione utenti: solo su invito, sempre abilitati dall'admin
+1. L'admin invia un **invito** a un indirizzo email: link monouso, valido 7 giorni,
+   legato a quell'indirizzo e revocabile.
+2. Dal link l'utente sceglie come accedere: Google, Microsoft oppure nome utente e password.
+3. Dopo il primo accesso l'account resta **"in attesa di abilitazione"**: non vede nulla.
+   L'admin riceve una notifica.
+4. L'admin verifica l'identità, assegna studio e ruolo e **abilita** l'utente.
+5. L'admin può sospendere o disattivare un utente in qualsiasi momento.
+
+Stati dell'account: invitato → in attesa di abilitazione → attivo → sospeso / disattivato.
+Nessuna registrazione libera: senza invito non si entra, senza abilitazione non si vede nulla.
+
+### Nome utente e password
+- Password di almeno 12 caratteri, controllata contro le password più comuni; salvata solo
+  come hash (Argon2).
+- Blocco temporaneo dopo ripetuti tentativi errati; ogni tentativo è registrato.
+- Recupero password via email con link monouso a scadenza breve.
+- Senza secondo fattore questo è il metodo più debole: resta predisposto per attivarlo.
+
+### Google e Microsoft
+- Il collegamento account ↔ medico usa l'identificativo stabile del provider
+  (Google `sub`, Microsoft `tid`+`oid`), non solo l'email, che può essere riassegnata.
 - Account usati dai medici: **Gmail personale** e **Microsoft 365** (account di lavoro).
 - **Secondo fattore nell'app: per ora disattivato** (decisione del committente).
   La sicurezza dell'accesso con Gmail dipende quindi dalla verifica in due passaggi di Google,
@@ -68,8 +89,7 @@ I tipi di esame **non sono scritti nel codice**: sono configurazione.
   (endpoint `organizations`, niente account Microsoft personali). La verifica in due
   passaggi è imposta dal tenant del medico (Security defaults / accesso condizionale);
   l'amministratore del tenant potrebbe dover approvare l'app una volta.
-- Il collegamento account ↔ medico usa l'identificativo stabile del provider
-  (Google `sub`, Microsoft `tid`+`oid`), non solo l'email, che può essere riassegnata.
+### Per tutti
 - L'admin mantiene un **accesso locale di emergenza** (password + codice TOTP), per quando
   l'SSO non è disponibile o l'account del medico è bloccato.
 - Le sessioni scadono dopo un periodo di inattività. Ogni login viene registrato.
