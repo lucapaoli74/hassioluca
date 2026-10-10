@@ -1,7 +1,8 @@
 # Refertazione – requisiti e decisioni
 
 Rifacimento del gestionale di refertazione (oggi su Ninox) di un medico chirurgo
-gastroenterologo, ospitato su un server proprio. Il prodotto deve poter essere usato
+gastroenterologo, ospitato su un server proprio, ed esteso a **qualsiasi specializzazione**:
+ogni medico referta le prestazioni della propria disciplina. Il prodotto deve poter essere usato
 da **più medici**. Per ora è **gratuito**; in futuro potrebbe diventare un servizio a
 pagamento. La struttura deve essere **molto robusta** fin dall'inizio.
 
@@ -32,6 +33,26 @@ Nulla è condiviso finché il medico non lo decide esplicitamente.
 - Base giuridica: la condivisione di dati clinici è ammessa per finalità di cura quando il
   collega partecipa alla cura del paziente (art. 9.2.h GDPR), con informativa al paziente.
   Per ricerca servono dati anonimi o il consenso del paziente.
+
+## Modelli di referto configurabili (multi-specializzazione)
+I tipi di esame **non sono scritti nel codice**: sono configurazione.
+
+- **Specializzazione** → **Tipo di prestazione** (es. Gastroenterologia → Colonscopia)
+  → **Modello di referto** con i suoi campi.
+- Tipi di campo: testo libero, testo con frasi predefinite, numero con unità e intervalli,
+  data, scelta singola/multipla, classificazione/score, misure, immagini, tabelle ripetibili
+  (es. un polipo per riga), campi calcolati (solo score standard, non suggerimenti diagnostici).
+- **Classificazioni riutilizzabili** come cataloghi (es. Boston, Paris, Los Angeles, Forrest,
+  Mayo) condivise tra modelli.
+- **Modelli versionati**: un referto firmato resta legato alla versione del modello con cui
+  è stato scritto; modificare un modello non altera i referti già firmati.
+- Ogni referto salva sia i **dati strutturati** (validati sul modello) sia il **testo
+  finale**, così statistiche e ricerche funzionano su qualsiasi specializzazione.
+- Editor dei modelli per admin e medici; libreria comune di modelli condivisibili.
+- Primo set di modelli: gastroenterologia/chirurgia, ricavati dal database Ninox attuale.
+- Predisposizione a codifiche standard (ICD-9-CM, nomenclatore prestazioni, LOINC/FHIR).
+- Attenzione MDR: niente diagnosi o suggerimenti clinici automatici, per non rientrare
+  nei dispositivi medici software.
 
 ## Accesso (login)
 - Il medico accede con **SSO Google o Microsoft** (OAuth2/OpenID Connect, via django-allauth).
