@@ -1,6 +1,6 @@
-# Refertazione – requisiti e decisioni
+# Asclepio – requisiti e decisioni
 
-Rifacimento del gestionale di refertazione (oggi su Ninox) di un medico chirurgo
+**Asclepio** è il rifacimento del gestionale di refertazione (oggi su Ninox) di un medico chirurgo
 gastroenterologo, ospitato su un server proprio, ed esteso a **qualsiasi specializzazione**:
 ogni medico referta le prestazioni della propria disciplina. Il prodotto deve poter essere usato
 da **più medici**. Per ora è **gratuito**; in futuro potrebbe diventare un servizio a
