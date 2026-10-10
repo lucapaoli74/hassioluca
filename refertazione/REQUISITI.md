@@ -37,8 +37,16 @@ Nulla è condiviso finché il medico non lo decide esplicitamente.
 - Il medico accede con **SSO Google o Microsoft** (OAuth2/OpenID Connect, via django-allauth).
 - **Nessuna registrazione libera**: entra solo un indirizzo email già creato dall'admin
   (lista consentita). Un account Google/Microsoft qualsiasi viene rifiutato.
-- La verifica in due passaggi va attivata sull'account Google/Microsoft del medico
-  (obbligatoria se si usa Google Workspace o Microsoft 365, impostabile dal tenant).
+- Account usati dai medici: **Gmail personale** e **Microsoft 365** (account di lavoro).
+- **Gmail personale**: l'app non può verificare né imporre la verifica in due passaggi
+  di Google. Per questo, dopo il login Google, l'app chiede un **secondo fattore proprio**
+  (passkey o codice TOTP), almeno a ogni nuovo dispositivo.
+- **Microsoft 365**: app Entra ID multi-tenant limitata agli account di lavoro
+  (endpoint `organizations`, niente account Microsoft personali). La verifica in due
+  passaggi è imposta dal tenant del medico (Security defaults / accesso condizionale);
+  l'amministratore del tenant potrebbe dover approvare l'app una volta.
+- Il collegamento account ↔ medico usa l'identificativo stabile del provider
+  (Google `sub`, Microsoft `tid`+`oid`), non solo l'email, che può essere riassegnata.
 - L'admin mantiene un **accesso locale di emergenza** (password + codice TOTP), per quando
   l'SSO non è disponibile o l'account del medico è bloccato.
 - Le sessioni scadono dopo un periodo di inattività. Ogni login viene registrato.
@@ -105,6 +113,5 @@ Nulla è condiviso finché il medico non lo decide esplicitamente.
 ## Da decidere
 - Repository dedicato e privato per il progetto.
 - Quali dati i medici vorranno condividere più spesso?
-- Account usato dal medico per l'SSO: Gmail personale, Google Workspace o Microsoft 365?
 - Tipi di esame da refertare nella prima versione.
 - Funzioni della prima versione.
