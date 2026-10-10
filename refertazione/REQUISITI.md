@@ -1,13 +1,23 @@
 # Refertazione – requisiti e decisioni
 
 Rifacimento del gestionale di refertazione (oggi su Ninox) di un medico chirurgo
-gastroenterologo, ospitato su un server proprio.
+gastroenterologo, ospitato su un server proprio. Il prodotto deve poter essere usato
+da **più medici**.
 
 ## Ruoli
 | Ruolo | Chi | Accesso |
 |---|---|---|
 | Admin tecnico | sviluppatore/gestore | utenti, configurazione, modelli, backup; dati clinici solo se necessario e sempre tracciati |
-| Medico | utente | crea, firma e invia i referti |
+| Medico | uno o più utenti | crea, firma e invia i propri referti |
+
+### Più medici
+- Ogni medico ha il proprio profilo: intestazione, logo, firma, modelli di referto.
+- Ogni referto è firmato dal medico che lo ha redatto e resta a lui attribuito.
+- Il registro degli accessi indica sempre quale medico ha fatto cosa.
+- La separazione dei pazienti dipende dal modello scelto (vedi "Da decidere"):
+  - **stesso studio**: archivio pazienti condiviso tra i medici dello studio;
+  - **medici indipendenti**: ogni medico (o studio) vede solo i propri pazienti,
+    con separazione garantita a livello di database (multi-tenant).
 
 Sul piano GDPR il medico è titolare del trattamento; l'admin è responsabile del
 trattamento (art. 28): serve un accordo scritto. Lo stesso vale per il fornitore del server.
@@ -41,6 +51,8 @@ trattamento (art. 28): serve un accordo scritto. Lo stesso vale per il fornitore
 - Serve `NINOX_API_KEY` nelle impostazioni dell'ambiente e `api.ninox.com` tra i domini consentiti.
 
 ## Da decidere
+- Più medici: stesso studio con pazienti condivisi, oppure medici/studi indipendenti
+  (ognuno titolare dei propri dati)? Il prodotto sarà offerto anche a medici esterni?
 - Account usato dal medico per l'SSO: Gmail personale, Google Workspace o Microsoft 365?
 - Tipi di esame da refertare nella prima versione.
 - Funzioni della prima versione.
