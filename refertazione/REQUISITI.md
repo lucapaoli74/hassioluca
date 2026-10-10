@@ -60,8 +60,13 @@ I tipi di esame **non sono scritti nel codice**: sono configurazione.
   (lista consentita). Un account Google/Microsoft qualsiasi viene rifiutato.
 - Account usati dai medici: **Gmail personale** e **Microsoft 365** (account di lavoro).
 - **Gmail personale**: l'app non può verificare né imporre la verifica in due passaggi
-  di Google. Per questo, dopo il login Google, l'app chiede un **secondo fattore proprio**
-  (passkey o codice TOTP), almeno a ogni nuovo dispositivo.
+  di Google. Per questo, dopo il login Google, l'app chiede un **secondo fattore via email**:
+  codice di 6 cifre, valido 10 minuti, monouso, massimo 5 tentativi, invio limitato nel tempo.
+  - Il codice va a un **indirizzo diverso** da quello usato per il login (es. email dello
+    studio o PEC): inviarlo alla stessa Gmail non proteggerebbe da un furto dell'account Gmail.
+  - Richiesto a ogni nuovo dispositivo; dispositivo fidato per 30 giorni (revocabile).
+  - L'email contiene solo il codice, nessun dato clinico. Invio tramite provider SMTP con
+    server nell'UE.
 - **Microsoft 365**: app Entra ID multi-tenant limitata agli account di lavoro
   (endpoint `organizations`, niente account Microsoft personali). La verifica in due
   passaggi è imposta dal tenant del medico (Security defaults / accesso condizionale);
@@ -132,6 +137,7 @@ I tipi di esame **non sono scritti nel codice**: sono configurazione.
 - Serve `NINOX_API_KEY` nelle impostazioni dell'ambiente e `api.ninox.com` tra i domini consentiti.
 
 ## Da decidere
+- Conferma: codice del secondo fattore a un indirizzo email diverso da quello di login.
 - Repository dedicato e privato per il progetto.
 - Quali dati i medici vorranno condividere più spesso?
 - Tipi di esame da refertare nella prima versione.
