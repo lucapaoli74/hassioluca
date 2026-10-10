@@ -2,7 +2,8 @@
 
 Rifacimento del gestionale di refertazione (oggi su Ninox) di un medico chirurgo
 gastroenterologo, ospitato su un server proprio. Il prodotto deve poter essere usato
-da **più medici**.
+da **più medici**. Per ora è **gratuito**; in futuro potrebbe diventare un servizio a
+pagamento. La struttura deve essere **molto robusta** fin dall'inizio.
 
 ## Ruoli
 | Ruolo | Chi | Accesso |
@@ -50,9 +51,50 @@ Nulla è condiviso finché il medico non lo decide esplicitamente.
 - Sviluppo e collaudo solo con dati fittizi; i dati reali migrano direttamente da Ninox
   al server di produzione.
 
+## Robustezza (requisiti non negoziabili)
+**Isolamento tra medici**
+- Doppio controllo: filtro nell'applicazione + Row-Level Security di PostgreSQL, così un
+  errore nel codice non può mostrare i pazienti di un altro studio.
+- Test automatici dedicati che verificano l'isolamento a ogni modifica.
+
+**Integrità dei dati**
+- Referti firmati immutabili, con versioni e impronta (hash) del contenuto; PDF/A,
+  predisposto per la firma digitale qualificata (PAdES).
+- Registro accessi in sola aggiunta, con catena di hash per rilevare manomissioni.
+- Migrazioni del database versionate, mai modifiche manuali in produzione.
+
+**Backup e ripristino**
+- Regola 3-2-1: database con ripristino a un punto nel tempo (archiviazione WAL, perdita
+  massima di pochi minuti) + copie notturne cifrate in un altro data center.
+- Prova di ripristino automatica periodica: un backup mai ripristinato non conta.
+
+**Sicurezza**
+- Disco e backup cifrati; immagini endoscopiche in object storage UE cifrato.
+- Server: solo chiavi SSH, firewall, aggiornamenti di sicurezza automatici, fail2ban.
+- Applicazione: limiti ai tentativi, intestazioni di sicurezza (CSP, HSTS), controllo
+  automatico delle dipendenze vulnerabili.
+- Nessun dato clinico verso servizi terzi (log ed errori ripuliti dai dati personali).
+
+**Qualità e rilascio**
+- Test automatici e controlli a ogni modifica (GitHub Actions).
+- Ambiente di prova (staging) separato dalla produzione, con soli dati fittizi.
+- Monitoraggio di disponibilità ed errori, con avvisi all'admin.
+
+**Pronto a crescere**
+- Applicazione senza stato sul server: si può passare a più server o a un database
+  gestito senza riscriverla.
+- Ogni studio ha già un "piano" associato, per introdurre in futuro abbonamenti.
+- Esportazione dei dati di un medico in formato aperto (portabilità GDPR), predisposta
+  per standard sanitari (HL7 FHIR) in vista di integrazioni future.
+
+**Adempimenti**
+- Valutazione d'impatto (DPIA), registro dei trattamenti, accordi art. 28 con ogni
+  medico/studio e con i fornitori, informativa ai pazienti, procedura data breach (72 ore).
+
 ## Infrastruttura proposta
 - VPS Hetzner Cloud (Germania/Finlandia), in alternativa Aruba Cloud (Italia).
-- Backup su Storage Box in un altro data center.
+- Backup su Storage Box in un altro data center; object storage UE per le immagini.
+- Due ambienti: produzione e staging.
 - Django + PostgreSQL, PDF dei referti, Docker, Caddy (HTTPS automatico).
 - Il server si acquista al momento del collaudo.
 
@@ -61,7 +103,7 @@ Nulla è condiviso finché il medico non lo decide esplicitamente.
 - Serve `NINOX_API_KEY` nelle impostazioni dell'ambiente e `api.ninox.com` tra i domini consentiti.
 
 ## Da decidere
-- Il prodotto sarà offerto anche a medici esterni (eventualmente a pagamento)?
+- Repository dedicato e privato per il progetto.
 - Quali dati i medici vorranno condividere più spesso?
 - Account usato dal medico per l'SSO: Gmail personale, Google Workspace o Microsoft 365?
 - Tipi di esame da refertare nella prima versione.
