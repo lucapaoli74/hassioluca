@@ -1,0 +1,13 @@
+# FACOLTATIVO — collegamento a Home Assistant (API nativa ESPHome).
+# Attivalo togliendo il commento in esp32-panel.yaml. Home Assistant vedrà
+# tutte le entità (uscite, timer, sensori, luminosità, "Messaggio").
+# Per mandare un avviso al pannello da un'automazione:
+#   action: text.set_value
+#   target: { entity_id: text.pannello_esp32_messaggio }
+#   data: { value: "Qualcuno ha suonato il campanello" }
+api:
+  encryption:
+    key: !secret api_encryption_key
+  # di default ESPHome si riavvia se nessun Home Assistant si collega per
+  # 15 minuti: qui il pannello deve funzionare anche senza, quindi no
+  reboot_timeout: 0s

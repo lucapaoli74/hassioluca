@@ -1,0 +1,83 @@
+# Pagina Uscite: pulsanti grandi che accendono/spengono uscite locali
+# (relè, LED, elettroserratura...). Lo stato è lo stesso da schermo, web,
+# Home Assistant e MQTT.
+#
+# Sul CrowPanel 7" base l'unico GPIO libero è GPIO38 (connettore GPIO_D,
+# 3.3V). Usa un modulo relè con ingresso a 3.3V/optoisolato, mai un carico
+# collegato direttamente al pin. Per altre uscite collega una scheda relè
+# I2C (PCF8574) al connettore I2C: vedi l'esempio commentato in fondo.
+switch:
+  - platform: gpio
+    id: uscita_1
+    name: "Uscita 1"
+    icon: mdi:electric-switch
+    pin: GPIO38
+    restore_mode: RESTORE_DEFAULT_OFF
+    on_turn_on:
+      - lvgl.widget.update:
+          id: btn_uscita_1
+          state:
+            checked: true
+    on_turn_off:
+      - lvgl.widget.update:
+          id: btn_uscita_1
+          state:
+            checked: false
+
+lvgl:
+  pages:
+    - id: page_uscite
+      widgets:
+        - label:
+            align: TOP_LEFT
+            x: 24
+            y: 16
+            text: "Uscite"
+            styles: st_titolo
+        - obj:
+            id: uscite_griglia
+            align: TOP_MID
+            y: 70
+            width: 760
+            height: 330
+            bg_opa: TRANSP
+            border_width: 0
+            pad_all: 0
+            layout:
+              type: flex
+              flex_flow: ROW_WRAP
+              flex_align_main: START
+              pad_row: 20
+              pad_column: 20
+            widgets:
+              - button:
+                  id: btn_uscita_1
+                  width: 240
+                  height: 150
+                  checkable: true
+                  on_value:
+                    - if:
+                        condition:
+                          lambda: "return x;"
+                        then:
+                          - switch.turn_on: uscita_1
+                        else:
+                          - switch.turn_off: uscita_1
+                  widgets:
+                    - label:
+                        align: TOP_LEFT
+                        text: ""
+                        text_font: montserrat_28
+                    - label:
+                        align: BOTTOM_LEFT
+                        text: "Uscita 1"
+                        styles: st_titolo
+                        text_color: 0xFFFFFF
+
+# --- Esempio: scheda 8 relè I2C con PCF8574 sul connettore I2C ------------
+# Togli i commenti e per ogni relè copia lo switch + il pulsante sopra,
+# cambiando id/nome e mettendo `pin: { pcf8574: relè, number: N, inverted: true }`.
+# pcf8574:
+#   - id: rele
+#     i2c_id: bus_i2c
+#     address: 0x20

@@ -1,0 +1,10 @@
+# CrowPanel 7.0" DIS08070H — revisioni V1.x / V2.x
+# Il GT911 non ha un pin di reset collegato all'ESP32: parte da solo.
+packages:
+  base: !include crowpanel-7-base.yaml
+
+touchscreen:
+  - platform: gt911
+    id: touch
+    i2c_id: bus_i2c
+    display: lcd

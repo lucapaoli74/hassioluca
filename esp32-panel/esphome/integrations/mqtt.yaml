@@ -1,0 +1,13 @@
+# FACOLTATIVO — MQTT, per Node-RED, openHAB, ioBroker, script propri...
+# Ogni entità ha i suoi topic sotto pannello-esp32/, per esempio:
+#   pannello-esp32/switch/uscita_1/command        ON | OFF
+#   pannello-esp32/text/messaggio/command          testo dell'avviso
+#   pannello-esp32/sensor/temperatura_ambiente/state
+mqtt:
+  broker: !secret mqtt_broker
+  username: !secret mqtt_username
+  password: !secret mqtt_password
+  # discovery solo se usi anche Home Assistant via MQTT
+  discovery: false
+  # se il broker non risponde il pannello continua a funzionare
+  reboot_timeout: 0s

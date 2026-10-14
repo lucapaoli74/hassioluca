@@ -1,0 +1,22 @@
+# CrowPanel 7.0" DIS08070H — revisione V3.x
+# Dalla V3.0 il reset (IO0) e l'interrupt (IO1) del touch GT911 passano da
+# un espansore I/O PCA9557 a 0x18 sullo stesso bus I2C. Il PCA9557 ha gli
+# stessi registri del PCA9554, quindi si usa quel componente.
+# Se nel log di avvio la scansione I2C NON mostra 0x18, hai una V1/V2:
+# usa crowpanel-7-v1v2.yaml.
+packages:
+  base: !include crowpanel-7-base.yaml
+
+pca9554:
+  - id: io_expander
+    i2c_id: bus_i2c
+    address: 0x18
+
+touchscreen:
+  - platform: gt911
+    id: touch
+    i2c_id: bus_i2c
+    display: lcd
+    reset_pin:
+      pca9554: io_expander
+      number: 0

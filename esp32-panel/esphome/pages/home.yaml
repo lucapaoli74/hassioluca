@@ -1,0 +1,55 @@
+# Pagina Home: orologio grande, data in italiano, stato della rete.
+lvgl:
+  pages:
+    - id: page_home
+      widgets:
+        - label:
+            id: home_ora
+            align: TOP_MID
+            y: 20
+            text: "--:--"
+            text_font: font_orologio
+        - label:
+            id: home_data
+            align: TOP_MID
+            y: 230
+            text: ""
+            styles: st_titolo
+            text_color: 0xCFD8DC
+        - label:
+            id: home_rete
+            align: TOP_MID
+            y: 330
+            text: "WiFi non connesso"
+            text_color: 0x78909C
+
+interval:
+  - interval: 5s
+    then:
+      - lvgl.label.update:
+          id: home_ora
+          text: !lambda |-
+            auto t = id(orologio).now();
+            if (!t.is_valid()) return std::string("--:--");
+            return t.strftime("%H:%M");
+      - lvgl.label.update:
+          id: home_data
+          text: !lambda |-
+            static const char *giorni[] = {"domenica", "lunedì", "martedì",
+                "mercoledì", "giovedì", "venerdì", "sabato"};
+            static const char *mesi[] = {"gennaio", "febbraio", "marzo",
+                "aprile", "maggio", "giugno", "luglio", "agosto",
+                "settembre", "ottobre", "novembre", "dicembre"};
+            auto t = id(orologio).now();
+            if (!t.is_valid()) return std::string("in attesa dell'ora...");
+            char buf[64];
+            snprintf(buf, sizeof(buf), "%s %d %s %d", giorni[t.day_of_week - 1],
+                     t.day_of_month, mesi[t.month - 1], t.year);
+            return std::string(buf);
+      - lvgl.label.update:
+          id: home_rete
+          text: !lambda |-
+            if (!wifi::global_wifi_component->is_connected())
+              return std::string("WiFi non connesso");
+            auto ip = wifi::global_wifi_component->get_ip_addresses()[0];
+            return "http://" + ip.str() + "  ·  " + App.get_name() + ".local";

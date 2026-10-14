@@ -1,0 +1,88 @@
+# Elecrow CrowPanel 7.0" base — modello DIS08070H
+# ESP32-S3-WROOM-1-N4R8 (4MB flash, 8MB PSRAM octal), LCD RGB 800x480,
+# touch capacitivo GT911 su I2C.
+#
+# Mappa pin (dal sorgente di esempio Elecrow per il 7.0"):
+#   LCD RGB   DE 41 · VSYNC 40 · HSYNC 39 · PCLK 0
+#             R 14 21 47 48 45 · G 9 46 3 8 16 1 · B 15 7 6 5 4
+#   Retroill. GPIO2 (PWM)
+#   I2C       SDA 19 · SCL 20  (touch GT911 + connettore I2C esterno)
+#   Liberi    GPIO38 sul connettore "GPIO_D"; UART0 43/44 sul connettore UART
+#   Occupati  SD card 10-13 · amplificatore audio 17/18/42
+#
+# Questo file contiene solo ciò che è uguale in tutte le revisioni; il
+# reset del touch, che cambia con la V3.0, sta in crowpanel-7-v3.yaml /
+# crowpanel-7-v1v2.yaml.
+
+esp32:
+  board: esp32-s3-devkitc-1
+  variant: esp32s3
+  flash_size: 4MB
+  framework:
+    type: esp-idf
+    sdkconfig_options:
+      # consigliati per i pannelli RGB su S3: senza, l'immagine "trema"
+      # quando la flash è occupata (WiFi, OTA)
+      CONFIG_ESP32S3_DEFAULT_CPU_FREQ_240: "y"
+      CONFIG_ESP32S3_DATA_CACHE_64KB: "y"
+      CONFIG_ESP32S3_DATA_CACHE_LINE_64B: "y"
+      CONFIG_SPIRAM_FETCH_INSTRUCTIONS: "y"
+      CONFIG_SPIRAM_RODATA: "y"
+
+psram:
+  mode: octal
+  speed: 80MHz
+
+i2c:
+  id: bus_i2c
+  sda: GPIO19
+  scl: GPIO20
+  frequency: 400kHz
+  # al primo avvio guarda il log: elenca gli indirizzi trovati sul bus
+  # (0x5D/0x14 = touch, 0x18 = espansore I/O della V3.0, 0x76/0x77 = BME280)
+  scan: true
+
+output:
+  - platform: ledc
+    id: backlight_pwm
+    pin: GPIO2
+    frequency: 1000Hz
+
+light:
+  - platform: monochromatic
+    id: backlight
+    name: "Retroilluminazione"
+    icon: mdi:brightness-6
+    output: backlight_pwm
+    restore_mode: ALWAYS_ON
+    default_transition_length: 250ms
+
+display:
+  - platform: rpi_dpi_rgb
+    id: lcd
+    update_interval: never
+    auto_clear_enabled: false
+    color_order: RGB
+    pclk_frequency: 15MHz
+    pclk_inverted: true
+    dimensions:
+      width: 800
+      height: 480
+    de_pin: GPIO41
+    hsync_pin: GPIO39
+    vsync_pin: GPIO40
+    pclk_pin:
+      number: GPIO0
+      # GPIO0 è un pin di strapping: qui è collegato al PCLK dalla Elecrow,
+      # va bene così
+      ignore_strapping_warning: true
+    hsync_front_porch: 40
+    hsync_pulse_width: 48
+    hsync_back_porch: 40
+    vsync_front_porch: 1
+    vsync_pulse_width: 31
+    vsync_back_porch: 13
+    data_pins:
+      red: [14, 21, 47, 48, 45]
+      green: [9, 46, 3, 8, 16, 1]
+      blue: [15, 7, 6, 5, 4]

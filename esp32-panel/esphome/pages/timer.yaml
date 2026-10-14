@@ -1,0 +1,183 @@
+# Pagina Timer: conto alla rovescia (cucina, lavatrice, pausa...).
+# A fine corsa mostra il riquadro messaggi, quindi l'avviso arriva anche al
+# browser / Home Assistant / MQTT se sono attivi. Gira anche a schermo
+# spento e con la pagina non visibile.
+globals:
+  - id: timer_rimasti
+    type: int
+    initial_value: "0"
+  - id: timer_attivo
+    type: bool
+    initial_value: "false"
+
+sensor:
+  - platform: template
+    id: timer_sensore
+    name: "Timer rimanente"
+    icon: mdi:timer-outline
+    unit_of_measurement: s
+    accuracy_decimals: 0
+    update_interval: 5s
+    lambda: "return id(timer_rimasti);"
+
+button:
+  - platform: template
+    name: "Timer +5 minuti e avvia"
+    icon: mdi:timer-plus
+    on_press:
+      - lambda: |-
+          id(timer_rimasti) += 300;
+          id(timer_attivo) = true;
+      - script.execute: timer_aggiorna
+  - platform: template
+    name: "Timer azzera"
+    icon: mdi:timer-off
+    on_press:
+      - lambda: |-
+          id(timer_rimasti) = 0;
+          id(timer_attivo) = false;
+      - script.execute: timer_aggiorna
+
+script:
+  - id: timer_aggiorna
+    then:
+      - lvgl.label.update:
+          id: timer_display
+          text: !lambda |-
+            int s = id(timer_rimasti);
+            char buf[16];
+            if (s >= 3600)
+              snprintf(buf, sizeof(buf), "%d:%02d:%02d", s / 3600, (s / 60) % 60, s % 60);
+            else
+              snprintf(buf, sizeof(buf), "%02d:%02d", s / 60, s % 60);
+            return std::string(buf);
+          text_color: !lambda "return id(timer_attivo) ? lv_color_hex(0x66BB6A) : lv_color_hex(0xFFFFFF);"
+      - lvgl.label.update:
+          id: timer_avvia_testo
+          text: !lambda 'return std::string(id(timer_attivo) ? "Pausa" : "Avvia");'
+
+interval:
+  - interval: 1s
+    then:
+      - if:
+          condition:
+            lambda: "return id(timer_attivo) && id(timer_rimasti) > 0;"
+          then:
+            - lambda: "id(timer_rimasti) -= 1;"
+            - script.execute: timer_aggiorna
+            - if:
+                condition:
+                  lambda: "return id(timer_rimasti) == 0;"
+                then:
+                  - lambda: "id(timer_attivo) = false;"
+                  - script.execute: timer_aggiorna
+                  - text.set:
+                      id: messaggio
+                      value: "Timer: tempo scaduto!"
+
+lvgl:
+  pages:
+    - id: page_timer
+      widgets:
+        - label:
+            align: TOP_LEFT
+            x: 24
+            y: 16
+            text: "Timer"
+            styles: st_titolo
+        - label:
+            id: timer_display
+            align: TOP_MID
+            y: 70
+            text: "00:00"
+            text_font: font_grande
+        - obj:
+            align: TOP_MID
+            y: 180
+            width: 760
+            height: 90
+            bg_opa: TRANSP
+            border_width: 0
+            pad_all: 0
+            layout:
+              type: flex
+              flex_flow: ROW
+              flex_align_main: SPACE_EVENLY
+              flex_align_cross: CENTER
+            widgets:
+              - button:
+                  width: 160
+                  height: 80
+                  on_click:
+                    - lambda: "id(timer_rimasti) += 60;"
+                    - script.execute: timer_aggiorna
+                  widgets:
+                    - label: { align: CENTER, text: "+1 min" }
+              - button:
+                  width: 160
+                  height: 80
+                  on_click:
+                    - lambda: "id(timer_rimasti) += 300;"
+                    - script.execute: timer_aggiorna
+                  widgets:
+                    - label: { align: CENTER, text: "+5 min" }
+              - button:
+                  width: 160
+                  height: 80
+                  on_click:
+                    - lambda: "id(timer_rimasti) += 900;"
+                    - script.execute: timer_aggiorna
+                  widgets:
+                    - label: { align: CENTER, text: "+15 min" }
+              - button:
+                  width: 160
+                  height: 80
+                  on_click:
+                    - lambda: "id(timer_rimasti) += 3600;"
+                    - script.execute: timer_aggiorna
+                  widgets:
+                    - label: { align: CENTER, text: "+1 ora" }
+        - obj:
+            align: TOP_MID
+            y: 290
+            width: 760
+            height: 100
+            bg_opa: TRANSP
+            border_width: 0
+            pad_all: 0
+            layout:
+              type: flex
+              flex_flow: ROW
+              flex_align_main: SPACE_EVENLY
+              flex_align_cross: CENTER
+            widgets:
+              - button:
+                  width: 300
+                  height: 90
+                  bg_color: 0x2E7D32
+                  on_click:
+                    - lambda: |-
+                        if (id(timer_rimasti) > 0) id(timer_attivo) = !id(timer_attivo);
+                    - script.execute: timer_aggiorna
+                  widgets:
+                    - label:
+                        id: timer_avvia_testo
+                        align: CENTER
+                        text: "Avvia"
+                        styles: st_titolo
+                        text_color: 0xFFFFFF
+              - button:
+                  width: 300
+                  height: 90
+                  bg_color: 0x6D4C41
+                  on_click:
+                    - lambda: |-
+                        id(timer_rimasti) = 0;
+                        id(timer_attivo) = false;
+                    - script.execute: timer_aggiorna
+                  widgets:
+                    - label:
+                        align: CENTER
+                        text: "Azzera"
+                        styles: st_titolo
+                        text_color: 0xFFFFFF

@@ -1,0 +1,97 @@
+# Pagina Impostazioni: luminosità, spegnimento automatico, riavvio.
+button:
+  - platform: restart
+    id: riavvia
+    name: "Riavvia pannello"
+    entity_category: config
+
+number:
+  - id: !extend spegnimento_schermo
+    on_value:
+      - lvgl.slider.update:
+          id: sld_spegnimento
+          value: !lambda "return x;"
+      - lvgl.label.update:
+          id: lbl_spegnimento
+          text: !lambda |-
+            if (x <= 0) return std::string("Spegnimento: mai");
+            if (x < 60) return str_sprintf("Spegnimento: dopo %.0f s", x);
+            return str_sprintf("Spegnimento: dopo %.0f min", x / 60);
+
+light:
+  - id: !extend backlight
+    on_state:
+      - lvgl.slider.update:
+          id: sld_luce
+          value: !lambda |-
+            float b = id(backlight).remote_values.get_brightness();
+            return b * 100;
+
+lvgl:
+  pages:
+    - id: page_impostazioni
+      widgets:
+        - label:
+            align: TOP_LEFT
+            x: 24
+            y: 16
+            text: "Impostazioni"
+            styles: st_titolo
+        - label:
+            align: TOP_LEFT
+            x: 40
+            y: 90
+            text: "Luminosità"
+        - slider:
+            id: sld_luce
+            align: TOP_LEFT
+            x: 40
+            y: 135
+            width: 720
+            height: 30
+            min_value: 5
+            max_value: 100
+            value: 100
+            on_release:
+              - light.turn_on:
+                  id: backlight
+                  brightness: !lambda "return x / 100.0f;"
+        - label:
+            id: lbl_spegnimento
+            align: TOP_LEFT
+            x: 40
+            y: 200
+            text: "Spegnimento: dopo 2 min"
+        - slider:
+            id: sld_spegnimento
+            align: TOP_LEFT
+            x: 40
+            y: 245
+            width: 720
+            height: 30
+            min_value: 0
+            max_value: 1800
+            value: 120
+            on_release:
+              - number.set:
+                  id: spegnimento_schermo
+                  value: !lambda "return roundf(x / 30.0f) * 30;"
+        - button:
+            align: TOP_RIGHT
+            x: -40
+            y: 315
+            width: 220
+            height: 70
+            bg_color: 0xB71C1C
+            on_long_press:
+              - button.press: riavvia
+            widgets:
+              - label:
+                  align: CENTER
+                  text: "Riavvia (tieni)"
+        - label:
+            align: TOP_LEFT
+            x: 40
+            y: 335
+            text: "Interfaccia web: http://${name}.local"
+            text_color: 0x78909C
