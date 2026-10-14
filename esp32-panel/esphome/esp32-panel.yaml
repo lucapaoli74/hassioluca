@@ -26,6 +26,7 @@ packages:
   # --- Pagine, nell'ordine in cui scorrono. Commenta una riga per toglierla
   page_home: !include pages/home.yaml
   page_timer: !include pages/timer.yaml
+  page_webcam: !include pages/webcam.yaml
   page_uscite: !include pages/uscite.yaml
   page_sensori: !include pages/sensori.yaml
   page_impostazioni: !include pages/impostazioni.yaml
