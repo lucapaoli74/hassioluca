@@ -107,6 +107,11 @@ time:
         then:
           - script.execute: aggiorna_orologio
 
+interval:
+  - interval: 10s
+    then:
+      - script.execute: aggiorna_orologio
+
 # --- Font -------------------------------------------------------------------
 # Roboto da Google Fonts (scaricato alla compilazione) per avere gli
 # accenti italiani; le icone dei pulsanti usano i simboli integrati in LVGL
@@ -129,6 +134,11 @@ font:
     size: 72
     bpp: 4  # bordi sfumati (antialiasing)
     glyphs: "0123456789:.,-+°%CmhPa "
+  - file: "gfonts://Roboto@500"
+    id: font_medio
+    size: 40
+    bpp: 4  # bordi sfumati (antialiasing)
+    glyphs: "0123456789:.,-+°%CmhPagdB "
   - file: "gfonts://Roboto@300"
     id: font_orologio
     size: 180
@@ -244,6 +254,8 @@ lvgl:
       border_opa: 50%
       shadow_width: 0
   theme:
+    label:
+      text_color: 0xFFFFFF
     button:
       bg_color: 0x2196F3
       bg_grad_color: 0x1257B0

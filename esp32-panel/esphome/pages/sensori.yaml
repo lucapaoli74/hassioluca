@@ -90,7 +90,7 @@ lvgl:
                   height: 156
                   widgets:
                     - label: { align: TOP_LEFT, text: "Temperatura", text_color: 0xBBDEFB }
-                    - label: { id: lbl_temp, align: BOTTOM_LEFT, text: "--", text_font: font_grande }
+                    - label: { id: lbl_temp, align: BOTTOM_LEFT, text: "--", text_font: font_medio, text_color: 0xFFFFFF }
               - obj:
                   styles: st_riquadro
                   bg_color: 0x3949AB
@@ -99,7 +99,7 @@ lvgl:
                   height: 156
                   widgets:
                     - label: { align: TOP_LEFT, text: "Umidità", text_color: 0xBBDEFB }
-                    - label: { id: lbl_umid, align: BOTTOM_LEFT, text: "--", text_font: font_grande }
+                    - label: { id: lbl_umid, align: BOTTOM_LEFT, text: "--", text_font: font_medio, text_color: 0xFFFFFF }
               - obj:
                   styles: st_riquadro
                   bg_color: 0x0288D1
@@ -108,7 +108,7 @@ lvgl:
                   height: 156
                   widgets:
                     - label: { align: TOP_LEFT, text: "Pressione", text_color: 0xBBDEFB }
-                    - label: { id: lbl_press, align: BOTTOM_LEFT, text: "--", styles: st_titolo, text_color: 0xFFFFFF }
+                    - label: { id: lbl_press, align: BOTTOM_LEFT, text: "--", text_font: font_medio, text_color: 0xFFFFFF }
               - obj:
                   styles: st_riquadro
                   bg_color: 0x1565C0
@@ -117,7 +117,7 @@ lvgl:
                   height: 156
                   widgets:
                     - label: { align: TOP_LEFT, text: "Chip ESP32", text_color: 0xBBDEFB }
-                    - label: { id: lbl_chip, align: BOTTOM_LEFT, text: "--", styles: st_titolo, text_color: 0xFFFFFF }
+                    - label: { id: lbl_chip, align: BOTTOM_LEFT, text: "--", text_font: font_medio, text_color: 0xFFFFFF }
               - obj:
                   styles: st_riquadro
                   bg_color: 0x00838F
@@ -126,7 +126,7 @@ lvgl:
                   height: 156
                   widgets:
                     - label: { align: TOP_LEFT, text: "Segnale WiFi", text_color: 0xBBDEFB }
-                    - label: { id: lbl_wifi, align: BOTTOM_LEFT, text: "--", styles: st_titolo, text_color: 0xFFFFFF }
+                    - label: { id: lbl_wifi, align: BOTTOM_LEFT, text: "--", text_font: font_medio, text_color: 0xFFFFFF }
               - obj:
                   styles: st_riquadro
                   bg_color: 0x5C6BC0
@@ -135,4 +135,4 @@ lvgl:
                   height: 156
                   widgets:
                     - label: { align: TOP_LEFT, text: "Acceso da", text_color: 0xBBDEFB }
-                    - label: { id: lbl_uptime, align: BOTTOM_LEFT, text: "--", styles: st_titolo, text_color: 0xFFFFFF }
+                    - label: { id: lbl_uptime, align: BOTTOM_LEFT, text: "--", text_font: font_medio, text_color: 0xFFFFFF }

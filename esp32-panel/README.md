@@ -6,6 +6,11 @@ Assistant né altri server: si usa dallo schermo e da qualunque browser della
 rete di casa. Home Assistant e MQTT sono moduli facoltativi da attivare con
 una riga.
 
+![Tutte le pagine](docs/anteprima/tutte-le-pagine.png)
+
+*Anteprima generata compilando lo stesso firmware per PC (display simulato,
+dati e immagini d'esempio). Le singole pagine sono in `docs/anteprima/`.*
+
 ## Cosa fa
 
 Le pagine scorrono con la barra in basso (◀ · Home · ▶, dopo l'ultima si
@@ -175,7 +180,19 @@ simboli LVGL con `montserrat_28`.
   Topic del tipo `pannello-esp32/switch/uscita_1/command` (ON/OFF) e
   `pannello-esp32/text/messaggio/command` (testo dell'avviso).
 
+## Grafica
+
+Tema blu: sfondo blu notte sfumato, pulsanti blu con ombra, stati attivi
+in azzurro/ciano luminoso, card dei sensori in tonalità di blu diverse.
+Tutti i colori stanno in `esp32-panel.yaml` (sezione *Tema blu*,
+`style_definitions` e `theme`): cambiandoli lì cambia tutto il pannello.
+
 ## Note
+
+- Il firmware completo (tutte le pagine, salvaschermo, Home Assistant e
+  MQTT attivi) è stato compilato per l'ESP32-S3: RAM 36%, flash 84% dello
+  spazio di un'applicazione (la flash da 4MB è divisa in due per gli
+  aggiornamenti via WiFi).
 
 - Il log mostra un avviso su GPIO19/20 "usati da USB-Serial-JTAG": su
   questa scheda la USB passa da un convertitore CH340 su UART0, quindi

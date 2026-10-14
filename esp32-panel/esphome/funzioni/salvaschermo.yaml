@@ -20,6 +20,9 @@ globals:
   - id: ss_indice
     type: int
     initial_value: "0"
+  # nome della sorgente in download (l'indice intanto è già avanzato)
+  - id: ss_nome
+    type: std::string
 
 number:
   - platform: template
@@ -69,10 +72,7 @@ image:
           src: ss_img
       - lvgl.label.update:
           id: ss_fonte
-          text: !lambda |-
-            if (id(ss_sorgenti).empty()) return std::string("");
-            const std::string &e = id(ss_sorgenti)[id(ss_indice)];
-            return e.substr(0, e.find('|'));
+          text: !lambda "return id(ss_nome);"
     on_error:
       # sorgente non raggiungibile: si passa subito alla successiva
       - lambda: "id(ss_indice) += 1;"
@@ -117,6 +117,7 @@ script:
                         const std::string &e = id(ss_sorgenti)[id(ss_indice)];
                         size_t p = e.find('|');
                         std::string url = p == std::string::npos ? e : e.substr(p + 1);
+                        id(ss_nome) = p == std::string::npos ? std::string("") : e.substr(0, p);
                         url += (url.find('?') == std::string::npos ? "?" : "&");
                         url += "r=" + std::to_string(millis());
                         id(ss_indice) += 1;
@@ -173,13 +174,24 @@ lvgl:
                 text: ""
                 text_font: font_grande
                 text_color: 0xFFFFFF
-                shadow_width: 24
-                shadow_color: 0x0D47A1
-                shadow_opa: 80%
+                bg_color: 0x0A2A6B
+                bg_opa: 60%
+                radius: 18
+                pad_left: 18
+                pad_right: 18
+                pad_top: 4
+                pad_bottom: 4
             - label:
                 id: ss_fonte
                 align: BOTTOM_LEFT
                 x: 20
                 y: -16
                 text: ""
-                text_color: 0xE0E0E0
+                text_color: 0xE1F5FE
+                bg_color: 0x0A2A6B
+                bg_opa: 60%
+                radius: 12
+                pad_left: 12
+                pad_right: 12
+                pad_top: 4
+                pad_bottom: 4

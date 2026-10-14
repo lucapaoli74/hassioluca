@@ -39,8 +39,8 @@ image:
     format: AUTO
     type: RGB565
     # massimo spazio disponibile: l'immagine viene rimpicciolita mantenendo
-    # le proporzioni (16:9 → 604x340)
-    resize: 760x340
+    # le proporzioni (16:9 → 587x330)
+    resize: 760x330
     update_interval: never
     on_download_finished:
       - lvgl.image.update:
@@ -126,16 +126,17 @@ lvgl:
             id: ${p}_nome
             align: TOP_LEFT
             x: 24
-            y: 16
-            width: 400
+            y: 6
+            width: 480
             long_mode: DOT
             text: "${titolo}"
             styles: st_titolo
         - label:
             id: ${p}_ora
             align: TOP_LEFT
-            x: 430
-            y: 26
+            x: 26
+            y: 44
+            text_font: montserrat_16
             text: ""
             text_color: 0x90CAF9
         - button:
@@ -179,7 +180,7 @@ lvgl:
         - image:
             id: ${p}_widget
             align: TOP_MID
-            y: 70
+            y: 78
             src: ${p}_img
             clickable: true
             on_click:
