@@ -51,5 +51,6 @@ interval:
           text: !lambda |-
             if (!wifi::global_wifi_component->is_connected())
               return std::string("WiFi non connesso");
-            auto ip = wifi::global_wifi_component->get_ip_addresses()[0];
-            return "http://" + ip.str() + "  ·  " + App.get_name() + ".local";
+            char ip[network::IP_ADDRESS_BUFFER_SIZE];
+            wifi::global_wifi_component->get_ip_addresses()[0].str_to(ip);
+            return std::string("http://") + ip + "  ·  ${name}.local";
