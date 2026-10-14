@@ -173,8 +173,8 @@ lvgl:
                 text: ""
                 text_font: font_grande
                 text_color: 0xFFFFFF
-                shadow_width: 20
-                shadow_color: 0x000000
+                shadow_width: 24
+                shadow_color: 0x0D47A1
                 shadow_opa: 80%
             - label:
                 id: ss_fonte

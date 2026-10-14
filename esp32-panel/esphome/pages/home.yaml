@@ -15,13 +15,13 @@ lvgl:
             y: 230
             text: ""
             styles: st_titolo
-            text_color: 0xCFD8DC
+            text_color: 0x4FC3F7
         - label:
             id: home_rete
             align: TOP_MID
             y: 330
             text: "WiFi non connesso"
-            text_color: 0x78909C
+            text_color: 0x90CAF9
 
 interval:
   - interval: 5s

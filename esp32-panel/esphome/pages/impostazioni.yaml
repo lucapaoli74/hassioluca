@@ -82,7 +82,8 @@ lvgl:
             y: 315
             width: 220
             height: 70
-            bg_color: 0xB71C1C
+            bg_color: 0xE53935
+            bg_grad_color: 0xB71C1C
             on_long_press:
               - button.press: riavvia
             widgets:
@@ -94,4 +95,4 @@ lvgl:
             x: 40
             y: 335
             text: "Interfaccia web: http://${name}.local"
-            text_color: 0x78909C
+            text_color: 0x90CAF9

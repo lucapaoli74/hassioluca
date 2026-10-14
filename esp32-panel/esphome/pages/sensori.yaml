@@ -84,43 +84,55 @@ lvgl:
               # riquadri: titolo piccolo in alto, valore grande in basso
               - obj:
                   styles: st_riquadro
+                  bg_color: 0x1E88E5
+                  bg_grad_color: 0x0D47A1
                   width: 241
                   height: 156
                   widgets:
-                    - label: { align: TOP_LEFT, text: "Temperatura", text_color: 0x90A4AE }
+                    - label: { align: TOP_LEFT, text: "Temperatura", text_color: 0xBBDEFB }
                     - label: { id: lbl_temp, align: BOTTOM_LEFT, text: "--", text_font: font_grande }
               - obj:
                   styles: st_riquadro
+                  bg_color: 0x3949AB
+                  bg_grad_color: 0x1A237E
                   width: 241
                   height: 156
                   widgets:
-                    - label: { align: TOP_LEFT, text: "Umidità", text_color: 0x90A4AE }
+                    - label: { align: TOP_LEFT, text: "Umidità", text_color: 0xBBDEFB }
                     - label: { id: lbl_umid, align: BOTTOM_LEFT, text: "--", text_font: font_grande }
               - obj:
                   styles: st_riquadro
+                  bg_color: 0x0288D1
+                  bg_grad_color: 0x01579B
                   width: 241
                   height: 156
                   widgets:
-                    - label: { align: TOP_LEFT, text: "Pressione", text_color: 0x90A4AE }
+                    - label: { align: TOP_LEFT, text: "Pressione", text_color: 0xBBDEFB }
                     - label: { id: lbl_press, align: BOTTOM_LEFT, text: "--", styles: st_titolo, text_color: 0xFFFFFF }
               - obj:
                   styles: st_riquadro
+                  bg_color: 0x1565C0
+                  bg_grad_color: 0x0A2A6B
                   width: 241
                   height: 156
                   widgets:
-                    - label: { align: TOP_LEFT, text: "Chip ESP32", text_color: 0x90A4AE }
+                    - label: { align: TOP_LEFT, text: "Chip ESP32", text_color: 0xBBDEFB }
                     - label: { id: lbl_chip, align: BOTTOM_LEFT, text: "--", styles: st_titolo, text_color: 0xFFFFFF }
               - obj:
                   styles: st_riquadro
+                  bg_color: 0x00838F
+                  bg_grad_color: 0x004D60
                   width: 241
                   height: 156
                   widgets:
-                    - label: { align: TOP_LEFT, text: "Segnale WiFi", text_color: 0x90A4AE }
+                    - label: { align: TOP_LEFT, text: "Segnale WiFi", text_color: 0xBBDEFB }
                     - label: { id: lbl_wifi, align: BOTTOM_LEFT, text: "--", styles: st_titolo, text_color: 0xFFFFFF }
               - obj:
                   styles: st_riquadro
+                  bg_color: 0x5C6BC0
+                  bg_grad_color: 0x283593
                   width: 241
                   height: 156
                   widgets:
-                    - label: { align: TOP_LEFT, text: "Acceso da", text_color: 0x90A4AE }
+                    - label: { align: TOP_LEFT, text: "Acceso da", text_color: 0xBBDEFB }
                     - label: { id: lbl_uptime, align: BOTTOM_LEFT, text: "--", styles: st_titolo, text_color: 0xFFFFFF }

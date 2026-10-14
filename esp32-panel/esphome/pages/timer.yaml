@@ -51,7 +51,7 @@ script:
             else
               snprintf(buf, sizeof(buf), "%02d:%02d", s / 60, s % 60);
             return std::string(buf);
-          text_color: !lambda "return id(timer_attivo) ? lv_color_hex(0x66BB6A) : lv_color_hex(0xFFFFFF);"
+          text_color: !lambda "return id(timer_attivo) ? lv_color_hex(0x00E5FF) : lv_color_hex(0xFFFFFF);"
       - lvgl.label.update:
           id: timer_avvia_testo
           text: !lambda 'return std::string(id(timer_attivo) ? "Pausa" : "Avvia");'
@@ -154,7 +154,8 @@ lvgl:
               - button:
                   width: 300
                   height: 90
-                  bg_color: 0x2E7D32
+                  bg_color: 0x00B0FF
+                  bg_grad_color: 0x0277BD
                   on_click:
                     - lambda: |-
                         if (id(timer_rimasti) > 0) id(timer_attivo) = !id(timer_attivo);
@@ -169,7 +170,8 @@ lvgl:
               - button:
                   width: 300
                   height: 90
-                  bg_color: 0x6D4C41
+                  bg_color: 0x5C6BC0
+                  bg_grad_color: 0x283593
                   on_click:
                     - lambda: |-
                         id(timer_rimasti) = 0;

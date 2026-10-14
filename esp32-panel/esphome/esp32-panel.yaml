@@ -74,11 +74,11 @@ wifi:
   on_connect:
     - lvgl.label.update:
         id: nav_wifi
-        text_color: 0xFFFFFF
+        text_color: 0x00E5FF
   on_disconnect:
     - lvgl.label.update:
         id: nav_wifi
-        text_color: 0x555555
+        text_color: 0x3D5A80
 
 captive_portal:
 
@@ -206,34 +206,91 @@ lvgl:
   buffer_size: 25%
   default_font: font_testo
   page_wrap: true
-  bg_color: 0x101418
+  # --- Tema blu ---------------------------------------------------------
+  # Palette: blu notte (sfondo) → blu reale (pulsanti) → azzurro/ciano
+  # (accenti e stati attivi). Cambiando questi colori cambia tutto il
+  # pannello; le pagine usano gli stili qui sotto.
+  bg_color: 0x0A1F4D
+  bg_grad_color: 0x020A1E
+  bg_grad_dir: VER
+  bg_opa: COVER
   text_color: 0xFFFFFF
   style_definitions:
     - id: st_titolo
       text_font: font_titolo
-      text_color: 0x8AB4F8
+      text_color: 0x80D8FF
+    - id: st_tenue
+      text_color: 0x90CAF9
     - id: st_riquadro
-      bg_color: 0x1C232B
+      bg_color: 0x1A4A9C
+      bg_grad_color: 0x0D2A63
+      bg_grad_dir: VER
       bg_opa: COVER
-      border_width: 0
-      radius: 16
+      border_width: 1
+      border_color: 0x42A5F5
+      border_opa: 60%
+      radius: 20
       pad_all: 16
+      shadow_width: 18
+      shadow_color: 0x000814
+      shadow_opa: 70%
+      shadow_ofs_y: 6
+    - id: st_pulsante_nav
+      bg_color: 0x1565C0
+      bg_grad_color: 0x0D47A1
+      bg_grad_dir: VER
+      border_width: 1
+      border_color: 0x64B5F6
+      border_opa: 50%
+      shadow_width: 0
   theme:
     button:
-      bg_color: 0x2A3440
-      radius: 14
+      bg_color: 0x2196F3
+      bg_grad_color: 0x1257B0
+      bg_grad_dir: VER
+      bg_opa: COVER
+      radius: 16
       text_color: 0xFFFFFF
+      border_width: 1
+      border_color: 0x90CAF9
+      border_opa: 40%
+      shadow_width: 14
+      shadow_color: 0x00102E
+      shadow_opa: 80%
+      shadow_ofs_y: 5
+      pressed:
+        bg_color: 0x0D47A1
+        bg_grad_color: 0x08306B
+        shadow_ofs_y: 1
       checked:
-        bg_color: 0x1E88E5
+        bg_color: 0x00E5FF
+        bg_grad_color: 0x0091EA
+        text_color: 0x002050
+        border_color: 0xE0F7FA
+        shadow_color: 0x00E5FF
+        shadow_opa: 60%
+        shadow_width: 24
+        shadow_ofs_y: 0
     slider:
+      bg_color: 0x0D2A63
+      bg_opa: COVER
+      radius: 15
       indicator:
-        bg_color: 0x1E88E5
+        bg_color: 0x0091EA
+        bg_grad_color: 0x00E5FF
+        bg_grad_dir: HOR
+        radius: 15
       knob:
         bg_color: 0xFFFFFF
+        border_width: 4
+        border_color: 0x00B0FF
+        shadow_width: 12
+        shadow_color: 0x00E5FF
+        shadow_opa: 50%
     switch:
       indicator:
         checked:
-          bg_color: 0x1E88E5
+          bg_color: 0x00B0FF
 
   # schermo spento dopo N secondi senza tocchi (0 = mai); un tocco lo
   # riaccende senza attivare il pulsante sotto il dito
@@ -261,8 +318,13 @@ lvgl:
           width: 100%
           height: 64
           radius: 0
-          bg_color: 0x0A0D10
-          border_width: 0
+          bg_color: 0x0D3B8C
+          bg_grad_color: 0x061A44
+          bg_grad_dir: VER
+          bg_opa: COVER
+          border_width: 2
+          border_side: TOP
+          border_color: 0x29B6F6
           pad_all: 6
           widgets:
             - label:
@@ -271,11 +333,13 @@ lvgl:
                 x: 12
                 text: "--:--"
                 text_font: font_titolo
+                text_color: 0x80D8FF
             - button:
                 align: CENTER
                 x: -150
                 width: 120
                 height: 50
+                styles: st_pulsante_nav
                 on_click:
                   - lvgl.page.previous:
                 widgets:
@@ -287,6 +351,7 @@ lvgl:
                 align: CENTER
                 width: 120
                 height: 50
+                styles: st_pulsante_nav
                 on_click:
                   - lvgl.page.show: page_home
                 widgets:
@@ -299,6 +364,7 @@ lvgl:
                 x: 150
                 width: 120
                 height: 50
+                styles: st_pulsante_nav
                 on_click:
                   - lvgl.page.next:
                 widgets:
@@ -312,7 +378,7 @@ lvgl:
                 x: -12
                 text: ""
                 text_font: montserrat_28
-                text_color: 0x555555
+                text_color: 0x3D5A80
 
       - obj:
           id: msg_box
@@ -321,17 +387,23 @@ lvgl:
           y: -32
           width: 640
           height: 300
-          bg_color: 0x263238
-          border_color: 0xFFB300
+          bg_color: 0x1565C0
+          bg_grad_color: 0x0A2A6B
+          bg_grad_dir: VER
+          bg_opa: COVER
+          border_color: 0x00E5FF
           border_width: 3
-          radius: 20
+          radius: 24
+          shadow_width: 40
+          shadow_color: 0x00B0FF
+          shadow_opa: 50%
           pad_all: 20
           widgets:
             - label:
                 align: TOP_LEFT
                 text: "Messaggio"
                 styles: st_titolo
-                text_color: 0xFFB300
+                text_color: 0x00E5FF
             - label:
                 id: msg_testo
                 align: LEFT_MID
