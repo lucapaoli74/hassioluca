@@ -16,7 +16,7 @@
 globals:
   - id: ${p}_elenco
     type: std::vector<std::string>
-    initial_value: ${elenco}
+    initial_value: "std::vector<std::string>${elenco}"
   - id: ${p}_indice
     type: int
     restore_value: true
