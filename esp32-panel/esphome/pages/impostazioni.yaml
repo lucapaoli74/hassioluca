@@ -61,7 +61,7 @@ lvgl:
             align: TOP_LEFT
             x: 40
             y: 200
-            text: "Spegnimento: dopo 2 min"
+            text: "Spegnimento: dopo 15 min"
         - slider:
             id: sld_spegnimento
             align: TOP_LEFT
@@ -70,8 +70,8 @@ lvgl:
             width: 720
             height: 30
             min_value: 0
-            max_value: 1800
-            value: 120
+            max_value: 3600
+            value: 900
             on_release:
               - number.set:
                   id: spegnimento_schermo

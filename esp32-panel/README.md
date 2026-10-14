@@ -16,6 +16,8 @@ commentare una riga.
 |---|---|
 | **Home** | orologio grande, data in italiano, indirizzo web del pannello |
 | **Timer** | conto alla rovescia con +1/+5/+15 min/+1 ora, avvia/pausa, azzera; a fine corsa mostra un avviso |
+| **Webcam** | webcam di montagna (o qualunque immagine da internet), una alla volta, aggiornate ogni 10 min |
+| **Telecamere** | telecamere di casa EZVIZ e Reolink, aggiornate ogni 3 s mentre la pagina è aperta |
 | **Uscite** | pulsante grande per un relè su GPIO38 (espandibile con scheda relè I2C) |
 | **Sensori** | temperatura/umidità/pressione (BME280 facoltativo), temperatura chip, segnale WiFi, tempo di accensione |
 | **Impostazioni** | luminosità, spegnimento automatico dello schermo, riavvio |
@@ -25,8 +27,13 @@ Sempre presenti, su ogni pagina:
 - **riquadro "Messaggio"**: scrivi un testo nell'entità *Messaggio* (dal
   browser, da Home Assistant, da MQTT o dal timer) e compare sopra la
   pagina corrente, riaccendendo lo schermo. Si chiude con OK.
-- **spegnimento schermo** dopo N secondi senza tocchi (default 2 min, 0 =
-  mai); il primo tocco lo riaccende e non preme il pulsante sotto il dito.
+- **salvaschermo**: dopo 60 s senza tocchi copre lo schermo con foto prese
+  da un elenco di siti (una ogni 60 s), con l'ora grande in basso; un tocco
+  lo chiude senza premere niente sotto. Tempi regolabili dal browser
+  (*Salvaschermo dopo*, *Salvaschermo cambio immagine*; 0 = disattivato).
+- **spegnimento schermo** dopo N secondi senza tocchi (default 15 min, 0 =
+  mai): si spegne la retroilluminazione e si fermano i download; il primo
+  tocco riaccende.
 
 Tutto ciò che si vede sullo schermo (uscite, timer, sensori, luminosità,
 messaggio) è comandabile anche da `http://pannello-esp32.local`.
@@ -44,11 +51,15 @@ esp32-panel/
 │   │   └── crowpanel-7-v1v2.yaml    touch per le revisioni V1.x/V2.x
 │   ├── pages/                    una pagina per file
 │   │   ├── home.yaml  timer.yaml  uscite.yaml  sensori.yaml  impostazioni.yaml
+│   │   └── immagini.yaml         modello usato da Webcam e Telecamere
+│   ├── funzioni/
+│   │   └── salvaschermo.yaml     salvaschermo con immagini da internet
 │   └── integrations/             facoltative
 │       ├── homeassistant.yaml
 │       └── mqtt.yaml
 └── tools/
-    └── trova-scheda.py           identifica la scheda collegata via USB
+    ├── trova-scheda.py           identifica la scheda collegata via USB
+    └── trova-telecamere.py       elenca le telecamere EZVIZ/Reolink in rete
 ```
 
 ## Installazione
@@ -73,6 +84,53 @@ Senza WiFi raggiungibile il pannello crea la rete `Pannello-ESP32`
 `tools/trova-scheda.py` (`pip install esptool pyserial`) trova la porta
 seriale e stampa chip, flash, PSRAM e il log di avvio: utile per capire cosa
 c'è sulla scheda prima di flashare.
+
+## Webcam, telecamere e salvaschermo: gli elenchi
+
+Tutte e tre mostrano immagini scaricate da un URL. L'URL deve restituire
+**direttamente un'immagine JPEG o PNG**, non una pagina web: apri la webcam
+nel browser, tasto destro sull'immagine → *Copia indirizzo immagine*. I JPEG
+"progressivi" non sono leggibili dall'ESP32 (lo script delle telecamere li
+segnala). Gli elenchi sono liste di righe `"Nome|URL",`:
+
+- **Webcam** → in `esp32-panel.yaml`, sotto `page_webcam` → `elenco`;
+- **Salvaschermo** → in `funzioni/salvaschermo.yaml`, `ss_sorgenti`
+  (di default una foto casuale da picsum.photos: sostituiscila con i tuoi
+  siti; un URL che cambia foto a ogni richiesta va benissimo);
+- **Telecamere** → in `secrets.yaml`, voce `telecamere` (contiene le
+  password, quindi resta fuori da git).
+
+### Telecamere di casa: EZVIZ e Reolink
+
+Sul PC, collegato alla stessa rete delle telecamere:
+
+```
+python3 tools/trova-telecamere.py                       # solo elenco
+python3 tools/trova-telecamere.py --password PW_REOLINK --codice-ezviz CODICE
+```
+
+Lo script le cerca (ONVIF, SADP, scansione porte 80/443/554/8000/9000),
+dice marca e modello, scarica una foto di prova da ognuna
+(`snapshot-<ip>.jpg`) e stampa il blocco `telecamere:` da incollare in
+`secrets.yaml`.
+
+- **Reolink**: il pannello scarica la foto direttamente dalla telecamera
+  (API `cmd=Snap`, già ridotta a 640×360). Se non risponde, abilita HTTP
+  nelle impostazioni di rete della telecamera (app Reolink → Rete →
+  Avanzate → Impostazione porte).
+- **EZVIZ**: le foto via HTTP richiedono l'autenticazione *Digest*, che
+  ESPHome non gestisce (e su molti modelli l'HTTP locale è chiuso). Si usa
+  allora **go2rtc**, un programma gratuito, senza Home Assistant, che gira su qualunque PC/Raspberry/NAS
+  sempre acceso: legge il flusso RTSP della telecamera e lo offre come JPEG
+  su `http://<pc>:1984/api/frame.jpeg?src=<nome>`. Lo script stampa anche
+  il `go2rtc.yaml` pronto (serve `ffmpeg` installato sullo stesso PC). Su
+  EZVIZ l'utente è `admin` e la password è il **codice di verifica**
+  sull'etichetta della telecamera; su alcuni modelli l'RTSP va prima
+  abilitato dall'app EZVIZ. Se hai già go2rtc (o Frigate), puoi far
+  passare da lì anche le Reolink.
+
+Mentre la pagina Telecamere è aperta il pannello scarica un'immagine ogni
+3 s (`aggiorna` in `esp32-panel.yaml`); quando cambi pagina si ferma.
 
 ## Collegamenti utili sul CrowPanel 7" base
 

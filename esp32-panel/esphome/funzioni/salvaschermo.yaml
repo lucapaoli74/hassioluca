@@ -1,0 +1,185 @@
+# Salvaschermo: dopo N secondi senza tocchi copre lo schermo con immagini
+# scaricate da internet, una ogni M secondi, con l'ora in sovrimpressione.
+# Un tocco lo chiude (il tocco NON preme il pulsante che c'è sotto).
+# Più tardi, allo scadere di "Spegnimento schermo dopo", la retroillumina-
+# zione si spegne del tutto e i download si fermano.
+#
+# ELENCO SORGENTI — modifica solo qui. Formato "Nome|URL", uno per riga;
+# si usano a rotazione. Come per le webcam, l'URL deve restituire
+# direttamente un'IMMAGINE JPEG/PNG (non progressiva). Va benissimo anche
+# un URL che dà ogni volta una foto diversa: a ogni richiesta viene
+# aggiunto un parametro casuale per evitare la cache.
+globals:
+  - id: ss_sorgenti
+    type: std::vector<std::string>
+    initial_value: |-
+      {
+        "Foto casuale|https://picsum.photos/800/480",
+        "Webcam 1|https://www.example.com/webcam1.jpg",
+      }
+  - id: ss_indice
+    type: int
+    initial_value: "0"
+
+number:
+  - platform: template
+    id: ss_dopo
+    name: "Salvaschermo dopo"
+    icon: mdi:monitor-shimmer
+    unit_of_measurement: s
+    min_value: 0      # 0 = salvaschermo disattivato
+    max_value: 3600
+    step: 10
+    initial_value: 60
+    optimistic: true
+    restore_value: true
+    entity_category: config
+  - platform: template
+    id: ss_cambio
+    name: "Salvaschermo cambio immagine"
+    icon: mdi:image-sync
+    unit_of_measurement: s
+    min_value: 10
+    max_value: 3600
+    step: 10
+    initial_value: 60
+    optimistic: true
+    restore_value: true
+    entity_category: config
+
+# stessa configurazione di pages/webcam.yaml (ESPHome le unisce): così il
+# salvaschermo funziona anche se togli la pagina webcam
+http_request:
+  id: http_client
+  timeout: 20s
+  follow_redirects: true
+  verify_ssl: true
+
+image:
+  - platform: online_image
+    id: ss_img
+    url: "https://picsum.photos/800/480"  # sostituito dall'elenco
+    format: AUTO
+    type: RGB565
+    resize: 800x480
+    update_interval: never
+    on_download_finished:
+      - lvgl.image.update:
+          id: ss_widget
+          src: ss_img
+      - lvgl.label.update:
+          id: ss_fonte
+          text: !lambda |-
+            if (id(ss_sorgenti).empty()) return std::string("");
+            const std::string &e = id(ss_sorgenti)[id(ss_indice)];
+            return e.substr(0, e.find('|'));
+    on_error:
+      # sorgente non raggiungibile: si passa subito alla successiva
+      - lambda: "id(ss_indice) += 1;"
+
+script:
+  - id: ss_avvia
+    then:
+      - lvgl.widget.hide: nav_bar
+      - lvgl.widget.show: ss_box
+      - script.execute: ss_ciclo
+
+  - id: ss_esci
+    then:
+      - script.stop: ss_ciclo
+      - lvgl.widget.hide: ss_box
+      - lvgl.widget.show: nav_bar
+      - online_image.release: ss_img
+
+  # scarica un'immagine, aspetta, passa alla successiva... finché il
+  # salvaschermo è visibile; a schermo spento (LVGL in pausa) non scarica
+  - id: ss_ciclo
+    mode: restart
+    then:
+      - while:
+          condition:
+            lambda: "return !id(ss_sorgenti).empty();"
+          then:
+            - lvgl.label.update:
+                id: ss_ora
+                text: !lambda |-
+                  auto t = id(orologio).now();
+                  return t.is_valid() ? t.strftime("%H:%M") : std::string("");
+            - if:
+                condition:
+                  not: lvgl.is_paused
+                then:
+                  - online_image.set_url:
+                      id: ss_img
+                      url: !lambda |-
+                        int n = id(ss_sorgenti).size();
+                        id(ss_indice) = ((id(ss_indice) % n) + n) % n;
+                        const std::string &e = id(ss_sorgenti)[id(ss_indice)];
+                        size_t p = e.find('|');
+                        std::string url = p == std::string::npos ? e : e.substr(p + 1);
+                        url += (url.find('?') == std::string::npos ? "?" : "&");
+                        url += "r=" + std::to_string(millis());
+                        id(ss_indice) += 1;
+                        return url;
+            - delay: !lambda "return id(ss_cambio).state * 1000;"
+
+# un messaggio in arrivo chiude il salvaschermo (il riquadro resta sopra)
+text:
+  - id: !extend messaggio
+    on_value:
+      - if:
+          condition:
+            lambda: "return !x.empty();"
+          then:
+            - script.execute: ss_esci
+
+lvgl:
+  on_idle:
+    - timeout: !lambda |-
+        float s = id(ss_dopo).state;
+        return (s > 0 ? s : 86400) * 1000;
+      then:
+        - if:
+            condition:
+              lambda: "return id(ss_dopo).state > 0;"
+            then:
+              - script.execute: ss_avvia
+
+  top_layer:
+    widgets:
+      - obj:
+          id: ss_box
+          hidden: true
+          align: TOP_LEFT
+          width: 800
+          height: 480
+          radius: 0
+          border_width: 0
+          pad_all: 0
+          bg_color: 0x000000
+          scrollbar_mode: "OFF"
+          on_click:
+            - script.execute: ss_esci
+          widgets:
+            - image:
+                id: ss_widget
+                align: CENTER
+                src: ss_img
+            - label:
+                id: ss_ora
+                align: BOTTOM_RIGHT
+                x: -24
+                y: -12
+                text: ""
+                text_font: font_grande
+                text_color: 0xFFFFFF
+                shadow_width: 20
+                shadow_color: 0x000000
+                shadow_opa: 80%
+            - label:
+                id: ss_fonte
+                align: BOTTOM_LEFT
+                x: 20
+                y: -16
+                text: ""
+                text_color: 0xE0E0E0

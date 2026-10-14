@@ -26,10 +26,34 @@ packages:
   # --- Pagine, nell'ordine in cui scorrono. Commenta una riga per toglierla
   page_home: !include pages/home.yaml
   page_timer: !include pages/timer.yaml
-  page_webcam: !include pages/webcam.yaml
+  page_webcam: !include
+    file: pages/immagini.yaml
+    vars:
+      p: webcam
+      titolo: Webcam
+      aggiorna: 10min
+      # webcam di montagna: "Nome|URL diretto dell'immagine", una per riga
+      elenco: |-
+        {
+          "Webcam 1|https://www.example.com/webcam1.jpg",
+          "Webcam 2|https://www.example.com/webcam2.jpg",
+        }
+  page_telecamere: !include
+    file: pages/immagini.yaml
+    vars:
+      p: telecamere
+      titolo: Telecamere
+      aggiorna: 3s
+      # telecamere di casa (contengono password): l'elenco sta in
+      # secrets.yaml alla voce `telecamere`, generato da
+      # tools/trova-telecamere.py
+      elenco: !secret telecamere
   page_uscite: !include pages/uscite.yaml
   page_sensori: !include pages/sensori.yaml
   page_impostazioni: !include pages/impostazioni.yaml
+
+  # --- Funzioni (sopra tutte le pagine) -----------------------------------
+  salvaschermo: !include funzioni/salvaschermo.yaml
 
   # --- Integrazioni facoltative --------------------------------------------
   # homeassistant: !include integrations/homeassistant.yaml
@@ -91,20 +115,24 @@ font:
   - file: "gfonts://Roboto"
     id: font_testo
     size: 24
+    bpp: 4  # bordi sfumati (antialiasing)
     glyphsets: [GF_Latin_Kernel]
     glyphs: "àèéìòùÀÈÉÌÒÙ°·€"
   - file: "gfonts://Roboto@500"
     id: font_titolo
     size: 32
+    bpp: 4  # bordi sfumati (antialiasing)
     glyphsets: [GF_Latin_Kernel]
     glyphs: "àèéìòùÀÈÉÌÒÙ°·€"
   - file: "gfonts://Roboto@500"
     id: font_grande
     size: 72
+    bpp: 4  # bordi sfumati (antialiasing)
     glyphs: "0123456789:.,-+°%CmhPa "
   - file: "gfonts://Roboto@300"
     id: font_orologio
     size: 180
+    bpp: 4  # bordi sfumati (antialiasing)
     glyphs: "0123456789:-"
 
 # --- Impostazioni comuni a tutte le pagine ----------------------------------
@@ -117,7 +145,7 @@ number:
     min_value: 0
     max_value: 3600
     step: 10
-    initial_value: 120
+    initial_value: 900
     optimistic: true
     restore_value: true
     entity_category: config
@@ -209,17 +237,18 @@ lvgl:
 
   # schermo spento dopo N secondi senza tocchi (0 = mai); un tocco lo
   # riaccende senza attivare il pulsante sotto il dito
+  # (è un elenco: funzioni/salvaschermo.yaml aggiunge il suo tempo)
   on_idle:
-    timeout: !lambda |-
-      float s = id(spegnimento_schermo).state;
-      return (s > 0 ? s : 86400) * 1000;
-    then:
-      - if:
-          condition:
-            lambda: "return id(spegnimento_schermo).state > 0;"
-          then:
-            - light.turn_off: backlight
-            - lvgl.pause:
+    - timeout: !lambda |-
+        float s = id(spegnimento_schermo).state;
+        return (s > 0 ? s : 86400) * 1000;
+      then:
+        - if:
+            condition:
+              lambda: "return id(spegnimento_schermo).state > 0;"
+            then:
+              - light.turn_off: backlight
+              - lvgl.pause:
 
   # Barra di navigazione fissa in basso + riquadro messaggi: stanno nel
   # "top layer", quindi restano visibili su ogni pagina. Le pagine

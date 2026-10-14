@@ -1,0 +1,195 @@
+# Pagina "galleria di immagini da URL": una immagine alla volta, ◀ ▶ in alto
+# (o un tocco sull'immagine) per cambiare, ⟳ per ricaricare. Mentre la
+# pagina è aperta l'immagine si riaggiorna da sola; quando esci la memoria
+# viene liberata.
+#
+# È un modello: in esp32-panel.yaml viene incluso più volte con variabili
+# diverse (vedi `vars:`), es. Webcam di montagna e Telecamere di casa:
+#   p         prefisso univoco degli id (es. webcam, telecamere)
+#   titolo    titolo della pagina
+#   aggiorna  ogni quanto riscaricare l'immagine visibile (es. 10min, 3s)
+#   elenco    lista C++ di stringhe "Nome|URL" (vedi esempi nel file principale)
+#
+# L'URL deve restituire direttamente un'IMMAGINE JPEG/PNG non progressiva,
+# non una pagina web. http e https; per le telecamere utente e password
+# possono stare nell'URL (http://utente:password@192.168.1.50/...).
+globals:
+  - id: ${p}_elenco
+    type: std::vector<std::string>
+    initial_value: ${elenco}
+  - id: ${p}_indice
+    type: int
+    restore_value: true
+    initial_value: "0"
+  - id: ${p}_visibile
+    type: bool
+    initial_value: "false"
+
+http_request:
+  id: http_client
+  timeout: 20s
+  follow_redirects: true
+  # usa i certificati delle CA pubbliche inclusi in ESP-IDF
+  verify_ssl: true
+
+image:
+  - platform: online_image
+    id: ${p}_img
+    url: "http://0.0.0.0/vuoto.jpg"  # sostituito dall'elenco all'apertura
+    format: AUTO
+    type: RGB565
+    # massimo spazio disponibile: l'immagine viene rimpicciolita mantenendo
+    # le proporzioni (16:9 → 604x340)
+    resize: 760x340
+    update_interval: never
+    on_download_finished:
+      - lvgl.image.update:
+          id: ${p}_widget
+          src: ${p}_img
+      - lvgl.widget.hide: ${p}_stato
+      - lvgl.label.update:
+          id: ${p}_ora
+          text: !lambda |-
+            auto t = id(orologio).now();
+            return t.is_valid() ? t.strftime("agg. %H:%M:%S") : std::string("");
+    on_error:
+      - lvgl.label.update:
+          id: ${p}_stato
+          text: "Immagine non disponibile (URL, rete, password o formato)"
+      - lvgl.widget.show: ${p}_stato
+
+script:
+  # mostra=true: cambio di immagine (nome + "Caricamento..."); false: solo
+  # aggiornamento periodico silenzioso della stessa immagine
+  - id: ${p}_carica
+    mode: restart
+    parameters:
+      mostra: bool
+    then:
+      - lambda: |-
+          int n = id(${p}_elenco).size();
+          if (n > 0) id(${p}_indice) = ((id(${p}_indice) % n) + n) % n;
+      - if:
+          condition:
+            lambda: "return mostra;"
+          then:
+            - lvgl.label.update:
+                id: ${p}_nome
+                text: !lambda |-
+                  if (id(${p}_elenco).empty()) return std::string("Elenco vuoto");
+                  const std::string &e = id(${p}_elenco)[id(${p}_indice)];
+                  char buf[16];
+                  snprintf(buf, sizeof(buf), "  %d/%d", id(${p}_indice) + 1,
+                           (int) id(${p}_elenco).size());
+                  return e.substr(0, e.find('|')) + buf;
+            - lvgl.label.update:
+                id: ${p}_stato
+                text: "Caricamento..."
+            - lvgl.widget.show: ${p}_stato
+      - if:
+          condition:
+            lambda: "return !id(${p}_elenco).empty();"
+          then:
+            - online_image.set_url:
+                id: ${p}_img
+                url: !lambda |-
+                  const std::string &e = id(${p}_elenco)[id(${p}_indice)];
+                  size_t p = e.find('|');
+                  return p == std::string::npos ? e : e.substr(p + 1);
+
+interval:
+  - interval: ${aggiorna}
+    then:
+      - if:
+          condition:
+            and:
+              - lambda: "return id(${p}_visibile);"
+              - not: lvgl.is_paused
+          then:
+            - script.execute:
+                id: ${p}_carica
+                mostra: false
+
+lvgl:
+  pages:
+    - id: page_${p}
+      on_load:
+        - lambda: "id(${p}_visibile) = true;"
+        - script.execute:
+            id: ${p}_carica
+            mostra: true
+      on_unload:
+        - lambda: "id(${p}_visibile) = false;"
+        - online_image.release: ${p}_img
+      widgets:
+        - label:
+            id: ${p}_nome
+            align: TOP_LEFT
+            x: 24
+            y: 16
+            width: 400
+            long_mode: DOT
+            text: "${titolo}"
+            styles: st_titolo
+        - label:
+            id: ${p}_ora
+            align: TOP_LEFT
+            x: 430
+            y: 26
+            text: ""
+            text_color: 0x78909C
+        - button:
+            align: TOP_RIGHT
+            x: -196
+            y: 8
+            width: 80
+            height: 50
+            on_click:
+              - lambda: "id(${p}_indice) -= 1;"
+              - script.execute:
+                  id: ${p}_carica
+                  mostra: true
+            widgets:
+              - label: { align: CENTER, text: "", text_font: montserrat_28 }
+        - button:
+            align: TOP_RIGHT
+            x: -106
+            y: 8
+            width: 80
+            height: 50
+            on_click:
+              - script.execute:
+                  id: ${p}_carica
+                  mostra: true
+            widgets:
+              - label: { align: CENTER, text: "", text_font: montserrat_28 }
+        - button:
+            align: TOP_RIGHT
+            x: -16
+            y: 8
+            width: 80
+            height: 50
+            on_click:
+              - lambda: "id(${p}_indice) += 1;"
+              - script.execute:
+                  id: ${p}_carica
+                  mostra: true
+            widgets:
+              - label: { align: CENTER, text: "", text_font: montserrat_28 }
+        - image:
+            id: ${p}_widget
+            align: TOP_MID
+            y: 70
+            src: ${p}_img
+            clickable: true
+            on_click:
+              - lambda: "id(${p}_indice) += 1;"
+              - script.execute:
+                  id: ${p}_carica
+                  mostra: true
+        - label:
+            id: ${p}_stato
+            align: TOP_MID
+            y: 220
+            text: "Caricamento..."
+            text_color: 0x90A4AE
