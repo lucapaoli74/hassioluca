@@ -9,7 +9,9 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"image/jpeg"
 	"io"
+	"log"
 	"net/http"
 	"net/url"
 	"os"
@@ -339,7 +341,7 @@ func rtspFrame(ctx context.Context, cam Camera) ([]byte, error) {
 	var errs []string
 	for _, transport := range transportsFor(u) {
 		start := time.Now()
-		out, err := rtspFrameWith(ctx, bin, u, transport)
+		out, err := rtspGoodFrame(ctx, bin, u, transport)
 		if err == nil {
 			rememberTransport(u, transport)
 			return out, nil
@@ -357,8 +359,10 @@ func rtspFrame(ctx context.Context, cam Camera) ([]byte, error) {
 func rtspFrameWith(ctx context.Context, bin, u, transport string) ([]byte, error) {
 	ctx, cancel := context.WithTimeout(ctx, 20*time.Second)
 	defer cancel()
+	// -skip_frame nokey: si decodificano solo i fotogrammi chiave, che sono
+	// immagini complete (il primo fotogramma qualunque può essere "colato")
 	cmd := exec.CommandContext(ctx, bin, "-hide_banner", "-loglevel", "warning",
-		"-rtsp_transport", transport, "-i", u,
+		"-rtsp_transport", transport, "-skip_frame", "nokey", "-i", u,
 		"-frames:v", "1", "-f", "image2", "-c:v", "mjpeg", "-q:v", "2", "pipe:1")
 	hideWindow(cmd)
 	stderr := &tailBuffer{}
@@ -493,4 +497,66 @@ func (t *tailBuffer) String() string {
 	t.mu.Lock()
 	defer t.mu.Unlock()
 	return string(t.buf)
+}
+
+// rtspGoodFrame cattura un fotogramma e lo scarta se è rovinato (strisce
+// verticali dovute a pacchetti persi), riprovando fino a 3 volte.
+func rtspGoodFrame(ctx context.Context, bin, u, transport string) ([]byte, error) {
+	var out []byte
+	var err error
+	for i := 0; i < 3; i++ {
+		out, err = rtspFrameWith(ctx, bin, u, transport)
+		if err != nil {
+			return nil, err
+		}
+		if !looksSmeared(out) {
+			return out, nil
+		}
+		log.Printf("fotogramma rovinato (strisce verticali): nuovo tentativo")
+	}
+	return nil, errors.New("la telecamera invia immagini rovinate (strisce verticali): rete instabile o segnale Wi-Fi debole")
+}
+
+// looksSmeared riconosce l'immagine "colata": quando il decoder perde dati
+// ripete verso il basso l'ultima riga buona, e la parte bassa dell'immagine
+// diventa fatta di righe tutte uguali. Si confrontano righe distanti 8 pixel.
+func looksSmeared(data []byte) bool {
+	img, err := jpeg.Decode(bytes.NewReader(data))
+	if err != nil {
+		return false
+	}
+	b := img.Bounds()
+	w, h := b.Dx(), b.Dy()
+	if w < 64 || h < 64 {
+		return false
+	}
+	step := max(1, w/160)
+	same := 0
+	rows := 0
+	for y := b.Min.Y + h/3; y+8 < b.Max.Y; y += 8 {
+		rows++
+		var vert, horiz uint64
+		n := uint64(0)
+		for x := b.Min.X; x+step < b.Max.X; x += step {
+			r1, g1, b1, _ := img.At(x, y).RGBA()
+			r2, g2, b2, _ := img.At(x, y+8).RGBA()
+			r3, g3, b3, _ := img.At(x+step, y).RGBA()
+			vert += absDiff(r1, r2) + absDiff(g1, g2) + absDiff(b1, b2)
+			horiz += absDiff(r1, r3) + absDiff(g1, g3) + absDiff(b1, b3)
+			n++
+		}
+		// riga "colata": identica a quella sotto ma piena di strisce in orizzontale
+		// (nebbia, notte o cielo uniforme non hanno strisce e non vengono scartati)
+		if n > 0 && vert/n < 3*256 && horiz/n > 12*256 && horiz > vert*6 {
+			same++
+		}
+	}
+	return rows > 0 && same*10 >= rows*6 // almeno il 60% della parte bassa è "colata"
+}
+
+func absDiff(a, b uint32) uint64 {
+	if a > b {
+		return uint64(a - b)
+	}
+	return uint64(b - a)
 }

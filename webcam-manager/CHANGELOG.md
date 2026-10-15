@@ -3,6 +3,10 @@
 Ogni versione rilasciata ha qui la sua voce: il testo diventa le note della
 release mostrate nel pannello (Impostazioni → Aggiornamenti).
 
+## [0.2.7] - 2026-10-15
+
+- Telecamere RTSP: si cattura solo un fotogramma chiave completo e le immagini "colate" a strisce verticali (pacchetti persi, Wi-Fi debole) vengono scartate e ricatturate, così sul sito non va mai un'immagine rovinata.
+
 ## [0.2.6] - 2026-10-15
 
 - Pagine meteo dinamiche (es. Parchi Emilia Centrale): Edge viene avviato in modo compatibile con il servizio di Windows (riprova senza sandbox e in modalità compatibile, con Chrome di riserva); il programma intercetta il file da cui la pagina prende i dati e lo legge direttamente; cerca gli indirizzi dei dati anche nei file JavaScript del sito.
