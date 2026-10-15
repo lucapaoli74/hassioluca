@@ -3,6 +3,10 @@
 Ogni versione rilasciata ha qui la sua voce: il testo diventa le note della
 release mostrate nel pannello (Impostazioni → Aggiornamenti).
 
+## [0.2.2] - 2026-10-15
+
+- Nuovo dato live "Valore da una pagina web": si incolla l'indirizzo di una pagina (es. la pagina meteo di un rifugio), "Cerca i valori nella pagina" mostra temperature, umidità, vento… trovati e con un clic il valore scelto diventa un dato da mettere in sovrimpressione, riletto in automatico.
+
 ## [0.2.1] - 2026-10-15
 
 - Modalità manutenzione per ogni webcam (pulsante 🛠️ in Stato e nella pagina della webcam): sui siti viene pubblicata l'ultima immagine buona scurita con un avviso al centro, testo modificabile. In manutenzione la telecamera non viene interrogata, lo storico non cresce e non partono email di errore.

@@ -900,13 +900,15 @@ const wuVars = [["temp", "Temperatura", "°C"], ["humidity", "Umidità", "%"], [
 const dataFields = [
   { k: "name", label: "Nome", placeholder: "Es. Temperatura esterna" },
   { k: "id", label: "ID (per il segnaposto {data:ID})" },
-  { k: "type", label: "Fonte", type: "select", redraw: true, options: [["open_meteo", "Meteo Open-Meteo (gratis, senza chiave)"], ["wunderground", "Stazione Weather Underground"], ["home_assistant", "Sensore di Home Assistant"], ["http_json", "URL JSON"], ["http_text", "URL testo semplice"]] },
+  { k: "type", label: "Fonte", type: "select", redraw: true, options: [["open_meteo", "Meteo Open-Meteo (gratis, senza chiave)"], ["wunderground", "Stazione Weather Underground"], ["home_assistant", "Sensore di Home Assistant"], ["html", "Valore da una pagina web"], ["http_json", "URL JSON"], ["http_text", "URL testo semplice"]] },
   { k: "coords", label: "Coordinate del punto", type: "coords", show: d => d.type === "open_meteo" },
   { k: "variable", label: "Grandezza", type: "select", show: d => d.type === "open_meteo", options: meteoVars.map(v => [v[0], v[1]]) },
   { k: "station", label: "ID stazione", show: d => d.type === "wunderground", placeholder: "es. ISANTA123", help: "Usa “Cerca stazioni Weather Underground” nella pagina Dati live per trovarla. Se la chiave qui sotto è vuota si usa quella generale." },
   { k: "variable", label: "Grandezza", type: "select", show: d => d.type === "wunderground", options: wuVars.map(v => [v[0], v[1]]) },
   { k: "url", label: "Indirizzo Home Assistant", show: d => d.type === "home_assistant", placeholder: "http://homeassistant.local:8123", wide: true },
   { k: "url", label: "URL", show: d => d.type === "http_json" || d.type === "http_text", wide: true },
+  { k: "url", label: "Indirizzo della pagina web", show: d => d.type === "html", wide: true, placeholder: "https://…/meteo/…", help: "Incolla l'indirizzo della pagina, poi premi 🔎 Cerca i valori nella pagina e scegli il valore." },
+  { k: "path", label: "Valore scelto (espressione)", show: d => d.type === "html", wide: true, help: "Compilato da “Cerca i valori nella pagina”. Non serve modificarlo." },
   { k: "token", label: "Chiave / token", type: "password", show: d => d.type !== "open_meteo", help: "Weather Underground: chiave API (gratuita per chi ha una stazione: wunderground.com → My Profile → API Keys). Home Assistant: token di accesso a lunga durata. Altri: bearer token opzionale." },
   { k: "entity", label: "Entità", show: d => d.type === "home_assistant", placeholder: "sensor.temperatura_esterna" },
   { k: "path", label: "Campo da leggere", show: d => d.type === "http_json" || d.type === "home_assistant", placeholder: "es. main.temp oppure attributes.humidity", help: "Percorso puntato nel JSON. Per HA vuoto = stato del sensore." },
@@ -917,13 +919,14 @@ const dataFields = [
 pages.dati = async (page, arg) => {
   if (arg) return editData(page, arg);
   page.innerHTML = `<h1>Dati live</h1><p class="help">Valori aggiornati automaticamente (temperatura, vento, sensori…) da usare nelle sovrimpressioni con <code>{data:ID}</code>.</p>
-    <div class="toolbar"><a class="btn primary" href="#dati/nuovo">➕ Nuovo dato</a><button id="wu-open">🔎 Cerca stazioni Weather Underground</button></div><div class="card" id="dt-list"></div>
+    <div class="toolbar"><a class="btn primary" href="#dati/nuovo">➕ Nuovo dato</a><button id="dt-page">🌐 Dato da una pagina web</button><button id="wu-open">🔎 Cerca stazioni Weather Underground</button></div><div class="card" id="dt-list"></div>
     <div class="card hidden" id="wu-box"></div>`;
+  $("#dt-page").onclick = () => { sessionStorage.setItem("newData", JSON.stringify({ type: "html", name: "Temperatura", unit: "°C", decimals: 1, refresh_seconds: 300 })); location.hash = "#dati/nuovo"; };
   $("#wu-open").onclick = () => { $("#wu-box").classList.toggle("hidden"); wuSearchUI($("#wu-box")); };
   const st = await api("GET", "/api/status");
   $("#dt-list").innerHTML = cfg.data_sources.length ? cfg.data_sources.map(d => {
     const v = st.data[d.id] || {};
-    return `<div class="list-item"><div class="grow"><b>${esc(d.name || d.id)}</b> <code>{data:${esc(d.id)}}</code><div class="help">${esc({ open_meteo: "Open-Meteo", wunderground: "Weather Underground " + (d.station || ""), home_assistant: "Home Assistant", http_json: "URL JSON", http_text: "URL testo" }[d.type] || d.type)} · ogni ${d.refresh_seconds}s ${v.error ? `· <span class="err-text">${esc(v.error)}</span>` : ""}</div></div>
+    return `<div class="list-item"><div class="grow"><b>${esc(d.name || d.id)}</b> <code>{data:${esc(d.id)}}</code><div class="help">${esc({ html: "Pagina web", open_meteo: "Open-Meteo", wunderground: "Weather Underground " + (d.station || ""), home_assistant: "Home Assistant", http_json: "URL JSON", http_text: "URL testo" }[d.type] || d.type)} · ogni ${d.refresh_seconds}s ${v.error ? `· <span class="err-text">${esc(v.error)}</span>` : ""}</div></div>
       <b style="font-size:18px">${esc(v.value || "—")}</b><a class="btn small" href="#dati/${encodeURIComponent(d.id)}">Modifica</a></div>`;
   }).join("") : `<span class="help">Nessun dato configurato.</span>`;
 };
@@ -981,19 +984,44 @@ async function wuValues(station, name, key) {
 
 async function editData(page, id) {
   const isNew = id === "nuovo";
-  const ds = isNew ? { id: "", name: "Temperatura", type: "open_meteo", latitude: cfg.location.latitude || 44.2, longitude: cfg.location.longitude || 10.58, variable: "temperature_2m", decimals: 1, unit: "°C", refresh_seconds: 600, url: "", token: "", entity: "", path: "" }
+  const ds = isNew ? Object.assign({ id: "", name: "Temperatura", type: "open_meteo", latitude: cfg.location.latitude || 44.2, longitude: cfg.location.longitude || 10.58, variable: "temperature_2m", decimals: 1, unit: "°C", refresh_seconds: 600, url: "", token: "", entity: "", path: "" },
+    JSON.parse(sessionStorage.getItem("newData") || "{}"))
     : clone(cfg.data_sources.find(d => d.id === id) || {});
   if (!ds.type) { page.innerHTML = `<div class="card">Non trovato.</div>`; return; }
   if (isNew) ds.id = uniqueId(ds.name, cfg.data_sources);
   const origId = ds.id;
   page.innerHTML = `<h1>${isNew ? "Nuovo dato live" : esc(ds.name || ds.id)}</h1><div class="card" id="dt-form"></div>
-    <div class="toolbar"><button class="primary" id="dt-save">💾 Salva</button><button id="dt-test">Prova lettura</button><span id="dt-res"></span><span class="spacer"></span><a class="btn" href="#dati">Annulla</a>${isNew ? "" : '<button class="danger" id="dt-del">Elimina</button>'}</div>`;
+    <div class="toolbar"><button class="primary" id="dt-save">💾 Salva</button><button id="dt-find">🔎 Cerca i valori nella pagina</button><button id="dt-test">Prova lettura</button><span id="dt-res"></span><span class="spacer"></span><a class="btn" href="#dati">Annulla</a>${isNew ? "" : '<button class="danger" id="dt-del">Elimina</button>'}</div>`;
   const form = renderForm(ds, dataFields, k => {
     if (k === "variable") { const v = (ds.type === "wunderground" ? wuVars : meteoVars).find(m => m[0] === ds.variable); if (v) { ds.unit = v[2]; ds.name = v[1]; form.redraw(); } }
     if (k === "type") { if (ds.type === "wunderground" && !wuVars.some(v => v[0] === ds.variable)) ds.variable = "temp"; if (ds.type === "open_meteo" && !meteoVars.some(v => v[0] === ds.variable)) ds.variable = "temperature_2m"; form.redraw(); }
     if (k === "name" && isNew) { ds.id = uniqueId(ds.name, cfg.data_sources); form.setValue("id", ds.id); }
   });
   $("#dt-form").appendChild(form);
+  sessionStorage.removeItem("newData");
+  const findBtn = $("#dt-find");
+  const syncFind = () => findBtn.classList.toggle("hidden", ds.type !== "html");
+  syncFind();
+  $("#dt-form").addEventListener("change", syncFind);
+  findBtn.onclick = e => busy(e.target, async () => {
+    if (!/^https?:\/\//i.test(ds.url || "")) throw new Error("Incolla prima l'indirizzo della pagina (https://…)");
+    const r = await api("POST", "/api/page-values", { URL: ds.url });
+    openModal(`<h2 style="margin-top:0">🔎 Valori trovati nella pagina</h2>
+      ${r.values.length ? `<p class="help">Scegli il valore da mostrare in sovrimpressione. Viene riletto in automatico, quindi segue i cambiamenti.</p>
+      <table>${r.values.map((v, i) => `<tr><td>${esc(v.context || "—")}</td><td><b style="font-size:16px">${esc(v.value)} ${esc(v.unit)}</b></td>
+        <td style="text-align:right"><button class="small primary" data-i="${i}">Usa questo</button></td></tr>`).join("")}</table>`
+      : `<p>Nella pagina non ci sono valori con unità di misura${r.text_length < 300 ? " (la pagina è quasi vuota)" : ""}.</p>
+         <p class="help">Probabilmente la pagina carica i dati meteo con JavaScript dopo l'apertura. Apri la pagina nel browser, premi F12 → scheda <b>Rete</b> (Network) → ricarica la pagina e cerca un indirizzo che contiene i dati (spesso finisce in .json, .txt o .xml): usalo con il tipo “URL JSON” o “URL testo”, oppure mandalo a chi ti assiste.</p>`}`);
+    document.querySelectorAll("#modal [data-i]").forEach(b => b.onclick = () => {
+      const v = r.values[Number(b.dataset.i)];
+      ds.path = v.pattern;
+      ds.unit = v.unit.startsWith("°") ? "°C" : v.unit === "%" ? "%" : " " + v.unit;
+      if (/^\d+$/.test(v.value)) ds.decimals = 0;
+      if (v.context && (isNew || !ds.name)) { ds.name = v.context.charAt(0).toUpperCase() + v.context.slice(1); if (isNew) ds.id = uniqueId(ds.name, cfg.data_sources); }
+      closeModal(); form.redraw();
+      toast(`Scelto: ${v.context} ${v.value} ${v.unit}. Premi “Prova lettura” e poi Salva.`);
+    });
+  });
   $("#dt-test").onclick = e => busy(e.target, async () => {
     try { const r = await api("POST", "/api/test-datasource", ds); $("#dt-res").innerHTML = `<span class="ok-text">✔ ${esc(r.value)}</span>`; }
     catch (err) { $("#dt-res").innerHTML = `<span class="err-text">✖ ${esc(err.message)}</span>`; }

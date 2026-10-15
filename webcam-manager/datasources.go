@@ -166,6 +166,8 @@ func FetchDataSource(ctx context.Context, ds DataSource) (string, error) {
 		if err == nil {
 			raw, err = lookupPath(doc, ds.Path)
 		}
+	case "html":
+		raw, err = readPageValue(ctx, ds)
 	case "http_text":
 		var body []byte
 		body, err = getBody(ctx, ds.URL, ds.Token)

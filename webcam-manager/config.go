@@ -367,6 +367,13 @@ func (c *Config) Validate() error {
 			if ds.URL == "" {
 				return fmt.Errorf("dato live %q: URL mancante", ds.ID)
 			}
+		case "html":
+			if ds.URL == "" || ds.Path == "" {
+				return fmt.Errorf("dato live %q: servono l'indirizzo della pagina e il valore scelto (usa \"Cerca i valori nella pagina\")", ds.ID)
+			}
+			if _, err := regexp.Compile(ds.Path); err != nil {
+				return fmt.Errorf("dato live %q: espressione non valida", ds.ID)
+			}
 		default:
 			return fmt.Errorf("dato live %q: tipo %q sconosciuto", ds.ID, ds.Type)
 		}

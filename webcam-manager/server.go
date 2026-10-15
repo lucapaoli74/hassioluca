@@ -201,6 +201,21 @@ func (s *Server) Handler() http.Handler {
 		writeJSON(w, map[string]string{"ok": "1"})
 	})
 	mux.HandleFunc("POST /api/test-datasource", s.testDataSource)
+	mux.HandleFunc("POST /api/page-values", func(w http.ResponseWriter, r *http.Request) {
+		var req struct{ URL string }
+		if !readJSON(w, r, &req) {
+			return
+		}
+		vals, textLen, err := FindPageValues(r.Context(), req.URL)
+		if err != nil {
+			httpError(w, http.StatusBadGateway, err.Error())
+			return
+		}
+		if vals == nil {
+			vals = []FoundValue{}
+		}
+		writeJSON(w, map[string]any{"values": vals, "text_length": textLen})
+	})
 	// espande i link brevi di Google Maps (maps.app.goo.gl) per leggerne le coordinate
 	mux.HandleFunc("POST /api/resolve-link", func(w http.ResponseWriter, r *http.Request) {
 		var req struct{ URL string }
