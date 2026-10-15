@@ -73,7 +73,7 @@ func (a *Alerter) problems(cfg Config, now time.Time) []problem {
 	for _, c := range cfg.Cameras {
 		names[c.ID] = c.Name
 		st, ok := cams[c.ID]
-		if !c.Enabled || !ok || st.OutOfHours || st.FailingSince.IsZero() || now.Sub(st.FailingSince) < limit {
+		if !c.Enabled || c.Maintenance || !ok || st.OutOfHours || st.FailingSince.IsZero() || now.Sub(st.FailingSince) < limit {
 			continue
 		}
 		out = append(out, problem{"cam|" + c.ID, fmt.Sprintf("Webcam \"%s\" non raggiungibile: %s", c.Name, st.LastError), st.FailingSince})

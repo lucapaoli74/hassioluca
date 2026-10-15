@@ -18,6 +18,7 @@ type CamStatus struct {
 	FailingSince time.Time `json:"failing_since"` // primo errore dopo l'ultima cattura riuscita
 	Captures     int       `json:"captures"`
 	OutOfHours   bool      `json:"out_of_hours"`
+	Maintenance  bool      `json:"maintenance"`
 	ArchiveCount int       `json:"archive_count"`
 	ArchiveBytes int64     `json:"archive_bytes"`
 }
@@ -86,6 +87,9 @@ func NewScheduler(store *Store, r *Renderer, a *Archive, tl *Timelapse, s *SyncS
 	for _, cam := range store.Get().Cameras {
 		if data, err := os.ReadFile(sc.latestPath(cam.ID)); err == nil {
 			sc.latest[cam.ID] = data
+		}
+		if data, err := os.ReadFile(sc.rawPath(cam.ID)); err == nil {
+			sc.raw[cam.ID] = data
 		}
 	}
 	return sc
@@ -199,6 +203,20 @@ func (s *Scheduler) status(id string) *CamStatus {
 
 func (s *Scheduler) tick(ctx context.Context, cam Camera) {
 	now := time.Now()
+	if cam.Maintenance {
+		// manutenzione: niente telecamera, si pubblica l'ultima immagine con l'avviso
+		bg, err := darkenJPEG(s.maintenanceBackground(cam.ID))
+		if err == nil {
+			m := maintenanceCamera(cam)
+			var img []byte
+			if img, err = s.renderer.Process(bg, m, now, PrimarySite(s.store.Get(), cam.ID)); err == nil {
+				s.store_(m, bg, img, now)
+				return
+			}
+		}
+		log.Printf("webcam %s (manutenzione): %v", cam.ID, err)
+		return
+	}
 	if !cam.IsActive(now) {
 		s.mu.Lock()
 		s.status(cam.ID).OutOfHours = true
@@ -261,10 +279,17 @@ func (s *Scheduler) store_(cam Camera, raw, img []byte, now time.Time) {
 			log.Printf("webcam %s: timelapse: %v", cam.ID, err)
 		}
 	}
+	if !cam.Maintenance {
+		// l'ultima immagine "vera" serve come sfondo se si attiva la manutenzione
+		_ = writeAtomic(s.rawPath(cam.ID), raw)
+	}
 	s.mu.Lock()
 	s.latest[cam.ID] = img
-	s.raw[cam.ID] = raw
+	if !cam.Maintenance {
+		s.raw[cam.ID] = raw
+	}
 	st := s.status(cam.ID)
+	st.Maintenance = cam.Maintenance
 	st.LastCapture = now
 	st.LastError = ""
 	st.FailingSince = time.Time{}

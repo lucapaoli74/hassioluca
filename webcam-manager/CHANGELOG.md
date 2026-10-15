@@ -3,6 +3,10 @@
 Ogni versione rilasciata ha qui la sua voce: il testo diventa le note della
 release mostrate nel pannello (Impostazioni → Aggiornamenti).
 
+## [0.2.1] - 2026-10-15
+
+- Modalità manutenzione per ogni webcam (pulsante 🛠️ in Stato e nella pagina della webcam): sui siti viene pubblicata l'ultima immagine buona scurita con un avviso al centro, testo modificabile. In manutenzione la telecamera non viene interrogata, lo storico non cresce e non partono email di errore.
+
 ## [0.2.0] - 2026-10-15
 
 - Importa sovrimpressioni: pulsante nella pagina della webcam per clonare tutti i livelli da un'altra webcam.

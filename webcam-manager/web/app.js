@@ -284,10 +284,12 @@ pages.stato = async (page) => {
       <div class="toolbar" style="margin:10px 0 0">
         <button class="small" data-act="cap">📸 Cattura ora</button>
         <button class="small" data-act="live">🔴 Live</button>
+        <button class="small" data-act="maint">${c.maintenance ? "✅ Fine manutenzione" : "🛠️ Manutenzione"}</button>
         <a class="btn small" href="#webcam/${encodeURIComponent(c.id)}">✏️ Modifica</a>
       </div>`;
     el.querySelector("[data-act=cap]").onclick = e => busy(e.target, async () => { await api("POST", `/api/cameras/${c.id}/capture`); toast("Cattura richiesta"); });
     el.querySelector("[data-act=live]").onclick = () => showLive(c.name || c.id, "/live/" + encodeURIComponent(c.id));
+    el.querySelector("[data-act=maint]").onclick = e => busy(e.target, async () => { if (await toggleMaintenance(c, !c.maintenance)) route(); });
     el.dataset.id = c.id;
     grid.appendChild(el);
   }
@@ -298,6 +300,7 @@ pages.stato = async (page) => {
       const s = st.cameras[c.id] || {};
       const badge = el.querySelector("[data-badge]");
       if (!c.enabled) { badge.className = "badge"; badge.textContent = "disattivata"; }
+      else if (c.maintenance) { badge.className = "badge warn"; badge.textContent = "🛠️ manutenzione"; }
       else if (s.out_of_hours) { badge.className = "badge warn"; badge.textContent = "fuori orario"; }
       else if (s.last_error) { badge.className = "badge err"; badge.textContent = "errore"; }
       else if (s.last_capture) { badge.className = "badge ok"; badge.textContent = "ok"; }
@@ -428,6 +431,7 @@ const cameraFields = [
   { k: "id", label: "ID (nome breve, senza spazi)", help: "Usato nei nomi dei file e negli indirizzi." },
   { k: "enabled", label: "Attiva", type: "checkbox" },
   { k: "public", label: "Pubblica su /public/ID.jpg (senza password)", type: "checkbox" },
+  { k: "maintenance_text", label: "Testo dell'avviso di manutenzione", type: "textarea", wide: true, placeholder: "Webcam in manutenzione", help: "Mostrato al centro dell'immagine quando attivi 🛠️ Manutenzione (sullo sfondo resta l'ultima immagine, scurita). Si possono usare più righe." },
   { k: "source", label: "Tipo di sorgente", type: "select", options: [["snapshot", "Snapshot HTTP (JPEG)"], ["mjpeg", "Stream MJPEG"], ["rtsp", "Stream RTSP (richiede ffmpeg)"]] },
   { k: "url", label: "URL", wide: true },
   { k: "username", label: "Utente telecamera" },
@@ -459,7 +463,7 @@ pages.webcam = async (page, arg) => {
     const it = document.createElement("div");
     it.className = "list-item";
     it.innerHTML = `<img src="/snapshot/${encodeURIComponent(c.id)}.jpg?t=${Date.now()}" alt="" onerror="this.style.visibility='hidden'">
-      <div class="grow"><b>${esc(c.name || c.id)}</b> ${c.enabled ? "" : '<span class="badge">disattivata</span>'}<div class="help">${esc(c.source)} · ogni ${c.interval_seconds}s · ${c.overlays.filter(o => o.enabled).length} sovrimpressioni · pubblicata su: ${esc(sites.join(", ") || "nessun sito")}</div></div>
+      <div class="grow"><b>${esc(c.name || c.id)}</b> ${c.enabled ? "" : '<span class="badge">disattivata</span>'} ${c.maintenance ? '<span class="badge warn">🛠️ manutenzione</span>' : ""}<div class="help">${esc(c.source)} · ogni ${c.interval_seconds}s · ${c.overlays.filter(o => o.enabled).length} sovrimpressioni · pubblicata su: ${esc(sites.join(", ") || "nessun sito")}</div></div>
       <a class="btn small" href="#webcam/${encodeURIComponent(c.id)}">Modifica</a>
       <a class="btn small" href="#sovrimpressioni/${encodeURIComponent(c.id)}">Sovrimpressioni</a>`;
     list.appendChild(it);
@@ -495,7 +499,9 @@ async function editCamera(page, id) {
       <div class="card"><h3 style="margin-top:0">Pubblicazione</h3><div id="cm-pubs"></div></div>
       <div class="toolbar"><button class="primary" id="cm-save">💾 Salva</button><a class="btn" href="#webcam">Annulla</a><span class="spacer"></span>${isNew ? "" : '<button class="danger" id="cm-del">Elimina</button>'}</div></div>
     <div class="preview card"><h3 style="margin-top:0">Prova</h3><img class="cam-img" id="cm-img" alt=""><div id="cm-msg" class="help" style="margin-top:6px">Premi “Prova” per verificare URL e credenziali.</div>
-      <div class="toolbar" style="margin-top:10px"><button id="cm-test">📸 Prova cattura</button><button id="cm-diag">🩺 Diagnostica</button><button id="cm-find">🔎 Trova altri flussi</button><button id="cm-live">🔴 Live</button>${isNew ? "" : `<a class="btn" href="#sovrimpressioni/${encodeURIComponent(cam.id)}">🖌️ Sovrimpressioni</a>`}</div></div></div>`;
+      <div class="toolbar" style="margin-top:10px"><button id="cm-test">📸 Prova cattura</button><button id="cm-diag">🩺 Diagnostica</button><button id="cm-find">🔎 Trova altri flussi</button><button id="cm-live">🔴 Live</button>${isNew ? "" : `<a class="btn" href="#sovrimpressioni/${encodeURIComponent(cam.id)}">🖌️ Sovrimpressioni</a>
+        <button id="cm-maint" class="${cam.maintenance ? "primary" : ""}">${cam.maintenance ? "✅ Termina manutenzione" : "🛠️ Attiva manutenzione"}</button>`}</div>
+      ${cam.maintenance ? '<div class="help" style="margin-top:8px"><span class="badge warn">in manutenzione</span> sui siti va l\'ultima immagine con l\'avviso.</div>' : ""}</div></div>`;
   $("#cm-form").appendChild(renderForm(cam, cameraFields, k => {
     if (k === "name" && isNew) { cam.id = uniqueId(cam.name, cfg.cameras); $("#cm-form .form").setValue("id", cam.id); }
     // il tipo di sorgente segue l'indirizzo: rtsp:// → RTSP
@@ -569,6 +575,10 @@ async function editCamera(page, id) {
     $("#dg-copy").onclick = () => { navigator.clipboard.writeText(r.report).then(() => toast("Copiato"), () => { const sel = getSelection(); sel.selectAllChildren($("#dg-rep")); toast("Seleziona e copia con Ctrl+C"); }); };
   });
   $("#cm-live").onclick = e => busy(e.target, async () => showLive(cam.name || cam.url, await liveSession(cam)));
+  const mb = $("#cm-maint");
+  if (mb) mb.onclick = e => busy(e.target, async () => {
+    if (await toggleMaintenance(cam, !cam.maintenance)) route();
+  });
   const ovSel = $("#cm-ovfrom");
   if (ovSel) ovSel.onchange = () => ovFrom = ovSel.value;
   const ovImp = $("#cm-ovimport");
@@ -631,6 +641,19 @@ function pickOverlaySource(excludeId, title, onPick) {
       <div class="grow"><b>${esc(c.name || c.id)}</b> <span class="badge">${c.overlays.length} livelli</span><div class="help">${esc(overlaySummary(c))}</div></div>
       <button class="primary" data-from="${esc(c.id)}">📥 Importa</button></div>`).join("")}`);
   $("#modal-body").querySelectorAll("[data-from]").forEach(b => b.onclick = () => { closeModal(); onPick(cfg.cameras.find(c => c.id === b.dataset.from)); });
+}
+
+// attiva/disattiva la manutenzione di una webcam (chiede il testo dell'avviso)
+async function toggleMaintenance(cam, enable) {
+  let body = { enabled: enable };
+  if (enable) {
+    const t = prompt("Testo dell'avviso mostrato sull'immagine:", cam.maintenance_text || "Webcam in manutenzione");
+    if (t === null) return false;
+    body.text = t;
+  }
+  cfg = await api("POST", `/api/cameras/${encodeURIComponent(cam.id)}/maintenance`, body);
+  toast(enable ? `🛠️ ${cam.name || cam.id}: manutenzione attivata` : `✅ ${cam.name || cam.id}: di nuovo in diretta`);
+  return true;
 }
 
 function intervalSelect(v) {

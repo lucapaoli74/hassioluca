@@ -124,6 +124,41 @@ func (s *Server) Handler() http.Handler {
 		writeJSON(w, map[string]string{"ok": "1"})
 	})
 	mux.HandleFunc("POST /api/test-camera", s.testCamera)
+	mux.HandleFunc("POST /api/cameras/{id}/maintenance", func(w http.ResponseWriter, r *http.Request) {
+		var req struct {
+			Enabled bool    `json:"enabled"`
+			Text    *string `json:"text"`
+		}
+		if !readJSON(w, r, &req) {
+			return
+		}
+		id := r.PathValue("id")
+		cfg := a.store.Get()
+		found := false
+		for i := range cfg.Cameras {
+			if cfg.Cameras[i].ID == id {
+				found = true
+				if req.Enabled && !cfg.Cameras[i].Maintenance {
+					a.sched.FreezeMaintenanceImage(id)
+				}
+				cfg.Cameras[i].Maintenance = req.Enabled
+				if req.Text != nil {
+					cfg.Cameras[i].MaintenanceText = strings.TrimSpace(*req.Text)
+				}
+			}
+		}
+		if !found {
+			httpError(w, http.StatusNotFound, "webcam non trovata")
+			return
+		}
+		if err := a.store.Replace(cfg); err != nil {
+			httpError(w, http.StatusBadRequest, err.Error())
+			return
+		}
+		log.Printf("webcam %s: manutenzione %v", id, map[bool]string{true: "attivata", false: "terminata"}[req.Enabled])
+		a.Reload() // riparte subito: pubblica l'avviso (o torna in diretta) senza attendere
+		writeJSON(w, maskConfig(a.store.Get()))
+	})
 	mux.HandleFunc("POST /api/find-streams", func(w http.ResponseWriter, r *http.Request) {
 		var cam Camera
 		if !readJSON(w, r, &cam) {
@@ -462,7 +497,7 @@ func (s *Server) health(w http.ResponseWriter) {
 	cams, pubs, _ := s.app.sched.Status()
 	failing := 0
 	for _, c := range cfg.Cameras {
-		if st, ok := cams[c.ID]; c.Enabled && ok && st.LastError != "" && !st.OutOfHours {
+		if st, ok := cams[c.ID]; c.Enabled && !c.Maintenance && ok && st.LastError != "" && !st.OutOfHours {
 			failing++
 		}
 	}

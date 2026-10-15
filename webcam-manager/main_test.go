@@ -455,3 +455,63 @@ func TestProbeRTSPPathsDualLens(t *testing.T) {
 		t.Fatalf("risultato inatteso: %+v", got)
 	}
 }
+
+func TestMaintenancePublishesFrozenImage(t *testing.T) {
+	frame := testJPEG(t, 800, 450, color.RGBA{30, 140, 60, 255})
+	srv := fakeCamera(t, frame)
+	defer srv.Close()
+	data, out := t.TempDir(), t.TempDir()
+	cfgJSON := fmt.Sprintf(`{"cameras":[{"id":"porto","name":"Porto","enabled":true,"source":"snapshot","url":%q,"username":"admin","password":"secret",
+		"interval_seconds":60,"archive_minutes":60,"overlays":[{"type":"text","enabled":true,"text":"{name}","anchor":"top-left"}]}],
+		"sites":[{"id":"locale","name":"Locale","enabled":true,"protocol":"folder","remote_dir":%q,"publications":[{"camera_id":"porto","filename":"webcam.jpg"}]}]}`, srv.URL+"/snap.jpg", out)
+	_ = os.WriteFile(filepath.Join(data, "config.json"), []byte(cfgJSON), 0o600)
+	app, err := NewApp(data, "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	app.Reload()
+	defer app.sched.cancel()
+	waitFile := func(p string, after time.Time) []byte {
+		deadline := time.Now().Add(10 * time.Second)
+		for time.Now().Before(deadline) {
+			if st, err := os.Stat(p); err == nil && st.ModTime().After(after) {
+				b, _ := os.ReadFile(p)
+				return b
+			}
+			time.Sleep(100 * time.Millisecond)
+		}
+		t.Fatalf("%s non aggiornato", p)
+		return nil
+	}
+	waitFile(filepath.Join(out, "webcam.jpg"), time.Time{})
+	archived := app.archive.Count("porto")
+
+	// attivazione come dal pannello
+	before := time.Now()
+	time.Sleep(10 * time.Millisecond)
+	app.sched.FreezeMaintenanceImage("porto")
+	cfg := app.store.Get()
+	cfg.Cameras[0].Maintenance = true
+	cfg.Cameras[0].MaintenanceText = "Lavori in corso\nTorniamo presto"
+	if err := app.store.Replace(cfg); err != nil {
+		t.Fatal(err)
+	}
+	srv.Close() // la telecamera ora è irraggiungibile: non deve importare
+	app.Reload()
+	img := waitFile(filepath.Join(out, "webcam.jpg"), before)
+	if p := os.Getenv("MAINT_JPG"); p != "" {
+		_ = os.WriteFile(p, img, 0o644)
+	}
+	time.Sleep(300 * time.Millisecond)
+	cams, _, _ := app.sched.Status()
+	if !cams["porto"].Maintenance || cams["porto"].LastError != "" {
+		t.Fatalf("stato: %+v", cams["porto"])
+	}
+	if app.archive.Count("porto") != archived {
+		t.Fatal("in manutenzione non si deve archiviare")
+	}
+	// lo sfondo per il pannello resta l'immagine vera, non quella scurita
+	if !bytes.Equal(app.sched.Raw("porto"), frame) {
+		t.Fatal("immagine grezza sovrascritta")
+	}
+}

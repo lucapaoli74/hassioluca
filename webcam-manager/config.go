@@ -52,6 +52,8 @@ type Camera struct {
 	MaxWidth         int       `json:"max_width"`         // ridimensiona se più larga (0 = originale)
 	Quality          int       `json:"quality"`           // qualità JPEG 1-100
 	Public           bool      `json:"public"`            // esposta su /public/<id>.jpg senza password
+	Maintenance      bool      `json:"maintenance"`       // in manutenzione: pubblica l'ultima immagine con un avviso
+	MaintenanceText  string    `json:"maintenance_text"`  // testo dell'avviso (vuoto = "Webcam in manutenzione")
 	ActiveFrom       string    `json:"active_from"`       // fascia oraria di attività "HH:MM" ("" = sempre)
 	ActiveTo         string    `json:"active_to"`         //
 	ArchiveMinutes   int       `json:"archive_minutes"`   // frequenza dello storico (0 = storico disattivato)
