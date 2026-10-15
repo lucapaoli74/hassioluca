@@ -3,6 +3,11 @@
 Ogni versione rilasciata ha qui la sua voce: il testo diventa le note della
 release mostrate nel pannello (Impostazioni → Aggiornamenti).
 
+## [0.2.6] - 2026-10-15
+
+- Pagine meteo dinamiche (es. Parchi Emilia Centrale): Edge viene avviato in modo compatibile con il servizio di Windows (riprova senza sandbox e in modalità compatibile, con Chrome di riserva); il programma intercetta il file da cui la pagina prende i dati e lo legge direttamente; cerca gli indirizzi dei dati anche nei file JavaScript del sito.
+- Ricerca dei valori più precisa: un numero vale solo se sta subito dopo l'etichetta (niente "1°" di "1° incontro").
+
 ## [0.2.5] - 2026-10-15
 
 - Ricerca dei valori: riconosce "Temperatura 3,8" anche senza unità di misura accanto; campo "Parola vicina al valore" per prendere il numero che segue una parola; se non trova nulla mostra il testo letto nella pagina (con stato del browser) e il pulsante Copia per l'assistenza.

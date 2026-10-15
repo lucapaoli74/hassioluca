@@ -7,6 +7,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"runtime"
 	"strings"
 	"sync"
@@ -60,27 +61,61 @@ func findBrowser() string {
 }
 
 // renderPage apre la pagina nel browser invisibile e restituisce l'HTML dopo
-// l'esecuzione del JavaScript (al massimo circa 15 secondi).
-func renderPage(ctx context.Context, url string) ([]byte, error) {
-	bin := findBrowser()
-	if bin == "" {
-		return nil, errors.New("serve Microsoft Edge o Google Chrome installato sul computer")
+// l'esecuzione del JavaScript e l'elenco degli indirizzi che la pagina ha
+// scaricato (tra questi c'è il file con i dati della stazione meteo).
+// Prova più combinazioni: alcune versioni di Edge, avviate dal servizio di
+// Windows, non partono in modalità "headless=new" o con la sandbox.
+func renderPage(ctx context.Context, url string) ([]byte, []string, error) {
+	var bins []string
+	if b := findBrowser(); b != "" {
+		bins = append(bins, b)
+	}
+	if runtime.GOOS == "windows" {
+		for _, base := range []string{os.Getenv("ProgramFiles"), os.Getenv("ProgramFiles(x86)"), os.Getenv("LocalAppData")} {
+			if base == "" {
+				continue
+			}
+			c := filepath.Join(base, "Google", "Chrome", "Application", "chrome.exe")
+			if _, err := os.Stat(c); err == nil && c != findBrowser() {
+				bins = append(bins, c)
+			}
+		}
+	}
+	if len(bins) == 0 {
+		return nil, nil, errors.New("serve Microsoft Edge o Google Chrome installato sul computer")
 	}
 	browserMu.Lock()
 	defer browserMu.Unlock()
+	var lastErr error
+	for _, bin := range bins {
+		for _, mode := range []string{"--headless=new", "--headless"} {
+			dom, urls, err := renderOnce(ctx, bin, mode, url)
+			if err == nil {
+				return dom, urls, nil
+			}
+			lastErr = err
+			if ctx.Err() != nil {
+				return nil, nil, err
+			}
+		}
+	}
+	return nil, nil, lastErr
+}
+
+var reNetURL = regexp.MustCompile(`"url":"(https?://[^"]+)"`)
+
+func renderOnce(ctx context.Context, bin, mode, url string) ([]byte, []string, error) {
 	profile, err := os.MkdirTemp("", "wm-browser-*")
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	defer os.RemoveAll(profile)
-	ctx, cancel := context.WithTimeout(ctx, 45*time.Second)
+	netlog := filepath.Join(profile, "net.json")
+	ctx, cancel := context.WithTimeout(ctx, 40*time.Second)
 	defer cancel()
-	args := []string{"--headless=new", "--disable-gpu", "--no-first-run", "--no-default-browser-check",
-		"--disable-extensions", "--mute-audio", "--hide-scrollbars", "--user-data-dir=" + profile,
-		"--virtual-time-budget=15000", "--dump-dom", url}
-	if runtime.GOOS != "windows" && os.Geteuid() == 0 {
-		args = append([]string{"--no-sandbox"}, args...)
-	}
+	args := []string{mode, "--no-sandbox", "--disable-gpu", "--no-first-run", "--no-default-browser-check",
+		"--disable-extensions", "--disable-sync", "--mute-audio", "--hide-scrollbars", "--user-data-dir=" + profile,
+		"--log-net-log=" + netlog, "--virtual-time-budget=15000", "--dump-dom", url}
 	cmd := exec.CommandContext(ctx, bin, args...)
 	hideWindow(cmd)
 	stderr := &tailBuffer{}
@@ -88,9 +123,23 @@ func renderPage(ctx context.Context, url string) ([]byte, error) {
 	out, err := cmd.Output()
 	if err != nil && len(out) == 0 {
 		if ctx.Err() != nil {
-			return nil, errors.New("il browser non ha caricato la pagina in tempo")
+			return nil, nil, errors.New("il browser non ha caricato la pagina in tempo")
 		}
-		return nil, fmt.Errorf("browser: %v %s", err, strings.TrimSpace(stderr.String()))
+		msg := strings.TrimSpace(stderr.String())
+		if len(msg) > 200 {
+			msg = msg[len(msg)-200:]
+		}
+		return nil, nil, fmt.Errorf("%s (%s): %v %s", filepath.Base(bin), mode, err, msg)
 	}
-	return out, nil
+	var urls []string
+	if b, err := os.ReadFile(netlog); err == nil {
+		seen := map[string]bool{}
+		for _, m := range reNetURL.FindAllStringSubmatch(string(b), -1) {
+			if !seen[m[1]] {
+				seen[m[1]] = true
+				urls = append(urls, m[1])
+			}
+		}
+	}
+	return out, urls, nil
 }

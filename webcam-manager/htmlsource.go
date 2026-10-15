@@ -80,7 +80,12 @@ func FindPageValues(ctx context.Context, rawURL, label string) (*PageScan, error
 	rendered := ""
 	if !hasTemperature(out) && !(label != "" && len(out) > 0) {
 		// la pagina carica i dati con JavaScript: la si apre con il browser
-		if dom, err := renderPage(ctx, rawURL); err == nil {
+		dom, netURLs, err := renderPage(ctx, rawURL)
+		// i file di dati scaricati dalla pagina: si leggono direttamente (più leggero del browser)
+		if label == "" {
+			out = append(out, meaningful(valuesInURLs(ctx, rawURL, dataLike(rawURL, netURLs)))...)
+		}
+		if err == nil {
 			scan.Rendered = true
 			rendered = pageText(dom)
 			var bv []FoundValue
@@ -100,6 +105,10 @@ func FindPageValues(ctx context.Context, rawURL, label string) (*PageScan, error
 	}
 	if label == "" && !hasTemperature(out) {
 		out = append(out, meaningful(valuesInLinked(ctx, rawURL, string(body)))...)
+	}
+	if label == "" && !hasTemperature(out) {
+		// indirizzi dei dati scritti dentro i file JavaScript del sito
+		out = append(out, meaningful(valuesInURLs(ctx, rawURL, dataURLsInScripts(ctx, rawURL, string(body))))...)
 	}
 	sortByImportance(out)
 	scan.Values = dedupe(out)
@@ -143,7 +152,7 @@ func valuesAfterLabel(text, source, label, kind string) []FoundValue {
 }
 
 // valuesAfterMeteoWords riconosce "Temperatura 3,8" anche senza unità di misura.
-var reMeteoLabelNum = regexp.MustCompile(`(?i)\b(temperatura(?:\s+(?:aria|esterna|attuale))?|umidit[aà](?:\s+relativa)?|vento|pressione|pioggia)\b[^0-9\-]{0,25}?(-?\d{1,4}(?:[.,]\d{1,2})?)`)
+var reMeteoLabelNum = regexp.MustCompile(`(?i)\b(temperatura(?:\s+(?:aria|esterna|attuale))?|umidit[aà](?:\s+relativa)?|vento|pressione|pioggia)\b[^0-9\-\p{L}]{0,15}(-?\d{1,4}(?:[.,]\d{1,2})?)`)
 
 func valuesAfterMeteoWords(text, source, kind string) []FoundValue {
 	var out []FoundValue
@@ -183,6 +192,8 @@ func meaningful(v []FoundValue) []FoundValue {
 		switch {
 		case f.Kind == "json" || f.Kind == "raw":
 			// già filtrati per nome del campo
+		case f.Unit == "°" && !regexp.MustCompile(`(?i)temp|rugiad|dew`).MatchString(label):
+			continue // "1° incontro": un ° da solo vale solo vicino a "Temperatura"
 		case strings.HasPrefix(f.Unit, "°") && len(f.Unit) > len("°"):
 			// °C / °F: è una temperatura anche senza etichetta
 		case !meteo:
@@ -269,6 +280,103 @@ var (
 	reScript  = regexp.MustCompile(`(?i)<script[^>]+src=["']([^"']+)["']`)
 	reDataURL = regexp.MustCompile(`(?i)["'\(]((?:https?:)?//[^"'\s)]+|/?[\w./-]+)\.(json|txt|xml|csv|php|asp|aspx|cgi|htm|html)(\?[^"'\s)]*)?["'\)]`)
 )
+
+// dataLike tiene gli indirizzi che sembrano dati (non immagini, stili, script, font).
+func dataLike(page string, urls []string) []string {
+	var out []string
+	for _, u := range urls {
+		l := strings.ToLower(u)
+		if u == page || strings.Contains(l, "google") || strings.Contains(l, "facebook") || strings.Contains(l, "cookie") {
+			continue
+		}
+		path := l
+		if i := strings.IndexAny(path, "?#"); i >= 0 {
+			path = path[:i]
+		}
+		skip := false
+		for _, ext := range []string{".js", ".css", ".png", ".jpg", ".jpeg", ".gif", ".svg", ".webp", ".ico", ".woff", ".woff2", ".ttf", ".mp4", ".map"} {
+			if strings.HasSuffix(path, ext) {
+				skip = true
+			}
+		}
+		if !skip && len(out) < 25 {
+			out = append(out, u)
+		}
+	}
+	return out
+}
+
+// dataURLsInScripts cerca, nei file JavaScript dello stesso sito, indirizzi di
+// file di dati (json, txt, xml, csv) o di API.
+func dataURLsInScripts(ctx context.Context, pageURL, body string) []string {
+	base, err := url.Parse(pageURL)
+	if err != nil {
+		return nil
+	}
+	var out []string
+	seen := map[string]bool{}
+	for _, m := range reScript.FindAllStringSubmatch(body, 20) {
+		u, err := base.Parse(m[1])
+		l := strings.ToLower(m[1])
+		if err != nil || u.Host != base.Host || strings.Contains(l, "jquery") || strings.Contains(l, "bootstrap") {
+			continue
+		}
+		cctx, cancel := context.WithTimeout(ctx, 10*time.Second)
+		js, err := getBody(cctx, u.String(), "")
+		cancel()
+		if err != nil {
+			continue
+		}
+		for _, d := range reDataURL.FindAllStringSubmatch(string(js), -1) {
+			ext := strings.ToLower(d[2])
+			lp := strings.ToLower(d[1])
+			if ext != "json" && ext != "txt" && ext != "xml" && ext != "csv" && !strings.Contains(lp, "api") && !strings.Contains(lp, "meteo") && !strings.Contains(lp, "realtime") {
+				continue
+			}
+			if r, err := base.Parse(d[1] + "." + d[2] + d[3]); err == nil && !seen[r.String()] && len(out) < 15 {
+				seen[r.String()] = true
+				out = append(out, r.String())
+			}
+		}
+	}
+	return out
+}
+
+// valuesInURLs scarica gli indirizzi e cerca i valori (JSON per nome del campo, testo per etichetta).
+func valuesInURLs(ctx context.Context, page string, urls []string) []FoundValue {
+	var mu sync.Mutex
+	var out []FoundValue
+	var wg sync.WaitGroup
+	sem := make(chan struct{}, 4)
+	for _, l := range urls {
+		wg.Add(1)
+		go func(l string) {
+			defer wg.Done()
+			sem <- struct{}{}
+			defer func() { <-sem }()
+			cctx, cancel := context.WithTimeout(ctx, 10*time.Second)
+			defer cancel()
+			b, err := getBody(cctx, l, "")
+			if err != nil {
+				return
+			}
+			var found []FoundValue
+			trimmed := strings.TrimSpace(string(b))
+			var doc any
+			if (strings.HasPrefix(trimmed, "{") || strings.HasPrefix(trimmed, "[")) && json.Unmarshal(b, &doc) == nil {
+				found = valuesInJSON(doc, l)
+			} else {
+				t := pageText(b)
+				found = append(append(valuesInText(t, l), valuesInScripts(string(b), l)...), valuesAfterMeteoWords(t, l, "html")...)
+			}
+			mu.Lock()
+			out = append(out, found...)
+			mu.Unlock()
+		}(l)
+	}
+	wg.Wait()
+	return out
+}
 
 // valuesInLinked cerca nei file collegati: riquadri, script dello stesso sito e
 // indirizzi di dati presenti nella pagina (al massimo 15, 4 alla volta).
@@ -429,7 +537,7 @@ func sortByImportance(v []FoundValue) {
 
 var reMeteoKey = regexp.MustCompile(`(?i)(temp|umid|humid|hum|vento|wind|gust|raffic|press|baro|piogg|rain|prec|dew|rugiad|uv|solar|radiaz)`)
 
-var reUnitWord = regexp.MustCompile(`(?i)^(°c?|°f|%|km/h|kmh|m/s|nodi|hpa|mbar|mb|mm/h|mm|w/m²|w/m2|uv|m)$`)
+var reUnitWord = regexp.MustCompile(`(?i)^(°c?|°f|c|f|%|km/h|kmh|m/s|nodi|hpa|mbar|mb|mm/h|mm|w/m²|w/m2|uv|m)$`)
 
 // labelWords tiene le ultime parole (al massimo 4) prima del valore, fermandosi
 // al valore precedente: numeri e unità di misura non fanno parte dell'etichetta.
@@ -480,7 +588,7 @@ func readPageValue(ctx context.Context, ds DataSource) (any, error) {
 	var body []byte
 	var err error
 	if ds.Variable == "browser" {
-		body, err = renderPage(ctx, ds.URL)
+		body, _, err = renderPage(ctx, ds.URL)
 	} else {
 		body, err = getBody(ctx, ds.URL, ds.Token)
 	}

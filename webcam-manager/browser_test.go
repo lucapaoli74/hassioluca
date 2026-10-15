@@ -69,3 +69,39 @@ func TestPageValueWithoutUnit(t *testing.T) {
 		t.Fatalf("con etichetta: %+v", scan)
 	}
 }
+
+// Riproduce la pagina dei Parchi Emilia Centrale: etichette nell'HTML, valori
+// caricati da un file di dati via JavaScript, formato "13.6° C".
+func TestParchiLikePage(t *testing.T) {
+	if findBrowser() == "" {
+		t.Skip("nessun browser disponibile")
+	}
+	mux := http.NewServeMux()
+	mux.HandleFunc("/meteo/05/lago-santo-rifugio-vittoria/", func(w http.ResponseWriter, r *http.Request) {
+		w.Write([]byte(`<html><head><meta charset="utf-8"><script src="/assets/js/app.js"></script></head><body>
+			<p>Stazione: Davis vantage pro2</p>
+			<div>Temperatura <span id="t"></span> <span id="tmin"></span> <span id="tmax"></span></div>
+			<div>Pressione <span id="p"></span></div><div>Umidità <span id="h"></span></div>
+			<p>1° incontro Workshop</p></body></html>`))
+	})
+	mux.HandleFunc("/assets/js/app.js", func(w http.ResponseWriter, r *http.Request) {
+		w.Write([]byte(`document.addEventListener('DOMContentLoaded',()=>{const id=location.pathname.split('/')[2];
+			fetch('/api/osservatorio/'+id).then(r=>r.json()).then(d=>{t.innerText=d.temp+'° C';tmin.innerText=d.tmin+'° C';
+			tmax.innerText=d.tmax+'° C';p.innerText=d.press+' hPa';h.innerText=d.hum+'%'})})`))
+	})
+	mux.HandleFunc("/api/osservatorio/05", func(w http.ResponseWriter, r *http.Request) {
+		w.Write([]byte(`{"temp":13.6,"tmin":8.9,"tmax":13.6,"press":1026.2,"hum":58}`))
+	})
+	srv := httptest.NewServer(mux)
+	defer srv.Close()
+	scan, err := FindPageValues(context.Background(), srv.URL+"/meteo/05/lago-santo-rifugio-vittoria/", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, v := range scan.Values {
+		t.Logf("%s %s ← %q [%s %s]", v.Value, v.Unit, v.Context, v.Kind, v.Source)
+	}
+	if len(scan.Values) == 0 || scan.Values[0].Value != "13.6" || !strings.HasPrefix(scan.Values[0].Unit, "°") {
+		t.Fatalf("temperatura non trovata per prima: %+v", scan)
+	}
+}
