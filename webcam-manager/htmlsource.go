@@ -54,13 +54,73 @@ func FindPageValues(ctx context.Context, rawURL string) ([]FoundValue, int, erro
 		return nil, 0, err
 	}
 	text := pageText(body)
-	out := valuesInText(text, rawURL)
-	out = append(out, valuesInScripts(string(body), rawURL)...)
-	if len(out) < 2 {
-		out = append(out, valuesInLinked(ctx, rawURL, string(body))...)
+	out := meaningful(valuesInText(text, rawURL))
+	out = append(out, meaningful(valuesInScripts(string(body), rawURL))...)
+	if !hasTemperature(out) {
+		// la pagina carica i dati con JavaScript: la si apre con il browser
+		if dom, err := renderPage(ctx, rawURL); err == nil {
+			for _, v := range meaningful(valuesInText(pageText(dom), rawURL)) {
+				v.Kind = "browser"
+				out = append(out, v)
+			}
+		}
+	}
+	if !hasTemperature(out) {
+		out = append(out, meaningful(valuesInLinked(ctx, rawURL, string(body)))...)
 	}
 	sortByImportance(out)
-	return out, len(text), nil
+	return dedupe(out), len(text), nil
+}
+
+func hasTemperature(v []FoundValue) bool {
+	for _, f := range v {
+		if strings.HasPrefix(f.Unit, "°") && (len(f.Unit) > len("°") || firstMeteoWord(f.Context) != "") {
+			return true
+		}
+	}
+	return false
+}
+
+func firstMeteoWord(s string) string {
+	for _, w := range strings.Fields(s) {
+		if reMeteoWord.MatchString(w) {
+			return w
+		}
+	}
+	return ""
+}
+
+// meaningful scarta i numeri che non sono dati meteo: percentuali e gradi
+// senza un'etichetta meteo vicina (es. "-25 %" in un file grafico, "1° incontro").
+func meaningful(v []FoundValue) []FoundValue {
+	var out []FoundValue
+	for _, f := range v {
+		label := strings.ToLower(f.Context)
+		meteo := firstMeteoWord(f.Context) != "" || reMeteoKey.MatchString(label)
+		switch {
+		case f.Kind == "json" || f.Kind == "raw":
+			// già filtrati per nome del campo
+		case strings.HasPrefix(f.Unit, "°") && len(f.Unit) > len("°"):
+			// °C / °F: è una temperatura anche senza etichetta
+		case !meteo:
+			continue
+		}
+		out = append(out, f)
+	}
+	return out
+}
+
+func dedupe(v []FoundValue) []FoundValue {
+	seen := map[string]bool{}
+	var out []FoundValue
+	for _, f := range v {
+		k := f.Context + "|" + f.Value + f.Unit
+		if !seen[k] {
+			seen[k] = true
+			out = append(out, f)
+		}
+	}
+	return out
 }
 
 func valuesInText(text, source string) []FoundValue {
@@ -154,15 +214,15 @@ func valuesInLinked(ctx context.Context, pageURL, body string) []FoundValue {
 		add(m[1])
 	}
 	for _, m := range reDataURL.FindAllStringSubmatch(body, -1) {
-		if l := strings.ToLower(m[1]); strings.Contains(l, "jquery") || strings.Contains(l, "bootstrap") || strings.Contains(l, "google") || strings.Contains(l, "facebook") {
-			continue
+		l := strings.ToLower(m[1])
+		ext := strings.ToLower(m[2])
+		dataFile := ext == "json" || ext == "txt" || ext == "xml" || ext == "csv"
+		dataPath := strings.Contains(l, "meteo") || strings.Contains(l, "api") || strings.Contains(l, "data") ||
+			strings.Contains(l, "ajax") || strings.Contains(l, "station") || strings.Contains(l, "stazion") || strings.Contains(l, "weather")
+		if !dataFile && !dataPath {
+			continue // pagine normali del sito (contatti, cerca…): non sono dati
 		}
 		add(m[1] + "." + m[2] + m[3])
-	}
-	for _, m := range reScript.FindAllStringSubmatch(body, -1) {
-		if u, err := base.Parse(m[1]); err == nil && u.Host == base.Host && !strings.Contains(strings.ToLower(m[1]), "jquery") {
-			add(m[1])
-		}
 	}
 	var mu sync.Mutex
 	var out []FoundValue
@@ -293,6 +353,9 @@ var reUnitWord = regexp.MustCompile(`(?i)^(°c?|°f|%|km/h|kmh|m/s|nodi|hpa|mbar
 func labelWords(words []string) []string {
 	var out []string
 	for i := len(words) - 1; i >= 0 && len(out) < 4; i-- {
+		if strings.Trim(words[i], "-–—_.") == "" {
+			break // "--", "—": segnaposto di un valore mancante, l'etichetta non è nostra
+		}
 		w := strings.Trim(words[i], ":=|-–")
 		if w == "" {
 			continue
@@ -331,7 +394,13 @@ func buildPattern(words []string, unit string) string {
 
 // readPageValue legge il valore dalla pagina con l'espressione salvata.
 func readPageValue(ctx context.Context, ds DataSource) (any, error) {
-	body, err := getBody(ctx, ds.URL, ds.Token)
+	var body []byte
+	var err error
+	if ds.Variable == "browser" {
+		body, err = renderPage(ctx, ds.URL)
+	} else {
+		body, err = getBody(ctx, ds.URL, ds.Token)
+	}
 	if err != nil {
 		return nil, err
 	}

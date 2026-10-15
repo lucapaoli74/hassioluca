@@ -1008,7 +1008,7 @@ async function editData(page, id) {
     const r = await api("POST", "/api/page-values", { URL: ds.url });
     openModal(`<h2 style="margin-top:0">🔎 Valori trovati nella pagina</h2>
       ${r.values.length ? `<p class="help">Scegli il valore da mostrare in sovrimpressione. Viene riletto in automatico, quindi segue i cambiamenti.</p>
-      <table>${r.values.map((v, i) => `<tr><td>${esc(v.context || "—")}${v.source && v.source !== ds.url ? `<div class="help">da ${esc(v.kind === "json" ? "dati JSON" : "pagina collegata")}: ${esc(v.source.replace(/^https?:\/\//, "").slice(0, 60))}</div>` : ""}</td><td><b style="font-size:16px">${esc(v.value)} ${esc(v.unit)}</b></td>
+      <table>${r.values.map((v, i) => `<tr><td>${esc(v.context || "—")}${v.kind === "browser" ? '<div class="help">letto aprendo la pagina con il browser (dati caricati da JavaScript)</div>' : ""}${v.source && v.source !== ds.url ? `<div class="help">da ${esc(v.kind === "json" ? "dati JSON" : "pagina collegata")}: ${esc(v.source.replace(/^https?:\/\//, "").slice(0, 60))}</div>` : ""}</td><td><b style="font-size:16px">${esc(v.value)} ${esc(v.unit)}</b></td>
         <td style="text-align:right"><button class="small primary" data-i="${i}">Usa questo</button></td></tr>`).join("")}</table>`
       : `<p>Nella pagina non ci sono valori con unità di misura${r.text_length < 300 ? " (la pagina è quasi vuota)" : ""}.</p>
          <p class="help">Ho cercato anche negli script, nei riquadri incorporati e nei file di dati collegati, senza risultati. Probabilmente la pagina carica i dati in un modo particolare. Apri la pagina nel browser, premi F12 → scheda <b>Rete</b> (Network) → ricarica la pagina e cerca un indirizzo che contiene i dati (spesso finisce in .json, .txt o .xml): usalo con il tipo “URL JSON” o “URL testo”, oppure mandalo a chi ti assiste.</p>`}`);
@@ -1016,7 +1016,8 @@ async function editData(page, id) {
       const v = r.values[Number(b.dataset.i)];
       // il tipo di lettura dipende da dove è stato trovato il valore
       if (v.kind === "json") { ds.type = "http_json"; ds.variable = ""; }
-      else { ds.type = "html"; ds.variable = v.kind === "raw" ? "raw" : ""; }
+      else { ds.type = "html"; ds.variable = v.kind === "raw" ? "raw" : v.kind === "browser" ? "browser" : ""; }
+      if (v.kind === "browser" && ds.refresh_seconds < 300) ds.refresh_seconds = 300; // il browser è pesante: non più di una lettura ogni 5 minuti
       ds.url = v.source || ds.url;
       ds.path = v.pattern;
       ds.unit = v.unit.startsWith("°") ? "°C" : v.unit === "%" ? "%" : " " + v.unit;

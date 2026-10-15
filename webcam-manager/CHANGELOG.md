@@ -3,6 +3,11 @@
 Ogni versione rilasciata ha qui la sua voce: il testo diventa le note della
 release mostrate nel pannello (Impostazioni → Aggiornamenti).
 
+## [0.2.4] - 2026-10-15
+
+- Pagine che caricano i dati con JavaScript: il valore si legge aprendo la pagina con il browser del computer (Microsoft Edge o Chrome) in modo invisibile, esattamente come la vede una persona.
+- La ricerca dei valori scarta il rumore: niente percentuali da file grafici, niente "1°" di "1° incontro", niente pagine normali del sito.
+
 ## [0.2.3] - 2026-10-15
 
 - "Cerca i valori nella pagina" funziona anche con le pagine che caricano i dati con JavaScript: cerca negli script, nei riquadri incorporati (widget delle stazioni meteo) e nei file di dati collegati (JSON, txt, xml…), mostra da dove arriva ogni valore e imposta da solo il tipo di lettura. Temperature in cima e nomi leggibili.
