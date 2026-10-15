@@ -1003,15 +1003,30 @@ async function editData(page, id) {
   const syncFind = () => findBtn.classList.toggle("hidden", ds.type !== "html");
   syncFind();
   $("#dt-form").addEventListener("change", syncFind);
-  findBtn.onclick = e => busy(e.target, async () => {
+  // ricerca dei valori: se non trova nulla mostra il testo letto e permette
+  // di indicare la parola vicina al valore (es. "Temperatura")
+  const runFind = async (label) => {
     if (!/^https?:\/\//i.test(ds.url || "")) throw new Error("Incolla prima l'indirizzo della pagina (https://…)");
-    const r = await api("POST", "/api/page-values", { URL: ds.url });
+    if ($("#modal-body")) $("#modal-body").innerHTML = `<p class="help">Lettura della pagina in corso (fino a 30 secondi)…</p>`;
+    const r = await api("POST", "/api/page-values", { URL: ds.url, Label: label || "" });
+    const rows = r.values.map((v, i) => `<tr><td>${esc(v.context || "—")}${v.kind === "browser" ? '<div class="help">letto aprendo la pagina con il browser</div>' : ""}${v.source && v.source !== ds.url ? `<div class="help">da ${esc(v.kind === "json" ? "dati JSON" : "pagina collegata")}: ${esc(v.source.replace(/^https?:\/\//, "").slice(0, 60))}</div>` : ""}</td><td><b style="font-size:16px">${esc(v.value)} ${esc(v.unit)}</b></td>
+        <td style="text-align:right"><button class="small primary" data-i="${i}">Usa questo</button></td></tr>`).join("");
+    const browserInfo = r.rendered ? "La pagina è stata aperta con il browser (" + esc((r.browser || "").split(/[\\/]/).pop()) + ")."
+      : r.browser_err ? `<span class="err-text">Il browser non ha potuto aprire la pagina: ${esc(r.browser_err)}</span>`
+      : !r.browser ? '<span class="err-text">Non trovo Microsoft Edge o Google Chrome su questo computer.</span>' : "";
     openModal(`<h2 style="margin-top:0">🔎 Valori trovati nella pagina</h2>
-      ${r.values.length ? `<p class="help">Scegli il valore da mostrare in sovrimpressione. Viene riletto in automatico, quindi segue i cambiamenti.</p>
-      <table>${r.values.map((v, i) => `<tr><td>${esc(v.context || "—")}${v.kind === "browser" ? '<div class="help">letto aprendo la pagina con il browser (dati caricati da JavaScript)</div>' : ""}${v.source && v.source !== ds.url ? `<div class="help">da ${esc(v.kind === "json" ? "dati JSON" : "pagina collegata")}: ${esc(v.source.replace(/^https?:\/\//, "").slice(0, 60))}</div>` : ""}</td><td><b style="font-size:16px">${esc(v.value)} ${esc(v.unit)}</b></td>
-        <td style="text-align:right"><button class="small primary" data-i="${i}">Usa questo</button></td></tr>`).join("")}</table>`
-      : `<p>Nella pagina non ci sono valori con unità di misura${r.text_length < 300 ? " (la pagina è quasi vuota)" : ""}.</p>
-         <p class="help">Ho cercato anche negli script, nei riquadri incorporati e nei file di dati collegati, senza risultati. Probabilmente la pagina carica i dati in un modo particolare. Apri la pagina nel browser, premi F12 → scheda <b>Rete</b> (Network) → ricarica la pagina e cerca un indirizzo che contiene i dati (spesso finisce in .json, .txt o .xml): usalo con il tipo “URL JSON” o “URL testo”, oppure mandalo a chi ti assiste.</p>`}`);
+      ${r.values.length ? `<p class="help">Scegli il valore da mostrare in sovrimpressione: viene riletto in automatico.</p><table>${rows}</table>`
+        : `<p><b>${label ? `Nessun numero trovato dopo “${esc(label)}”.` : "Non ho riconosciuto la temperatura."}</b> ${browserInfo}</p>`}
+      <div class="card" style="margin-top:14px"><h3 style="margin-top:0">Non è il valore giusto?</h3>
+        <p class="help">Scrivi la parola che nella pagina sta subito prima del valore (es. <i>Temperatura</i>, <i>Temp. aria</i>): prendo il numero che la segue.</p>
+        <div class="toolbar" style="margin:0"><input id="pv-label" placeholder="Temperatura" value="${esc(label || "")}" style="max-width:260px"><button id="pv-go">Cerca dopo questa parola</button></div></div>
+      <details style="margin-top:10px" ${r.values.length ? "" : "open"}><summary class="help">Testo che il programma legge nella pagina</summary>
+        <p class="help">Se non trovi il valore, premi <b>Copia</b> e incolla questo testo a chi ti assiste.</p>
+        <pre class="log" id="pv-text" style="max-height:220px">${esc(r.excerpt || "(vuoto)")}</pre>
+        <button class="small" id="pv-copy">📋 Copia</button></details>`);
+    $("#pv-copy").onclick = () => navigator.clipboard.writeText(`Pagina: ${ds.url}\n${browserInfo.replace(/<[^>]+>/g, "")}\n\n${r.excerpt || ""}`).then(() => toast("Copiato"), () => toast("Seleziona il testo e copia con Ctrl+C", true));
+    $("#pv-go").onclick = ev => busy(ev.target, () => runFind($("#pv-label").value.trim()));
+    $("#pv-label").onkeydown = ev => { if (ev.key === "Enter") $("#pv-go").click(); };
     document.querySelectorAll("#modal [data-i]").forEach(b => b.onclick = () => {
       const v = r.values[Number(b.dataset.i)];
       // il tipo di lettura dipende da dove è stato trovato il valore
@@ -1020,14 +1035,15 @@ async function editData(page, id) {
       if (v.kind === "browser" && ds.refresh_seconds < 300) ds.refresh_seconds = 300; // il browser è pesante: non più di una lettura ogni 5 minuti
       ds.url = v.source || ds.url;
       ds.path = v.pattern;
-      ds.unit = v.unit.startsWith("°") ? "°C" : v.unit === "%" ? "%" : " " + v.unit;
-      if (/^\d+$/.test(v.value)) ds.decimals = 0;
-      const label = (v.context || "").replace(/\s*\(.*\)$/, "");
-      if (label && (isNew || !ds.name)) { ds.name = label.charAt(0).toUpperCase() + label.slice(1); if (isNew) ds.id = uniqueId(ds.name, cfg.data_sources); }
+      ds.unit = v.unit.startsWith("°") ? "°C" : v.unit === "%" ? "%" : v.unit ? " " + v.unit : "";
+      if (/^-?\d+$/.test(v.value)) ds.decimals = 0;
+      const lbl = (v.context || "").replace(/\s*\(.*\)$/, "");
+      if (lbl && (isNew || !ds.name)) { ds.name = lbl.charAt(0).toUpperCase() + lbl.slice(1); if (isNew) ds.id = uniqueId(ds.name, cfg.data_sources); }
       closeModal(); form.redraw();
       toast(`Scelto: ${v.context} ${v.value} ${v.unit}. Premi “Prova lettura” e poi Salva.`);
     });
-  });
+  };
+  findBtn.onclick = e => busy(e.target, () => runFind(""));
   $("#dt-test").onclick = e => busy(e.target, async () => {
     try { const r = await api("POST", "/api/test-datasource", ds); $("#dt-res").innerHTML = `<span class="ok-text">✔ ${esc(r.value)}</span>`; }
     catch (err) { $("#dt-res").innerHTML = `<span class="err-text">✖ ${esc(err.message)}</span>`; }

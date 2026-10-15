@@ -25,7 +25,8 @@ func TestPageValuesWithBrowser(t *testing.T) {
 	mux.HandleFunc("/x/dati", func(w http.ResponseWriter, r *http.Request) { w.Write([]byte(temp)) })
 	srv := httptest.NewServer(mux)
 	defer srv.Close()
-	vals, _, err := FindPageValues(context.Background(), srv.URL+"/meteo/05/lago-santo/")
+	scan, err := FindPageValues(context.Background(), srv.URL+"/meteo/05/lago-santo/", "")
+	vals := scan.Values
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -41,4 +42,30 @@ func TestPageValuesWithBrowser(t *testing.T) {
 		t.Fatalf("rilettura: %q %v", got, err)
 	}
 	_ = os.Getenv
+}
+
+// valore senza "°C" accanto (unità disegnata come immagine/icona)
+func TestPageValueWithoutUnit(t *testing.T) {
+	if findBrowser() == "" {
+		t.Skip("nessun browser disponibile")
+	}
+	mux := http.NewServeMux()
+	mux.HandleFunc("/p", func(w http.ResponseWriter, r *http.Request) {
+		w.Write([]byte(`<html><body><div>Temperatura</div><div><span id="t">--</span><img src="gradi.png"></div>
+			<script>setTimeout(()=>document.getElementById('t').innerText='5.2',200)</script></body></html>`))
+	})
+	srv := httptest.NewServer(mux)
+	defer srv.Close()
+	scan, err := FindPageValues(context.Background(), srv.URL+"/p", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(scan.Values) == 0 || scan.Values[0].Value != "5.2" || !scan.Rendered || !strings.Contains(scan.Excerpt, "Temperatura 5.2") {
+		t.Fatalf("%+v", scan)
+	}
+	// ricerca con la parola scelta dall'utente
+	scan, _ = FindPageValues(context.Background(), srv.URL+"/p", "temperatura")
+	if len(scan.Values) == 0 || scan.Values[0].Value != "5.2" {
+		t.Fatalf("con etichetta: %+v", scan)
+	}
 }

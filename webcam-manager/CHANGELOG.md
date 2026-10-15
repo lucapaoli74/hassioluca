@@ -3,6 +3,10 @@
 Ogni versione rilasciata ha qui la sua voce: il testo diventa le note della
 release mostrate nel pannello (Impostazioni → Aggiornamenti).
 
+## [0.2.5] - 2026-10-15
+
+- Ricerca dei valori: riconosce "Temperatura 3,8" anche senza unità di misura accanto; campo "Parola vicina al valore" per prendere il numero che segue una parola; se non trova nulla mostra il testo letto nella pagina (con stato del browser) e il pulsante Copia per l'assistenza.
+
 ## [0.2.4] - 2026-10-15
 
 - Pagine che caricano i dati con JavaScript: il valore si legge aprendo la pagina con il browser del computer (Microsoft Edge o Chrome) in modo invisibile, esattamente come la vede una persona.

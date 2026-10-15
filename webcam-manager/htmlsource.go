@@ -48,28 +48,111 @@ type FoundValue struct {
 // FindPageValues elenca i valori meteo della pagina. Se il testo visibile non
 // ne contiene (pagina che carica i dati con JavaScript) cerca anche negli
 // script, nei riquadri incorporati e nei file di dati collegati.
-func FindPageValues(ctx context.Context, rawURL string) ([]FoundValue, int, error) {
+// PageScan è il risultato della ricerca, con le informazioni per capire cosa
+// ha visto il programma quando non trova nulla.
+type PageScan struct {
+	Values     []FoundValue `json:"values"`
+	TextLength int          `json:"text_length"`
+	Browser    string       `json:"browser"`     // browser usato ("" = non trovato)
+	BrowserErr string       `json:"browser_err"` // errore del browser
+	Rendered   bool         `json:"rendered"`    // pagina aperta col browser
+	Excerpt    string       `json:"excerpt"`     // testo letto (per l'assistenza)
+}
+
+// FindPageValues cerca i valori meteo della pagina. label (facoltativo) è una
+// parola scelta dall'utente: si prende il numero che la segue.
+func FindPageValues(ctx context.Context, rawURL, label string) (*PageScan, error) {
 	body, err := getBody(ctx, rawURL, "")
 	if err != nil {
-		return nil, 0, err
+		return nil, err
 	}
+	scan := &PageScan{Browser: findBrowser()}
 	text := pageText(body)
-	out := meaningful(valuesInText(text, rawURL))
-	out = append(out, meaningful(valuesInScripts(string(body), rawURL))...)
-	if !hasTemperature(out) {
+	scan.TextLength = len(text)
+	var out []FoundValue
+	if label != "" {
+		out = valuesAfterLabel(text, rawURL, label, "html")
+	} else {
+		out = meaningful(valuesInText(text, rawURL))
+		out = append(out, meaningful(valuesInScripts(string(body), rawURL))...)
+		out = append(out, valuesAfterMeteoWords(text, rawURL, "html")...)
+	}
+	rendered := ""
+	if !hasTemperature(out) && !(label != "" && len(out) > 0) {
 		// la pagina carica i dati con JavaScript: la si apre con il browser
 		if dom, err := renderPage(ctx, rawURL); err == nil {
-			for _, v := range meaningful(valuesInText(pageText(dom), rawURL)) {
-				v.Kind = "browser"
-				out = append(out, v)
+			scan.Rendered = true
+			rendered = pageText(dom)
+			var bv []FoundValue
+			if label != "" {
+				bv = valuesAfterLabel(rendered, rawURL, label, "browser")
+			} else {
+				for _, v := range meaningful(valuesInText(rendered, rawURL)) {
+					v.Kind = "browser"
+					bv = append(bv, v)
+				}
+				bv = append(bv, valuesAfterMeteoWords(rendered, rawURL, "browser")...)
 			}
+			out = append(out, bv...)
+		} else {
+			scan.BrowserErr = err.Error()
 		}
 	}
-	if !hasTemperature(out) {
+	if label == "" && !hasTemperature(out) {
 		out = append(out, meaningful(valuesInLinked(ctx, rawURL, string(body)))...)
 	}
 	sortByImportance(out)
-	return dedupe(out), len(text), nil
+	scan.Values = dedupe(out)
+	if scan.Values == nil {
+		scan.Values = []FoundValue{}
+	}
+	src := rendered
+	if src == "" {
+		src = text
+	}
+	scan.Excerpt = excerpt(src)
+	return scan, nil
+}
+
+// excerpt restituisce il testo intorno alle parole meteo (o l'inizio della pagina).
+func excerpt(text string) string {
+	low := strings.ToLower(text)
+	for _, w := range []string{"temperatura", "temp", "°"} {
+		if i := strings.Index(low, w); i >= 0 {
+			start := max(0, i-600)
+			return text[start:min(len(text), i+1400)]
+		}
+	}
+	return text[:min(len(text), 2000)]
+}
+
+var reLabelNumber = `\D{0,30}?(-?\d{1,3}(?:[.,]\d{1,2})?)`
+
+// valuesAfterLabel prende i numeri che seguono la parola indicata.
+func valuesAfterLabel(text, source, label, kind string) []FoundValue {
+	re, err := regexp.Compile(`(?i)` + regexp.QuoteMeta(strings.TrimSpace(label)) + reLabelNumber)
+	if err != nil {
+		return nil
+	}
+	var out []FoundValue
+	for _, m := range re.FindAllStringSubmatch(text, 5) {
+		out = append(out, FoundValue{Value: m[1], Unit: unitForKey(label), Context: strings.TrimSpace(label),
+			Pattern: re.String(), Kind: kind, Source: source})
+	}
+	return out
+}
+
+// valuesAfterMeteoWords riconosce "Temperatura 3,8" anche senza unità di misura.
+var reMeteoLabelNum = regexp.MustCompile(`(?i)\b(temperatura(?:\s+(?:aria|esterna|attuale))?|umidit[aà](?:\s+relativa)?|vento|pressione|pioggia)\b[^0-9\-]{0,25}?(-?\d{1,4}(?:[.,]\d{1,2})?)`)
+
+func valuesAfterMeteoWords(text, source, kind string) []FoundValue {
+	var out []FoundValue
+	for _, m := range reMeteoLabelNum.FindAllStringSubmatch(text, 20) {
+		lbl := m[1]
+		out = append(out, FoundValue{Value: m[2], Unit: unitForKey(lbl), Context: lbl,
+			Pattern: `(?i)` + regexp.QuoteMeta(lbl) + reLabelNumber, Kind: kind, Source: source})
+	}
+	return out
 }
 
 func hasTemperature(v []FoundValue) bool {

@@ -20,7 +20,8 @@ func TestPageValues(t *testing.T) {
 			<tr><td>Pressione</td><td>1013.2 hPa</td></tr></table></body></html>`))
 	}))
 	defer srv.Close()
-	vals, _, err := FindPageValues(context.Background(), srv.URL)
+	scan, err := FindPageValues(context.Background(), srv.URL, "")
+	vals := scan.Values
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -69,7 +70,8 @@ func TestPageValuesLoadedByJavaScript(t *testing.T) {
 	ctx := context.Background()
 
 	find := func(page, ctxWord string) FoundValue {
-		vals, _, err := FindPageValues(ctx, srv.URL+page)
+		scan, err := FindPageValues(ctx, srv.URL+page, "")
+		vals := scan.Values
 		if err != nil {
 			t.Fatal(err)
 		}
