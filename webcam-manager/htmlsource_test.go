@@ -45,3 +45,63 @@ func TestPageValues(t *testing.T) {
 		t.Fatalf("attesi almeno 4 valori, trovati %d", len(vals))
 	}
 }
+
+func TestPageValuesLoadedByJavaScript(t *testing.T) {
+	mux := http.NewServeMux()
+	mux.HandleFunc("/json-page", func(w http.ResponseWriter, r *http.Request) {
+		w.Write([]byte(`<html><body><div id="t">--</div><script>fetch('/dati/meteo.json?v=2').then(r=>r.json()).then(d=>{t.innerText=d.current.temp})</script></body></html>`))
+	})
+	mux.HandleFunc("/dati/meteo.json", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.Write([]byte(`{"stazione":"Lago Santo","current":{"temp":3.4,"hum":88,"wind_speed":5.2,"time":"12:00"}}`))
+	})
+	mux.HandleFunc("/iframe-page", func(w http.ResponseWriter, r *http.Request) {
+		w.Write([]byte(`<html><body><h1>Meteo</h1><iframe src="/widget.html"></iframe></body></html>`))
+	})
+	mux.HandleFunc("/widget.html", func(w http.ResponseWriter, r *http.Request) {
+		w.Write([]byte(`<div>Temperatura esterna <b>2,1 °C</b></div>`))
+	})
+	mux.HandleFunc("/script-page", func(w http.ResponseWriter, r *http.Request) {
+		w.Write([]byte(`<html><body><span id="x"></span><script>var temperatura = -1.5; var umidita = 93;</script></body></html>`))
+	})
+	srv := httptest.NewServer(mux)
+	defer srv.Close()
+	ctx := context.Background()
+
+	find := func(page, ctxWord string) FoundValue {
+		vals, _, err := FindPageValues(ctx, srv.URL+page)
+		if err != nil {
+			t.Fatal(err)
+		}
+		for _, v := range vals {
+			t.Logf("%s: %s %s ← %s [%s %s]", page, v.Value, v.Unit, v.Context, v.Kind, v.Source)
+			if strings.Contains(strings.ToLower(v.Context), ctxWord) {
+				return v
+			}
+		}
+		t.Fatalf("%s: valore %q non trovato", page, ctxWord)
+		return FoundValue{}
+	}
+
+	// dati da file JSON → si legge come "URL JSON"
+	v := find("/json-page", "temp")
+	if v.Kind != "json" || v.Value != "3.4" || v.Pattern != "current.temp" || v.Context != "Temperatura (current.temp)" {
+		t.Fatalf("json: %+v", v)
+	}
+	got, err := FetchDataSource(ctx, DataSource{Type: "http_json", URL: v.Source, Path: v.Pattern, Decimals: 1, Unit: "°C"})
+	if err != nil || got != "3,4°C" {
+		t.Fatalf("lettura json: %q %v", got, err)
+	}
+	// riquadro incorporato
+	v = find("/iframe-page", "temperatura")
+	got, err = FetchDataSource(ctx, DataSource{Type: "html", URL: v.Source, Path: v.Pattern, Decimals: 1, Unit: "°C"})
+	if err != nil || got != "2,1°C" {
+		t.Fatalf("lettura iframe: %q %v", got, err)
+	}
+	// variabile in uno script
+	v = find("/script-page", "temperatura")
+	got, err = FetchDataSource(ctx, DataSource{Type: "html", Variable: "raw", URL: v.Source, Path: v.Pattern, Decimals: 1, Unit: "°C"})
+	if err != nil || got != "-1,5°C" {
+		t.Fatalf("lettura script: %q %v", got, err)
+	}
+}

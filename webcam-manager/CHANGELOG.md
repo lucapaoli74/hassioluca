@@ -3,6 +3,10 @@
 Ogni versione rilasciata ha qui la sua voce: il testo diventa le note della
 release mostrate nel pannello (Impostazioni → Aggiornamenti).
 
+## [0.2.3] - 2026-10-15
+
+- "Cerca i valori nella pagina" funziona anche con le pagine che caricano i dati con JavaScript: cerca negli script, nei riquadri incorporati (widget delle stazioni meteo) e nei file di dati collegati (JSON, txt, xml…), mostra da dove arriva ogni valore e imposta da solo il tipo di lettura. Temperature in cima e nomi leggibili.
+
 ## [0.2.2] - 2026-10-15
 
 - Nuovo dato live "Valore da una pagina web": si incolla l'indirizzo di una pagina (es. la pagina meteo di un rifugio), "Cerca i valori nella pagina" mostra temperature, umidità, vento… trovati e con un clic il valore scelto diventa un dato da mettere in sovrimpressione, riletto in automatico.

@@ -2,11 +2,16 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"html"
+	"net/url"
 	"regexp"
+	"sort"
 	"strconv"
 	"strings"
+	"sync"
+	"time"
 )
 
 // Dati live letti da una pagina web qualsiasi (es. la pagina meteo di un
@@ -30,21 +35,35 @@ func pageText(body []byte) string {
 	return strings.TrimSpace(reSpaces.ReplaceAllString(s, " "))
 }
 
-// FoundValue è un valore candidato trovato nella pagina.
+// FoundValue è un valore candidato trovato nella pagina o nei suoi dati.
 type FoundValue struct {
 	Value   string `json:"value"`
 	Unit    string `json:"unit"`
-	Context string `json:"context"` // testo che precede il valore
-	Pattern string `json:"pattern"` // espressione per rileggerlo
+	Context string `json:"context"` // etichetta (testo prima del valore o nome del campo)
+	Pattern string `json:"pattern"` // espressione o percorso JSON per rileggerlo
+	Kind    string `json:"kind"`    // "html" (testo), "raw" (sorgente/script), "json"
+	Source  string `json:"source"`  // indirizzo da cui leggere
 }
 
-// FindPageValues elenca i valori con unità di misura presenti nella pagina.
+// FindPageValues elenca i valori meteo della pagina. Se il testo visibile non
+// ne contiene (pagina che carica i dati con JavaScript) cerca anche negli
+// script, nei riquadri incorporati e nei file di dati collegati.
 func FindPageValues(ctx context.Context, rawURL string) ([]FoundValue, int, error) {
 	body, err := getBody(ctx, rawURL, "")
 	if err != nil {
 		return nil, 0, err
 	}
 	text := pageText(body)
+	out := valuesInText(text, rawURL)
+	out = append(out, valuesInScripts(string(body), rawURL)...)
+	if len(out) < 2 {
+		out = append(out, valuesInLinked(ctx, rawURL, string(body))...)
+	}
+	sortByImportance(out)
+	return out, len(text), nil
+}
+
+func valuesInText(text, source string) []FoundValue {
 	var out []FoundValue
 	seen := map[string]bool{}
 	for _, m := range reMeasure.FindAllStringSubmatchIndex(text, 200) {
@@ -54,16 +73,218 @@ func FindPageValues(ctx context.Context, rawURL string) ([]FoundValue, int, erro
 		// l'etichetta sono le parole subito prima del numero (es. "Temperatura aria")
 		words := labelWords(strings.Fields(before))
 		label := strings.Join(words, " ")
-		pattern := buildPattern(words, text[m[4]:m[5]])
 		key := label + "|" + value + unit
 		if seen[key] {
 			continue
 		}
 		seen[key] = true
-		out = append(out, FoundValue{Value: value, Unit: unit, Context: label, Pattern: pattern})
+		out = append(out, FoundValue{Value: value, Unit: unit, Context: label, Pattern: buildPattern(words, text[m[4]:m[5]]), Kind: "html", Source: source})
 	}
-	return out, len(text), nil
+	return out
 }
+
+// variabili negli script, es.  temperatura = 3.8  oppure  "temp_c": "3.8"
+var reScriptVar = regexp.MustCompile(`(?i)["']?([a-z_]*(?:temp|umid|humid|hum|vento|wind|press|baro|piogg|rain|prec|dew|rugiad|uv|solar|radiaz)[a-z0-9_]*)["']?\s*[:=]\s*["']?(-?\d{1,4}(?:[.,]\d{1,3})?)["']?`)
+
+func valuesInScripts(body, source string) []FoundValue {
+	var out []FoundValue
+	seen := map[string]bool{}
+	for _, m := range reScriptVar.FindAllStringSubmatch(body, 100) {
+		if seen[m[1]] {
+			continue
+		}
+		seen[m[1]] = true
+		out = append(out, FoundValue{Value: m[2], Unit: unitForKey(m[1]), Context: m[1],
+			Pattern: `["']?` + regexp.QuoteMeta(m[1]) + `["']?\s*[:=]\s*["']?(-?\d+(?:[.,]\d+)?)`, Kind: "raw", Source: source})
+	}
+	return out
+}
+
+func unitForKey(k string) string {
+	k = strings.ToLower(k)
+	switch {
+	case strings.Contains(k, "temp") || strings.Contains(k, "dew") || strings.Contains(k, "rugiad"):
+		return "°C"
+	case strings.Contains(k, "hum") || strings.Contains(k, "umid"):
+		return "%"
+	case strings.Contains(k, "dir"):
+		return "°"
+	case strings.Contains(k, "wind") || strings.Contains(k, "vento") || strings.Contains(k, "gust") || strings.Contains(k, "raffic"):
+		return "km/h"
+	case strings.Contains(k, "press") || strings.Contains(k, "baro"):
+		return "hPa"
+	case strings.Contains(k, "rain") || strings.Contains(k, "piogg") || strings.Contains(k, "prec"):
+		return "mm"
+	case strings.Contains(k, "solar") || strings.Contains(k, "radiaz"):
+		return "W/m²"
+	}
+	return ""
+}
+
+var (
+	reFrame   = regexp.MustCompile(`(?i)<(?:iframe|frame|embed)[^>]+src=["']([^"']+)["']`)
+	reScript  = regexp.MustCompile(`(?i)<script[^>]+src=["']([^"']+)["']`)
+	reDataURL = regexp.MustCompile(`(?i)["'\(]((?:https?:)?//[^"'\s)]+|/?[\w./-]+)\.(json|txt|xml|csv|php|asp|aspx|cgi|htm|html)(\?[^"'\s)]*)?["'\)]`)
+)
+
+// valuesInLinked cerca nei file collegati: riquadri, script dello stesso sito e
+// indirizzi di dati presenti nella pagina (al massimo 15, 4 alla volta).
+func valuesInLinked(ctx context.Context, pageURL, body string) []FoundValue {
+	base, err := url.Parse(pageURL)
+	if err != nil {
+		return nil
+	}
+	var links []string
+	add := func(raw string) {
+		u, err := base.Parse(html.UnescapeString(raw))
+		if err != nil || (u.Scheme != "http" && u.Scheme != "https") {
+			return
+		}
+		s := u.String()
+		for _, l := range links {
+			if l == s {
+				return
+			}
+		}
+		if s != pageURL && len(links) < 15 {
+			links = append(links, s)
+		}
+	}
+	for _, m := range reFrame.FindAllStringSubmatch(body, -1) {
+		add(m[1])
+	}
+	for _, m := range reDataURL.FindAllStringSubmatch(body, -1) {
+		if l := strings.ToLower(m[1]); strings.Contains(l, "jquery") || strings.Contains(l, "bootstrap") || strings.Contains(l, "google") || strings.Contains(l, "facebook") {
+			continue
+		}
+		add(m[1] + "." + m[2] + m[3])
+	}
+	for _, m := range reScript.FindAllStringSubmatch(body, -1) {
+		if u, err := base.Parse(m[1]); err == nil && u.Host == base.Host && !strings.Contains(strings.ToLower(m[1]), "jquery") {
+			add(m[1])
+		}
+	}
+	var mu sync.Mutex
+	var out []FoundValue
+	var wg sync.WaitGroup
+	sem := make(chan struct{}, 4)
+	for _, l := range links {
+		wg.Add(1)
+		go func(l string) {
+			defer wg.Done()
+			sem <- struct{}{}
+			defer func() { <-sem }()
+			cctx, cancel := context.WithTimeout(ctx, 10*time.Second)
+			defer cancel()
+			b, err := getBody(cctx, l, "")
+			if err != nil {
+				return
+			}
+			var found []FoundValue
+			trimmed := strings.TrimSpace(string(b))
+			var doc any
+			if (strings.HasPrefix(trimmed, "{") || strings.HasPrefix(trimmed, "[")) && json.Unmarshal(b, &doc) == nil {
+				found = valuesInJSON(doc, l)
+			} else {
+				found = append(valuesInText(pageText(b), l), valuesInScripts(string(b), l)...)
+			}
+			mu.Lock()
+			out = append(out, found...)
+			mu.Unlock()
+		}(l)
+	}
+	wg.Wait()
+	return out
+}
+
+// valuesInJSON elenca i numeri dei campi con nomi meteo, con il loro percorso.
+func valuesInJSON(doc any, source string) []FoundValue {
+	var out []FoundValue
+	var walk func(v any, path string)
+	walk = func(v any, path string) {
+		if len(out) >= 60 {
+			return
+		}
+		switch t := v.(type) {
+		case map[string]any:
+			keys := make([]string, 0, len(t))
+			for k := range t {
+				keys = append(keys, k)
+			}
+			sort.Strings(keys)
+			for _, k := range keys {
+				p := k
+				if path != "" {
+					p = path + "." + k
+				}
+				walk(t[k], p)
+			}
+		case []any:
+			for i, x := range t {
+				if i >= 3 {
+					break // nelle serie basta il primo elemento (di solito il più recente)
+				}
+				walk(x, path+"."+strconv.Itoa(i))
+			}
+		case float64, string:
+			s := fmt.Sprint(t)
+			if _, err := strconv.ParseFloat(strings.Replace(s, ",", ".", 1), 64); err != nil {
+				return
+			}
+			last := path[strings.LastIndex(path, ".")+1:]
+			if reMeteoKey.MatchString(last) {
+				p := strings.TrimPrefix(path, ".")
+				out = append(out, FoundValue{Value: s, Unit: unitForKey(last), Context: friendlyKey(last) + " (" + p + ")", Pattern: p, Kind: "json", Source: source})
+			}
+		}
+	}
+	walk(doc, "")
+	return out
+}
+
+// friendlyKey traduce il nome di un campo in un'etichetta leggibile.
+func friendlyKey(k string) string {
+	l := strings.ToLower(k)
+	switch {
+	case strings.Contains(l, "dew") || strings.Contains(l, "rugiad"):
+		return "Punto di rugiada"
+	case strings.Contains(l, "temp"):
+		return "Temperatura"
+	case strings.Contains(l, "hum") || strings.Contains(l, "umid"):
+		return "Umidità"
+	case strings.Contains(l, "gust") || strings.Contains(l, "raffic"):
+		return "Raffiche"
+	case strings.Contains(l, "dir"):
+		return "Direzione vento"
+	case strings.Contains(l, "wind") || strings.Contains(l, "vento"):
+		return "Vento"
+	case strings.Contains(l, "press") || strings.Contains(l, "baro"):
+		return "Pressione"
+	case strings.Contains(l, "rain") || strings.Contains(l, "piogg") || strings.Contains(l, "prec"):
+		return "Pioggia"
+	case strings.Contains(l, "uv"):
+		return "Indice UV"
+	case strings.Contains(l, "solar") || strings.Contains(l, "radiaz"):
+		return "Radiazione solare"
+	}
+	return k
+}
+
+// sortByImportance mette per prime le temperature, poi umidità, vento, ecc.
+func sortByImportance(v []FoundValue) {
+	rank := func(f FoundValue) int {
+		l := strings.ToLower(f.Context)
+		for i, w := range []string{"temp", "umid", "hum", "vento", "wind", "raffic", "press", "piogg", "rain"} {
+			if strings.Contains(l, w) && !strings.Contains(l, "rugiad") && !strings.Contains(l, "dew") {
+				return i
+			}
+		}
+		return 99
+	}
+	sort.SliceStable(v, func(i, j int) bool { return rank(v[i]) < rank(v[j]) })
+}
+
+var reMeteoKey = regexp.MustCompile(`(?i)(temp|umid|humid|hum|vento|wind|gust|raffic|press|baro|piogg|rain|prec|dew|rugiad|uv|solar|radiaz)`)
 
 var reUnitWord = regexp.MustCompile(`(?i)^(°c?|°f|%|km/h|kmh|m/s|nodi|hpa|mbar|mb|mm/h|mm|w/m²|w/m2|uv|m)$`)
 
@@ -118,7 +339,11 @@ func readPageValue(ctx context.Context, ds DataSource) (any, error) {
 	if err != nil {
 		return nil, fmt.Errorf("espressione non valida: %w", err)
 	}
-	m := re.FindStringSubmatch(pageText(body))
+	text := pageText(body)
+	if ds.Variable == "raw" { // valore scritto negli script o nel sorgente
+		text = string(body)
+	}
+	m := re.FindStringSubmatch(text)
 	if m == nil {
 		return nil, fmt.Errorf("valore non trovato nella pagina (la pagina è cambiata?)")
 	}

@@ -1008,16 +1008,21 @@ async function editData(page, id) {
     const r = await api("POST", "/api/page-values", { URL: ds.url });
     openModal(`<h2 style="margin-top:0">🔎 Valori trovati nella pagina</h2>
       ${r.values.length ? `<p class="help">Scegli il valore da mostrare in sovrimpressione. Viene riletto in automatico, quindi segue i cambiamenti.</p>
-      <table>${r.values.map((v, i) => `<tr><td>${esc(v.context || "—")}</td><td><b style="font-size:16px">${esc(v.value)} ${esc(v.unit)}</b></td>
+      <table>${r.values.map((v, i) => `<tr><td>${esc(v.context || "—")}${v.source && v.source !== ds.url ? `<div class="help">da ${esc(v.kind === "json" ? "dati JSON" : "pagina collegata")}: ${esc(v.source.replace(/^https?:\/\//, "").slice(0, 60))}</div>` : ""}</td><td><b style="font-size:16px">${esc(v.value)} ${esc(v.unit)}</b></td>
         <td style="text-align:right"><button class="small primary" data-i="${i}">Usa questo</button></td></tr>`).join("")}</table>`
       : `<p>Nella pagina non ci sono valori con unità di misura${r.text_length < 300 ? " (la pagina è quasi vuota)" : ""}.</p>
-         <p class="help">Probabilmente la pagina carica i dati meteo con JavaScript dopo l'apertura. Apri la pagina nel browser, premi F12 → scheda <b>Rete</b> (Network) → ricarica la pagina e cerca un indirizzo che contiene i dati (spesso finisce in .json, .txt o .xml): usalo con il tipo “URL JSON” o “URL testo”, oppure mandalo a chi ti assiste.</p>`}`);
+         <p class="help">Ho cercato anche negli script, nei riquadri incorporati e nei file di dati collegati, senza risultati. Probabilmente la pagina carica i dati in un modo particolare. Apri la pagina nel browser, premi F12 → scheda <b>Rete</b> (Network) → ricarica la pagina e cerca un indirizzo che contiene i dati (spesso finisce in .json, .txt o .xml): usalo con il tipo “URL JSON” o “URL testo”, oppure mandalo a chi ti assiste.</p>`}`);
     document.querySelectorAll("#modal [data-i]").forEach(b => b.onclick = () => {
       const v = r.values[Number(b.dataset.i)];
+      // il tipo di lettura dipende da dove è stato trovato il valore
+      if (v.kind === "json") { ds.type = "http_json"; ds.variable = ""; }
+      else { ds.type = "html"; ds.variable = v.kind === "raw" ? "raw" : ""; }
+      ds.url = v.source || ds.url;
       ds.path = v.pattern;
       ds.unit = v.unit.startsWith("°") ? "°C" : v.unit === "%" ? "%" : " " + v.unit;
       if (/^\d+$/.test(v.value)) ds.decimals = 0;
-      if (v.context && (isNew || !ds.name)) { ds.name = v.context.charAt(0).toUpperCase() + v.context.slice(1); if (isNew) ds.id = uniqueId(ds.name, cfg.data_sources); }
+      const label = (v.context || "").replace(/\s*\(.*\)$/, "");
+      if (label && (isNew || !ds.name)) { ds.name = label.charAt(0).toUpperCase() + label.slice(1); if (isNew) ds.id = uniqueId(ds.name, cfg.data_sources); }
       closeModal(); form.redraw();
       toast(`Scelto: ${v.context} ${v.value} ${v.unit}. Premi “Prova lettura” e poi Salva.`);
     });
