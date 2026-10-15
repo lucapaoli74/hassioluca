@@ -481,8 +481,17 @@ async function editCamera(page, id) {
   cam.retention_mode = cam.retention_mb > 0 ? "size" : cam.retention_days > 0 ? "days" : "forever";
   cam.retention_gb = cam.retention_mb > 0 ? Math.round(cam.retention_mb / 102.4) / 10 : 5;
   if (!cam.retention_days) cam.retention_days = 365;
+  // nuova webcam: di serie copia le sovrimpressioni dall'ultima webcam creata
+  const ovSources = cfg.cameras.filter(c => c.overlays.length);
+  let ovFrom = isNew && ovSources.length ? ovSources[ovSources.length - 1].id : "";
   page.innerHTML = `<h1>${isNew ? "Nuova webcam" : "Webcam: " + esc(cam.name || cam.id)}</h1>
     <div class="editor"><div><div class="card" id="cm-form"></div>
+      <div class="card"><h3 style="margin-top:0">Sovrimpressioni</h3>${isNew
+        ? `<label class="help">Sovrimpressioni della nuova webcam <select id="cm-ovfrom" style="width:auto;margin-left:6px">
+            <option value="">Predefinite (nome, data e ora)</option>
+            ${ovSources.map(c => `<option value="${esc(c.id)}" ${c.id === ovFrom ? "selected" : ""}>Copia da ${esc(c.name || c.id)} (${c.overlays.length} livelli)</option>`).join("")}</select></label>`
+        : `<div class="toolbar" style="margin:0"><span class="help" style="flex:1" id="cm-ovsum">${cam.overlays.length} livelli: ${esc(overlaySummary(cam))}</span>
+            <button id="cm-ovimport">📥 Importa sovrimpressioni</button><a class="btn" href="#sovrimpressioni/${encodeURIComponent(cam.id)}">🖌️ Modifica</a></div>`}</div>
       <div class="card"><h3 style="margin-top:0">Pubblicazione</h3><div id="cm-pubs"></div></div>
       <div class="toolbar"><button class="primary" id="cm-save">💾 Salva</button><a class="btn" href="#webcam">Annulla</a><span class="spacer"></span>${isNew ? "" : '<button class="danger" id="cm-del">Elimina</button>'}</div></div>
     <div class="preview card"><h3 style="margin-top:0">Prova</h3><img class="cam-img" id="cm-img" alt=""><div id="cm-msg" class="help" style="margin-top:6px">Premi “Prova” per verificare URL e credenziali.</div>
@@ -560,7 +569,23 @@ async function editCamera(page, id) {
     $("#dg-copy").onclick = () => { navigator.clipboard.writeText(r.report).then(() => toast("Copiato"), () => { const sel = getSelection(); sel.selectAllChildren($("#dg-rep")); toast("Seleziona e copia con Ctrl+C"); }); };
   });
   $("#cm-live").onclick = e => busy(e.target, async () => showLive(cam.name || cam.url, await liveSession(cam)));
+  const ovSel = $("#cm-ovfrom");
+  if (ovSel) ovSel.onchange = () => ovFrom = ovSel.value;
+  const ovImp = $("#cm-ovimport");
+  if (ovImp) ovImp.onclick = () => pickOverlaySource(cam.id, "Importa le sovrimpressioni da…", src => {
+    if (cam.overlays.length && !confirm(`Sostituire i ${cam.overlays.length} livelli attuali di "${cam.name || cam.id}" con quelli di "${src.name || src.id}"?`)) return;
+    busy(ovImp, async () => {
+      // si salvano solo le sovrimpressioni: le altre modifiche del modulo restano da salvare
+      const next = clone(cfg);
+      next.cameras.find(c => c.id === origId).overlays = clone(src.overlays);
+      await saveConfig(next);
+      cam.overlays = clone(src.overlays);
+      $("#cm-ovsum").textContent = `${cam.overlays.length} livelli: ${overlaySummary(cam)}`;
+      toast(`Sovrimpressioni importate da ${src.name || src.id}`);
+    });
+  });
   $("#cm-save").onclick = e => busy(e.target, async () => {
+    if (isNew && ovFrom) cam.overlays = clone(cfg.cameras.find(c => c.id === ovFrom).overlays);
     const mode = cam.retention_mode;
     if (mode !== "days") cam.retention_days = 0;
     cam.retention_mb = mode === "size" ? Math.round(cam.retention_gb * 1024) : 0;
@@ -588,6 +613,26 @@ async function editCamera(page, id) {
     });
   };
 }
+// breve descrizione dei livelli di una webcam (per scegliere da dove importare)
+function overlaySummary(c) {
+  const on = c.overlays.filter(o => o.enabled);
+  if (!on.length) return "nessuna sovrimpressione";
+  const words = { location: "località", altitude: "altitudine", name: "nome", date: "data", time: "ora", seconds: "ora", longdate: "data", weekday: "giorno", month: "mese", year: "anno", site_url: "sito", history_url: "storico", datetime: "data/ora", data: "dato live" };
+  const txt = t => { const r = (t || "").split("\n")[0].replace(/\{([a-z_]+)(?::[^}]*)?\}/g, (_, k) => words[k] || k).replace(/\s*·\s*/g, " "); return r.length > 40 ? r.slice(0, 39) + "…" : r; };
+  return on.map(o => o.type === "image" ? "logo" : o.type === "forecast" ? "previsioni" : `“${txt(o.text)}”`).join(" · ");
+}
+// finestra per scegliere la webcam da cui importare le sovrimpressioni
+function pickOverlaySource(excludeId, title, onPick) {
+  const others = cfg.cameras.filter(c => c.id !== excludeId && c.overlays.length);
+  if (!others.length) { toast("Nessun'altra webcam ha sovrimpressioni da importare"); return; }
+  openModal(`<h2 style="margin-top:0">${esc(title)}</h2>
+    <p class="help">Le posizioni sono in percentuale: lo schema si adatta da solo alla risoluzione di ogni telecamera.</p>
+    ${others.map(c => `<div class="list-item"><img src="/snapshot/${encodeURIComponent(c.id)}.jpg?t=${Date.now()}" alt="" onerror="this.style.visibility='hidden'">
+      <div class="grow"><b>${esc(c.name || c.id)}</b> <span class="badge">${c.overlays.length} livelli</span><div class="help">${esc(overlaySummary(c))}</div></div>
+      <button class="primary" data-from="${esc(c.id)}">📥 Importa</button></div>`).join("")}`);
+  $("#modal-body").querySelectorAll("[data-from]").forEach(b => b.onclick = () => { closeModal(); onPick(cfg.cameras.find(c => c.id === b.dataset.from)); });
+}
+
 function intervalSelect(v) {
   const opts = [[0, "a ogni cattura"], [60, "ogni minuto"], [120, "ogni 2 minuti"], [300, "ogni 5 minuti"], [600, "ogni 10 minuti"], [900, "ogni 15 minuti"], [1800, "ogni 30 minuti"], [3600, "ogni ora"]];
   if (!opts.some(o => o[0] === v)) opts.push([v, `ogni ${v} s`]);
@@ -605,7 +650,7 @@ pages.sovrimpressioni = async (page, arg) => {
   const cam = clone(cfg.cameras.find(c => c.id === camId));
   page.innerHTML = `<h1>Sovrimpressioni</h1>
     <div class="toolbar"><label>Webcam <select id="ov-cam" style="width:auto">${cfg.cameras.map(c => `<option value="${esc(c.id)}" ${c.id === camId ? "selected" : ""}>${esc(c.name || c.id)}</option>`).join("")}</select></label>
-      <span class="spacer"></span><button id="ov-copy">Copia da altra webcam…</button><button class="primary" id="ov-save">💾 Salva</button></div>
+      <span class="spacer"></span><button id="ov-copy">📥 Importa da altra webcam</button><button id="ov-all">📤 Applica a tutte le webcam</button><button class="primary" id="ov-save">💾 Salva</button></div>
     <div class="editor"><div>
       <div class="toolbar"><button id="ov-add-text">➕ Scritta</button><button id="ov-add-time">🕒 Data e ora</button><button id="ov-add-data">🌡️ Dato live</button><button id="ov-add-logo">🖼️ Logo</button><button id="ov-add-fc">⛅ Previsioni</button></div>
       <div id="ov-layers"></div>
@@ -796,13 +841,20 @@ pages.sovrimpressioni = async (page, arg) => {
     logos = await api("GET", "/api/logos"); drawLogos();
     addLayer({ type: "image", image: j.name, anchor: "top-right", size: 15, shadow: false });
   });
-  $("#ov-copy").onclick = () => {
+  $("#ov-copy").onclick = () => pickOverlaySource(cam.id, "Importa le sovrimpressioni da…", src => {
+    cam.overlays = clone(src.overlays);
+    focused = null; drawLayers(); preview();
+    toast("Importate: controlla l'anteprima e premi 💾 Salva");
+  });
+  $("#ov-all").onclick = e => {
     const others = cfg.cameras.filter(c => c.id !== cam.id);
     if (!others.length) { toast("Non ci sono altre webcam"); return; }
-    openModal(`<h2 style="margin-top:0">Copia le sovrimpressioni da…</h2>${others.map(c => `<div class="list-item"><div class="grow">${esc(c.name || c.id)} <span class="help">${c.overlays.length} livelli</span></div><button data-from="${esc(c.id)}">Copia</button></div>`).join("")}`);
-    $("#modal-body").querySelectorAll("[data-from]").forEach(b => b.onclick = () => {
-      cam.overlays = clone(cfg.cameras.find(c => c.id === b.dataset.from).overlays);
-      closeModal(); drawLayers(); preview();
+    if (!confirm(`Applicare queste ${cam.overlays.length} sovrimpressioni a tutte le altre ${others.length} webcam? Le loro sovrimpressioni attuali verranno sostituite (resta una copia di sicurezza in Impostazioni → Backup).`)) return;
+    busy(e.target, async () => {
+      const next = clone(cfg);
+      next.cameras.forEach(c => c.overlays = clone(cam.overlays));
+      await saveConfig(next);
+      toast(`Sovrimpressioni applicate a ${others.length + 1} webcam`);
     });
   };
   $("#ov-save").onclick = e => busy(e.target, async () => {

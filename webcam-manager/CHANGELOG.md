@@ -3,6 +3,12 @@
 Ogni versione rilasciata ha qui la sua voce: il testo diventa le note della
 release mostrate nel pannello (Impostazioni → Aggiornamenti).
 
+## [0.2.0] - 2026-10-15
+
+- Importa sovrimpressioni: pulsante nella pagina della webcam per clonare tutti i livelli da un'altra webcam.
+- Le nuove webcam partono già con le sovrimpressioni dell'ultima webcam creata (si può scegliere da quale copiarle o usare quelle predefinite).
+- Pagina Sovrimpressioni: "Importa da altra webcam" e "Applica a tutte le webcam".
+
 ## [0.1.9] - 2026-10-04
 
 - Corretto: creando un nuovo sito, webcam o dato live il campo Nome perdeva il fuoco a ogni lettera.
