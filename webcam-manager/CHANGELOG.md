@@ -3,6 +3,10 @@
 Ogni versione rilasciata ha qui la sua voce: il testo diventa le note della
 release mostrate nel pannello (Impostazioni → Aggiornamenti).
 
+## [0.2.8] - 2026-10-17
+
+- Privacy: opzione per webcam "pixela automaticamente i volti" (riconoscimento sul PC prima della pubblicazione, con sensibilità regolabile) e, facoltative, "Zone privacy" fisse sempre pixelate, da disegnare e spostare col mouse in Sovrimpressioni. Riconoscimento con la libreria pigo (licenza MIT, vedi privacy/LICENSE-pigo).
+
 ## [0.2.7] - 2026-10-15
 
 - Telecamere RTSP: si cattura solo un fotogramma chiave completo e le immagini "colate" a strisce verticali (pacchetti persi, Wi-Fi debole) vengono scartate e ricatturate, così sul sito non va mai un'immagine rovinata.

@@ -80,10 +80,12 @@ func (r *Renderer) Render(src []byte, cam Camera, now time.Time, site *Site) ([]
 	if err != nil {
 		return nil, nil, image.Point{}, fmt.Errorf("immagine non leggibile: %w", err)
 	}
-	if cam.MaxWidth <= 0 && active == 0 {
+	if cam.MaxWidth <= 0 && active == 0 && !cam.PrivacyFaces {
 		return src, boxes, img.Bounds().Size(), nil
 	}
 	dst := resizeToRGBA(img, cam.MaxWidth)
+	// la privacy va applicata prima di tutto: le scritte non devono finire pixelate
+	applyPrivacy(dst, cam, boxes)
 	for i, o := range cam.Overlays {
 		if !o.Enabled {
 			continue

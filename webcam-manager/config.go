@@ -41,27 +41,29 @@ type Location struct {
 
 // Camera descrive una sorgente di immagini.
 type Camera struct {
-	ID               string    `json:"id"`                // identificativo breve (lettere, numeri, - e _)
-	Name             string    `json:"name"`              // nome leggibile
-	Enabled          bool      `json:"enabled"`           //
-	Source           string    `json:"source"`            // "snapshot" | "mjpeg" | "rtsp"
-	URL              string    `json:"url"`               // URL dello snapshot/stream
-	Username         string    `json:"username"`          // credenziali della telecamera (opzionali)
-	Password         string    `json:"password"`          //
-	IntervalSeconds  int       `json:"interval_seconds"`  // ogni quanto catturare
-	MaxWidth         int       `json:"max_width"`         // ridimensiona se più larga (0 = originale)
-	Quality          int       `json:"quality"`           // qualità JPEG 1-100
-	Public           bool      `json:"public"`            // esposta su /public/<id>.jpg senza password
-	Maintenance      bool      `json:"maintenance"`       // in manutenzione: pubblica l'ultima immagine con un avviso
-	MaintenanceText  string    `json:"maintenance_text"`  // testo dell'avviso (vuoto = "Webcam in manutenzione")
-	ActiveFrom       string    `json:"active_from"`       // fascia oraria di attività "HH:MM" ("" = sempre)
-	ActiveTo         string    `json:"active_to"`         //
-	ArchiveMinutes   int       `json:"archive_minutes"`   // frequenza dello storico (0 = storico disattivato)
-	RetentionDays    int       `json:"retention_days"`    // conserva lo storico locale per N giorni (0 = per sempre)
-	RetentionMB      int       `json:"retention_mb"`      // oppure: spazio massimo dello storico locale in MB (0 = nessun limite)
-	TimelapseMinutes int       `json:"timelapse_minutes"` // timelapse: un fotogramma ogni N minuti (0 = disattivato)
-	TimelapseHours   int       `json:"timelapse_hours"`   // timelapse: durata in ore (default 6)
-	Overlays         []Overlay `json:"overlays"`          // livelli in sovrimpressione, disegnati in ordine
+	ID                 string    `json:"id"`                  // identificativo breve (lettere, numeri, - e _)
+	Name               string    `json:"name"`                // nome leggibile
+	Enabled            bool      `json:"enabled"`             //
+	Source             string    `json:"source"`              // "snapshot" | "mjpeg" | "rtsp"
+	URL                string    `json:"url"`                 // URL dello snapshot/stream
+	Username           string    `json:"username"`            // credenziali della telecamera (opzionali)
+	Password           string    `json:"password"`            //
+	IntervalSeconds    int       `json:"interval_seconds"`    // ogni quanto catturare
+	MaxWidth           int       `json:"max_width"`           // ridimensiona se più larga (0 = originale)
+	Quality            int       `json:"quality"`             // qualità JPEG 1-100
+	Public             bool      `json:"public"`              // esposta su /public/<id>.jpg senza password
+	Maintenance        bool      `json:"maintenance"`         // in manutenzione: pubblica l'ultima immagine con un avviso
+	PrivacyFaces       bool      `json:"privacy_faces"`       // pixela automaticamente i volti riconosciuti
+	PrivacySensitivity int       `json:"privacy_sensitivity"` // 1 bassa, 2 normale, 3 alta
+	MaintenanceText    string    `json:"maintenance_text"`    // testo dell'avviso (vuoto = "Webcam in manutenzione")
+	ActiveFrom         string    `json:"active_from"`         // fascia oraria di attività "HH:MM" ("" = sempre)
+	ActiveTo           string    `json:"active_to"`           //
+	ArchiveMinutes     int       `json:"archive_minutes"`     // frequenza dello storico (0 = storico disattivato)
+	RetentionDays      int       `json:"retention_days"`      // conserva lo storico locale per N giorni (0 = per sempre)
+	RetentionMB        int       `json:"retention_mb"`        // oppure: spazio massimo dello storico locale in MB (0 = nessun limite)
+	TimelapseMinutes   int       `json:"timelapse_minutes"`   // timelapse: un fotogramma ogni N minuti (0 = disattivato)
+	TimelapseHours     int       `json:"timelapse_hours"`     // timelapse: durata in ore (default 6)
+	Overlays           []Overlay `json:"overlays"`            // livelli in sovrimpressione, disegnati in ordine
 }
 
 // Overlay è un livello disegnato sopra l'immagine: una scritta (con
@@ -69,7 +71,7 @@ type Camera struct {
 // Dimensioni e margini sono in percentuale, così il risultato è identico a
 // qualsiasi risoluzione della telecamera.
 type Overlay struct {
-	Type       string  `json:"type"`       // "text" | "image" | "forecast"
+	Type       string  `json:"type"`       // "text" | "image" | "forecast" | "privacy"
 	Enabled    bool    `json:"enabled"`    //
 	Text       string  `json:"text"`       // testo; segnaposto: {name} {date} {time} {data:ID} ...
 	Image      string  `json:"image"`      // nome del logo caricato (cartella data/logos)
@@ -84,6 +86,7 @@ type Overlay struct {
 	BgOpacity  float64 `json:"bg_opacity"` // 0-1
 	Opacity    float64 `json:"opacity"`    // 0-1, opacità del testo o del logo
 	FullWidth  bool    `json:"full_width"` // lo sfondo occupa tutta la larghezza (fascia)
+	Height     float64 `json:"height"`     // solo "privacy": altezza della zona in % dell'altezza
 
 	// solo per "forecast" (previsioni del tempo, dati Open-Meteo)
 	Latitude      float64 `json:"latitude"`
@@ -269,12 +272,17 @@ func (c *Config) applyDefaults() {
 					o.Size = 15
 				} else if o.Type == "forecast" {
 					o.Size = 30
+				} else if o.Type == "privacy" {
+					o.Size = 20
 				} else {
 					o.Size = 4
 				}
 			}
 			if o.Color == "" {
 				o.Color = "#ffffff"
+			}
+			if o.Type == "privacy" && o.Height <= 0 {
+				o.Height = 15
 			}
 			if o.Opacity <= 0 || o.Opacity > 1 {
 				o.Opacity = 1
@@ -381,7 +389,7 @@ func (c *Config) Validate() error {
 	for _, cam := range c.Cameras {
 		for i, o := range cam.Overlays {
 			switch o.Type {
-			case "text", "forecast":
+			case "text", "forecast", "privacy":
 			case "image":
 				if o.Image != "" && !filenamePattern.MatchString(o.Image) {
 					return fmt.Errorf("webcam %q, livello %d: nome logo non valido", cam.ID, i+1)

@@ -431,6 +431,8 @@ const cameraFields = [
   { k: "id", label: "ID (nome breve, senza spazi)", help: "Usato nei nomi dei file e negli indirizzi." },
   { k: "enabled", label: "Attiva", type: "checkbox" },
   { k: "public", label: "Pubblica su /public/ID.jpg (senza password)", type: "checkbox" },
+  { k: "privacy_faces", label: "🔒 Privacy: pixela automaticamente i volti delle persone", type: "checkbox", wide: true, redraw: true, help: "Il riconoscimento avviene sul PC prima di pubblicare. Trova bene i volti di fronte e non troppo piccoli; per aree da oscurare sempre (finestre, ingressi) aggiungi una “Zona privacy” in Sovrimpressioni." },
+  { k: "privacy_sensitivity", label: "Sensibilità del riconoscimento", type: "select", num: true, show: c => c.privacy_faces, options: [[1, "Bassa (solo volti evidenti)"], [2, "Normale"], [3, "Alta (anche volti piccoli, più falsi allarmi)"]] },
   { k: "maintenance_text", label: "Testo dell'avviso di manutenzione", type: "textarea", wide: true, placeholder: "Webcam in manutenzione", help: "Mostrato al centro dell'immagine quando attivi 🛠️ Manutenzione (sullo sfondo resta l'ultima immagine, scurita). Si possono usare più righe." },
   { k: "source", label: "Tipo di sorgente", type: "select", options: [["snapshot", "Snapshot HTTP (JPEG)"], ["mjpeg", "Stream MJPEG"], ["rtsp", "Stream RTSP (richiede ffmpeg)"]] },
   { k: "url", label: "URL", wide: true },
@@ -675,7 +677,7 @@ pages.sovrimpressioni = async (page, arg) => {
     <div class="toolbar"><label>Webcam <select id="ov-cam" style="width:auto">${cfg.cameras.map(c => `<option value="${esc(c.id)}" ${c.id === camId ? "selected" : ""}>${esc(c.name || c.id)}</option>`).join("")}</select></label>
       <span class="spacer"></span><button id="ov-copy">📥 Importa da altra webcam</button><button id="ov-all">📤 Applica a tutte le webcam</button><button class="primary" id="ov-save">💾 Salva</button></div>
     <div class="editor"><div>
-      <div class="toolbar"><button id="ov-add-text">➕ Scritta</button><button id="ov-add-time">🕒 Data e ora</button><button id="ov-add-data">🌡️ Dato live</button><button id="ov-add-logo">🖼️ Logo</button><button id="ov-add-fc">⛅ Previsioni</button></div>
+      <div class="toolbar"><button id="ov-add-text">➕ Scritta</button><button id="ov-add-time">🕒 Data e ora</button><button id="ov-add-data">🌡️ Dato live</button><button id="ov-add-logo">🖼️ Logo</button><button id="ov-add-fc">⛅ Previsioni</button><button id="ov-add-priv">🔒 Zona privacy</button></div>
       <div id="ov-layers"></div>
       <div class="card"><h3 style="margin-top:0">Libreria loghi</h3><p class="help">PNG con sfondo trasparente per il miglior risultato.</p>
         <div class="logos" id="ov-logos"></div>
@@ -746,7 +748,10 @@ pages.sovrimpressioni = async (page, arg) => {
       d.removeEventListener("pointermove", move); d.removeEventListener("pointerup", up);
       const W = last.width, H = last.height;
       const k = parseFloat(d.style.width) / w0;
-      if (resize && Math.abs(k - 1) > 0.01) o.size = Math.round(o.size * k * 10) / 10;
+      if (resize && Math.abs(k - 1) > 0.01) {
+        o.size = Math.round(o.size * k * 10) / 10;
+        if (o.type === "privacy") o.height = Math.round(o.height * k * 10) / 10;
+      }
       const w = parseFloat(d.style.width) / sc, h = parseFloat(d.style.height) / sc;
       const x = parseFloat(d.style.left) / sc, y = parseFloat(d.style.top) / sc;
       if (!resize || Math.abs(k - 1) > 0.01) placeAt(o, x, y, w, h, W, H);
@@ -780,6 +785,7 @@ pages.sovrimpressioni = async (page, arg) => {
     addLayer({ type: "text", text: `${d.name || "Temperatura"}: {data:${d.id}}`, anchor: "bottom-right", size: 3.5, background: "#000000", bg_opacity: 0.4 });
   };
   $("#ov-add-logo").onclick = () => addLayer({ type: "image", image: logos[0] || "", anchor: "top-right", size: 15, shadow: false });
+  $("#ov-add-priv").onclick = () => addLayer({ type: "privacy", anchor: "center", offset_x: 0, offset_y: 0, size: 20, height: 15, shadow: false });
   $("#ov-add-fc").onclick = () => {
     const om = cfg.data_sources.find(d => d.type === "open_meteo");
     addLayer({ type: "forecast", anchor: "top-right", size: 30, days: 3, start_tomorrow: false, show_rain: true, bold: true, background: "#000000", bg_opacity: 0.45,
@@ -793,11 +799,16 @@ pages.sovrimpressioni = async (page, arg) => {
       const el = document.createElement("div");
       el.className = "layer card" + (o.enabled ? "" : " off") + (i === selected ? " sel" : "");
       el.addEventListener("pointerdown", () => { if (selected !== i) { selected = i; document.querySelectorAll("#ov-layers .layer").forEach((x, j) => x.classList.toggle("sel", j === i)); drawBoxes(); } });
-      const title = o.type === "image" ? "🖼️ " + (o.image || "logo") : o.type === "forecast" ? `⛅ Previsioni ${o.days || 3} giorni` : "🔤 " + (o.text || "").split("\n")[0];
+      const title = o.type === "privacy" ? "🔒 Zona privacy (sempre pixelata)" : o.type === "image" ? "🖼️ " + (o.image || "logo") : o.type === "forecast" ? `⛅ Previsioni ${o.days || 3} giorni` : "🔤 " + (o.text || "").split("\n")[0];
       el.innerHTML = `<div class="layer-head"><input type="checkbox" ${o.enabled ? "checked" : ""} title="Attiva"><strong>${esc(title)}</strong>
         <button class="small" data-up title="Porta sotto">▲</button><button class="small" data-down title="Porta sopra">▼</button><button class="small" data-dup title="Duplica">⧉</button><button class="small danger" data-del title="Elimina">✕</button></div>
         <div style="display:flex;gap:14px;align-items:flex-start"><div><div class="help" style="margin-bottom:3px">Posizione</div><div class="anchor-grid">${anchorsList.map(([a, s]) => `<button data-anchor="${a}" class="${o.anchor === a ? "sel" : ""}">${s}</button>`).join("")}</div></div><div style="flex:1" data-form></div></div>`;
-      const fields = o.type === "forecast" ? [
+      const fields = o.type === "privacy" ? [
+        { k: "size", label: "Larghezza (% immagine)", type: "range", min: 2, max: 100, step: 0.5 },
+        { k: "height", label: "Altezza (% immagine)", type: "range", min: 2, max: 100, step: 0.5 },
+        { k: "offset_x", label: "Margine orizzontale %", type: "number", step: 0.5 },
+        { k: "offset_y", label: "Margine verticale %", type: "number", step: 0.5 },
+      ] : o.type === "forecast" ? [
         { k: "coords", label: "Località delle previsioni", type: "coords" },
         { k: "days", label: "Giorni", type: "select", num: true, options: [[1, "1"], [2, "2"], [3, "3"], [4, "4"], [5, "5"]] },
         { k: "start_tomorrow", label: "Parti da domani", type: "checkbox" },
@@ -836,7 +847,7 @@ pages.sovrimpressioni = async (page, arg) => {
         { k: "bg_opacity", label: "Opacità sfondo", type: "range", min: 0, max: 1, step: 0.05 },
         ...(o.type === "text" ? [{ k: "full_width", label: "Fascia a tutta larghezza", type: "checkbox" }] : []),
       ], preview);
-      el.querySelector("[data-form]").append(bg, bg2);
+      if (o.type !== "privacy") el.querySelector("[data-form]").append(bg, bg2);
       const ta = el.querySelector("textarea");
       if (ta) { ta.addEventListener("focus", () => focused = ta); if (!focused) focused = ta; }
       el.querySelector(".layer-head input").onchange = e => { o.enabled = e.target.checked; el.classList.toggle("off", !o.enabled); preview(); };
