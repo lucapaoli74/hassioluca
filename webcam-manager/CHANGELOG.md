@@ -3,6 +3,10 @@
 Ogni versione rilasciata ha qui la sua voce: il testo diventa le note della
 release mostrate nel pannello (Impostazioni → Aggiornamenti).
 
+## [0.2.9] - 2026-11-19
+
+- Sensori Sonoff di temperatura e umidità in sovrimpressione: lettura in locale da Tasmota, ESPHome o Home Assistant (anche Zigbee SNZB-02), con ricerca dei dispositivi nella rete e creazione con un clic dei dati live e della scritta sulla webcam.
+
 ## [0.2.8] - 2026-10-17
 
 - Privacy: opzione per webcam "pixela automaticamente i volti" (riconoscimento sul PC prima della pubblicazione, con sensibilità regolabile) e, facoltative, "Zone privacy" fisse sempre pixelate, da disegnare e spostare col mouse in Sovrimpressioni. Riconoscimento con la libreria pigo (licenza MIT, vedi privacy/LICENSE-pigo).

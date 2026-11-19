@@ -201,6 +201,40 @@ func (s *Server) Handler() http.Handler {
 		writeJSON(w, map[string]string{"ok": "1"})
 	})
 	mux.HandleFunc("POST /api/test-datasource", s.testDataSource)
+	mux.HandleFunc("POST /api/sensors/scan", func(w http.ResponseWriter, r *http.Request) {
+		devs := FindSensorDevices(r.Context())
+		if devs == nil {
+			devs = []SensorDevice{}
+		}
+		writeJSON(w, devs)
+	})
+	mux.HandleFunc("POST /api/sensors/read", func(w http.ResponseWriter, r *http.Request) {
+		var req struct {
+			Kind, Host, User, Pass, URL, Token string
+		}
+		if !readJSON(w, r, &req) {
+			return
+		}
+		ctx, cancel := context.WithTimeout(r.Context(), 20*time.Second)
+		defer cancel()
+		var out []SensorReading
+		var err error
+		switch req.Kind {
+		case "tasmota":
+			out, err = ReadTasmota(ctx, req.Host, req.User, req.Pass)
+		case "esphome":
+			out, err = ReadESPHome(ctx, req.Host, req.User, req.Pass)
+		case "home_assistant":
+			out, err = ReadHomeAssistant(ctx, req.URL, req.Token)
+		default:
+			err = fmt.Errorf("tipo di dispositivo sconosciuto")
+		}
+		if err != nil {
+			httpError(w, http.StatusBadGateway, err.Error())
+			return
+		}
+		writeJSON(w, out)
+	})
 	mux.HandleFunc("POST /api/page-values", func(w http.ResponseWriter, r *http.Request) {
 		var req struct{ URL, Label string }
 		if !readJSON(w, r, &req) {

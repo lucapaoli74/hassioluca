@@ -117,6 +117,17 @@ Le coordinate GPS si possono scegliere in tre modi:
 - dalla **mappa** integrata;
 - e si verificano con *Verifica su Google Maps*.
 
+### Sensori Sonoff (temperatura e umidità)
+
+**Dati live → 🔌 Sensore Sonoff / Tasmota / ESPHome / Home Assistant**, poi scegli come è collegato il sensore:
+
+- **Home Assistant**: per i Sonoff già presenti in HA (Zigbee SNZB-02, integrazione eWeLink/SonoffLAN…). Servono l'indirizzo di HA e un *token di accesso a lunga durata* (profilo utente → Sicurezza).
+- **Tasmota** o **ESPHome**: per i Sonoff con questi firmware. Basta l'indirizzo IP, oppure il pulsante *Cerca dispositivi nella rete*.
+
+Spunta temperatura e umidità: vengono creati i dati live e, se scegli una webcam, anche la scritta in sovrimpressione, da spostare col mouse.
+
+Con il **firmware originale eWeLink**, senza Home Assistant, il programma non può leggere il sensore in locale. In quel caso conviene aggiungerlo a Home Assistant (integrazione eWeLink/SonoffLAN) o passare a Tasmota/ESPHome.
+
 ### OneDrive
 
 Serve una volta sola un'app registrata su Azure:

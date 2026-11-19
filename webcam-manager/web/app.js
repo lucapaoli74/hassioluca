@@ -930,8 +930,9 @@ const dataFields = [
 pages.dati = async (page, arg) => {
   if (arg) return editData(page, arg);
   page.innerHTML = `<h1>Dati live</h1><p class="help">Valori aggiornati automaticamente (temperatura, vento, sensori…) da usare nelle sovrimpressioni con <code>{data:ID}</code>.</p>
-    <div class="toolbar"><a class="btn primary" href="#dati/nuovo">➕ Nuovo dato</a><button id="dt-page">🌐 Dato da una pagina web</button><button id="wu-open">🔎 Cerca stazioni Weather Underground</button></div><div class="card" id="dt-list"></div>
+    <div class="toolbar"><a class="btn primary" href="#dati/nuovo">➕ Nuovo dato</a><button id="dt-page">🌐 Dato da una pagina web</button><button id="dt-sensor">🔌 Sensore Sonoff / Tasmota / ESPHome / Home Assistant</button><button id="wu-open">🔎 Cerca stazioni Weather Underground</button></div><div class="card" id="dt-list"></div>
     <div class="card hidden" id="wu-box"></div>`;
+  $("#dt-sensor").onclick = () => sensorWizard();
   $("#dt-page").onclick = () => { sessionStorage.setItem("newData", JSON.stringify({ type: "html", name: "Temperatura", unit: "°C", decimals: 1, refresh_seconds: 300 })); location.hash = "#dati/nuovo"; };
   $("#wu-open").onclick = () => { $("#wu-box").classList.toggle("hidden"); wuSearchUI($("#wu-box")); };
   const st = await api("GET", "/api/status");
@@ -964,6 +965,62 @@ function wuSearchUI(box) {
     res.querySelectorAll("[data-st]").forEach(b => b.onclick = ev => busy(ev.target, () => wuValues(b.dataset.st, b.dataset.name, q.key)));
   });
 }
+// Sensori locali (Sonoff con Tasmota/ESPHome, o qualsiasi sensore in Home Assistant)
+function sensorWizard() {
+  const st = { kind: "home_assistant", host: "", user: "", pass: "", url: "http://homeassistant.local:8123", token: "" };
+  const box = document.createElement("div");
+  box.innerHTML = `<h2 style="margin-top:0">🔌 Sensore di temperatura e umidità</h2>
+    <p class="help">Come è collegato il sensore Sonoff? <b>Home Assistant</b>: il Sonoff è già in HA (Zigbee SNZB-02, integrazione eWeLink/SonoffLAN…). <b>Tasmota</b> o <b>ESPHome</b>: il Sonoff ha uno di questi firmware e si legge direttamente in rete.</p>
+    <div id="sw-form"></div>
+    <div class="toolbar" style="margin:12px 0 0"><button class="primary" id="sw-read">Leggi i sensori</button><button id="sw-scan">🔎 Cerca dispositivi nella rete</button><span id="sw-msg" class="help"></span></div>
+    <div id="sw-res"></div>`;
+  openModal(box);
+  const form = renderForm(st, [
+    { k: "kind", label: "Collegamento", type: "select", redraw: true, options: [["home_assistant", "Home Assistant"], ["tasmota", "Firmware Tasmota"], ["esphome", "Firmware ESPHome"]] },
+    { k: "url", label: "Indirizzo di Home Assistant", show: x => x.kind === "home_assistant", wide: true },
+    { k: "token", label: "Token di accesso a lunga durata", type: "password", show: x => x.kind === "home_assistant", wide: true, help: "In Home Assistant: clic sul tuo nome in basso a sinistra → Sicurezza → Token di accesso a lunga durata → Crea token." },
+    { k: "host", label: "Indirizzo IP del dispositivo", show: x => x.kind !== "home_assistant", placeholder: "192.168.1.50" },
+    { k: "user", label: "Utente (se protetto)", show: x => x.kind !== "home_assistant" },
+    { k: "pass", label: "Password (se protetto)", type: "password", show: x => x.kind !== "home_assistant" },
+  ], () => { $("#sw-scan").classList.toggle("hidden", st.kind === "home_assistant"); });
+  $("#sw-form").appendChild(form);
+  $("#sw-scan").classList.toggle("hidden", st.kind === "home_assistant");
+  $("#sw-scan").onclick = e => busy(e.target, async () => {
+    $("#sw-msg").textContent = "Ricerca nella rete (fino a un minuto)…";
+    const devs = await api("POST", "/api/sensors/scan");
+    $("#sw-msg").textContent = "";
+    $("#sw-res").innerHTML = devs.length ? `<h3>Dispositivi trovati</h3>${devs.map(d => `<div class="list-item"><div class="grow"><b>${esc(d.name || d.host)}</b> <span class="badge">${d.kind === "tasmota" ? "Tasmota" : "ESPHome"}</span><div class="help">${esc(d.host)}</div></div><button class="small primary" data-h="${esc(d.host)}" data-k="${d.kind}">Usa questo</button></div>`).join("")}`
+      : `<p class="help">Nessun dispositivo Tasmota o ESPHome trovato. Se il Sonoff ha il firmware originale eWeLink, usa “Home Assistant” (o vedi la guida nel README).</p>`;
+    $("#sw-res").querySelectorAll("[data-h]").forEach(b => b.onclick = () => { st.kind = b.dataset.k; st.host = b.dataset.h; form.redraw(); $("#sw-read").click(); });
+  });
+  $("#sw-read").onclick = e => busy(e.target, async () => {
+    const r = await api("POST", "/api/sensors/read", { Kind: st.kind, Host: st.host, User: st.user, Pass: st.pass, URL: st.url, Token: st.token });
+    $("#sw-res").innerHTML = `<h3>Valori disponibili</h3><p class="help">Spunta quelli da mostrare in sovrimpressione.</p>
+      <table>${r.map((v, i) => `<tr><td><input type="checkbox" data-i="${i}" ${(/^°/.test(v.unit) || v.unit === "%") && !/rugiad|dew/i.test(v.label) && i < 4 ? "checked" : ""}></td><td>${esc(v.label)}${v.entity ? `<div class="help">${esc(v.entity)}</div>` : ""}</td><td><b>${esc(v.value)} ${esc(v.unit)}</b></td></tr>`).join("")}</table>
+      <div class="toolbar" style="margin-top:14px"><label class="help">Aggiungi la scritta alla webcam <select id="sw-cam" style="width:auto"><option value="">— solo crea i dati live —</option>${cfg.cameras.map(c => `<option value="${esc(c.id)}">${esc(c.name || c.id)}</option>`).join("")}</select></label>
+      <span class="spacer"></span><button class="primary" id="sw-create">Crea dati live</button></div>`;
+    $("#sw-create").onclick = ev => busy(ev.target, async () => {
+      const chosen = [...document.querySelectorAll("#sw-res [data-i]:checked")].map(c => r[Number(c.dataset.i)]);
+      if (!chosen.length) throw new Error("Seleziona almeno un valore");
+      const next = clone(cfg), parts = [];
+      for (const v of chosen) {
+        const short = /temp/i.test(v.label) ? "Temperatura" : /umid|humid/i.test(v.label) ? "Umidità" : v.label;
+        const id = uniqueId("sensore-" + short, next.data_sources);
+        const unit = /^°/.test(v.unit) ? v.unit : v.unit ? (v.unit === "%" ? "%" : " " + v.unit) : "";
+        next.data_sources.push({ id, name: v.label, type: v.type, url: v.url, path: v.path || "", entity: v.entity || "", token: v.type === "home_assistant" ? st.token : "",
+          unit, decimals: v.unit === "%" ? 0 : 1, refresh_seconds: 120, latitude: 0, longitude: 0, variable: "", station: "" });
+        parts.push(`${short} {data:${id}}`);
+      }
+      const camId = $("#sw-cam").value;
+      if (camId) next.cameras.find(c => c.id === camId).overlays.push({ type: "text", enabled: true, text: parts.join("  ·  "), anchor: "bottom-right", offset_x: 1.5, offset_y: 3, size: 3.2, color: "#ffffff", bold: true, shadow: true, background: "#000000", bg_opacity: 0.4, opacity: 1, full_width: false });
+      await saveConfig(next); closeModal();
+      toast(camId ? "Dati del sensore creati e aggiunti in sovrimpressione: spostali con il mouse" : "Dati del sensore creati");
+      location.hash = camId ? "#sovrimpressioni/" + encodeURIComponent(camId) : "#dati";
+      if (!camId) route();
+    });
+  });
+}
+
 async function wuValues(station, name, key) {
   const r = await api("POST", "/api/wu/observation", { key, station });
   const fmt = v => String(Math.round(v.value * 10) / 10).replace(".", ",") + v.unit;
