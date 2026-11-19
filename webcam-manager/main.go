@@ -81,6 +81,7 @@ func NewApp(dataDir, listen string) (*App, error) {
 	ffmpegInst.Unlock()
 	a.data = NewDataManager()
 	wuGlobalKey = func() string { return store.Get().WUApiKey }
+	ewelinkSettings = func() EWeLinkSettings { return store.Get().EWeLink }
 	a.renderer = NewRenderer(a.logoDir(), a.data)
 	a.renderer.store = store
 	a.sync = LoadSyncState(filepath.Join(dataDir, "history-sync.json"))

@@ -17,17 +17,18 @@ import (
 // Config è l'intero stato persistente dell'applicazione: un solo file JSON
 // che, copiato insieme all'eseguibile, replica l'installazione su un altro PC.
 type Config struct {
-	SchemaVersion int            `json:"schema_version"` // formato del file, per le migrazioni automatiche
-	Location      Location       `json:"location"`       // nome e altitudine della località
-	WUApiKey      string         `json:"wu_api_key"`     // chiave API Weather Underground (ricerca stazioni)
-	Update        UpdateSettings `json:"update"`         // aggiornamenti automatici del programma
-	Alerts        AlertSettings  `json:"alerts"`         // email in caso di errori
-	Listen        string         `json:"listen"`         // indirizzo del pannello, es. ":8080"
-	AdminUser     string         `json:"admin_user"`     // utente del pannello
-	AdminPassword string         `json:"admin_password"` // password del pannello
-	Cameras       []Camera       `json:"cameras"`
-	Sites         []Site         `json:"sites"`
-	DataSources   []DataSource   `json:"data_sources"` // dati live per le sovrimpressioni
+	SchemaVersion int             `json:"schema_version"` // formato del file, per le migrazioni automatiche
+	Location      Location        `json:"location"`       // nome e altitudine della località
+	WUApiKey      string          `json:"wu_api_key"`     // chiave API Weather Underground (ricerca stazioni)
+	EWeLink       EWeLinkSettings `json:"ewelink"`        // account eWeLink per i sensori Sonoff nel cloud
+	Update        UpdateSettings  `json:"update"`         // aggiornamenti automatici del programma
+	Alerts        AlertSettings   `json:"alerts"`         // email in caso di errori
+	Listen        string          `json:"listen"`         // indirizzo del pannello, es. ":8080"
+	AdminUser     string          `json:"admin_user"`     // utente del pannello
+	AdminPassword string          `json:"admin_password"` // password del pannello
+	Cameras       []Camera        `json:"cameras"`
+	Sites         []Site          `json:"sites"`
+	DataSources   []DataSource    `json:"data_sources"` // dati live per le sovrimpressioni
 }
 
 // Location identifica l'installazione: compare nelle scritte, nel titolo del
@@ -374,6 +375,10 @@ func (c *Config) Validate() error {
 		case "http_json", "http_text":
 			if ds.URL == "" {
 				return fmt.Errorf("dato live %q: URL mancante", ds.ID)
+			}
+		case "ewelink":
+			if ds.Entity == "" || (ds.Path != "temperature" && ds.Path != "humidity") {
+				return fmt.Errorf("dato live %q: sensore eWeLink non valido", ds.ID)
 			}
 		case "html":
 			if ds.URL == "" || ds.Path == "" {

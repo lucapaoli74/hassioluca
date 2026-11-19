@@ -3,6 +3,10 @@
 Ogni versione rilasciata ha qui la sua voce: il testo diventa le note della
 release mostrate nel pannello (Impostazioni → Aggiornamenti).
 
+## [0.3.0] - 2026-11-19
+
+- Sensori Sonoff collegati all'app eWeLink (Zigbee SNZB-02 su bridge Sonoff, TH con firmware originale): temperatura e umidità lette dal cloud eWeLink con le API ufficiali (servono APPID e APP SECRET gratuiti da dev.ewelink.cc), con creazione guidata della scritta in sovrimpressione.
+
 ## [0.2.9] - 2026-11-19
 
 - Sensori Sonoff di temperatura e umidità in sovrimpressione: lettura in locale da Tasmota, ESPHome o Home Assistant (anche Zigbee SNZB-02), con ricerca dei dispositivi nella rete e creazione con un clic dei dati live e della scritta sulla webcam.

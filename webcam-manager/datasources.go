@@ -21,6 +21,9 @@ var wuMetric = map[string]bool{
 	"windGust": true, "pressure": true, "precipRate": true, "precipTotal": true, "elev": true,
 }
 
+// ewelinkSettings restituisce l'account eWeLink salvato (impostata da App).
+var ewelinkSettings func() EWeLinkSettings
+
 // wuGlobalKey restituisce la chiave Weather Underground generale (impostata
 // da App), usata dalle fonti che non hanno una chiave propria.
 var wuGlobalKey func() string
@@ -168,6 +171,12 @@ func FetchDataSource(ctx context.Context, ds DataSource) (string, error) {
 		}
 	case "html":
 		raw, err = readPageValue(ctx, ds)
+	case "ewelink":
+		var st EWeLinkSettings
+		if ewelinkSettings != nil {
+			st = ewelinkSettings()
+		}
+		raw, err = readEWeLinkSource(ctx, ds, st)
 	case "http_text":
 		var body []byte
 		body, err = getBody(ctx, ds.URL, ds.Token)

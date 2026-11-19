@@ -911,7 +911,7 @@ const wuVars = [["temp", "Temperatura", "°C"], ["humidity", "Umidità", "%"], [
 const dataFields = [
   { k: "name", label: "Nome", placeholder: "Es. Temperatura esterna" },
   { k: "id", label: "ID (per il segnaposto {data:ID})" },
-  { k: "type", label: "Fonte", type: "select", redraw: true, options: [["open_meteo", "Meteo Open-Meteo (gratis, senza chiave)"], ["wunderground", "Stazione Weather Underground"], ["home_assistant", "Sensore di Home Assistant"], ["html", "Valore da una pagina web"], ["http_json", "URL JSON"], ["http_text", "URL testo semplice"]] },
+  { k: "type", label: "Fonte", type: "select", redraw: true, options: [["open_meteo", "Meteo Open-Meteo (gratis, senza chiave)"], ["wunderground", "Stazione Weather Underground"], ["home_assistant", "Sensore di Home Assistant"], ["ewelink", "Sensore Sonoff (app eWeLink)"], ["html", "Valore da una pagina web"], ["http_json", "URL JSON"], ["http_text", "URL testo semplice"]] },
   { k: "coords", label: "Coordinate del punto", type: "coords", show: d => d.type === "open_meteo" },
   { k: "variable", label: "Grandezza", type: "select", show: d => d.type === "open_meteo", options: meteoVars.map(v => [v[0], v[1]]) },
   { k: "station", label: "ID stazione", show: d => d.type === "wunderground", placeholder: "es. ISANTA123", help: "Usa “Cerca stazioni Weather Underground” nella pagina Dati live per trovarla. Se la chiave qui sotto è vuota si usa quella generale." },
@@ -938,7 +938,7 @@ pages.dati = async (page, arg) => {
   const st = await api("GET", "/api/status");
   $("#dt-list").innerHTML = cfg.data_sources.length ? cfg.data_sources.map(d => {
     const v = st.data[d.id] || {};
-    return `<div class="list-item"><div class="grow"><b>${esc(d.name || d.id)}</b> <code>{data:${esc(d.id)}}</code><div class="help">${esc({ html: "Pagina web", open_meteo: "Open-Meteo", wunderground: "Weather Underground " + (d.station || ""), home_assistant: "Home Assistant", http_json: "URL JSON", http_text: "URL testo" }[d.type] || d.type)} · ogni ${d.refresh_seconds}s ${v.error ? `· <span class="err-text">${esc(v.error)}</span>` : ""}</div></div>
+    return `<div class="list-item"><div class="grow"><b>${esc(d.name || d.id)}</b> <code>{data:${esc(d.id)}}</code><div class="help">${esc({ ewelink: "Sonoff eWeLink " + (d.entity || ""), html: "Pagina web", open_meteo: "Open-Meteo", wunderground: "Weather Underground " + (d.station || ""), home_assistant: "Home Assistant", http_json: "URL JSON", http_text: "URL testo" }[d.type] || d.type)} · ogni ${d.refresh_seconds}s ${v.error ? `· <span class="err-text">${esc(v.error)}</span>` : ""}</div></div>
       <b style="font-size:18px">${esc(v.value || "—")}</b><a class="btn small" href="#dati/${encodeURIComponent(d.id)}">Modifica</a></div>`;
   }).join("") : `<span class="help">Nessun dato configurato.</span>`;
 };
@@ -967,24 +967,31 @@ function wuSearchUI(box) {
 }
 // Sensori locali (Sonoff con Tasmota/ESPHome, o qualsiasi sensore in Home Assistant)
 function sensorWizard() {
-  const st = { kind: "home_assistant", host: "", user: "", pass: "", url: "http://homeassistant.local:8123", token: "" };
+  const ew = cfg.ewelink || {};
+  const st = { kind: "ewelink", host: "", user: "", pass: "", url: "http://homeassistant.local:8123", token: "",
+    app_id: ew.app_id || "", app_secret: ew.app_secret || "", email: ew.email || "", password: ew.password || "", country_code: ew.country_code || "+39" };
   const box = document.createElement("div");
   box.innerHTML = `<h2 style="margin-top:0">🔌 Sensore di temperatura e umidità</h2>
-    <p class="help">Come è collegato il sensore Sonoff? <b>Home Assistant</b>: il Sonoff è già in HA (Zigbee SNZB-02, integrazione eWeLink/SonoffLAN…). <b>Tasmota</b> o <b>ESPHome</b>: il Sonoff ha uno di questi firmware e si legge direttamente in rete.</p>
+    <p class="help">Come è collegato il sensore Sonoff? <b>App eWeLink</b>: sensore Zigbee (SNZB-02…) su bridge Sonoff o TH con firmware originale, letto dal cloud eWeLink. <b>Home Assistant</b>: il Sonoff è già in HA (Zigbee SNZB-02, integrazione eWeLink/SonoffLAN…). <b>Tasmota</b> o <b>ESPHome</b>: il Sonoff ha uno di questi firmware e si legge direttamente in rete.</p>
     <div id="sw-form"></div>
     <div class="toolbar" style="margin:12px 0 0"><button class="primary" id="sw-read">Leggi i sensori</button><button id="sw-scan">🔎 Cerca dispositivi nella rete</button><span id="sw-msg" class="help"></span></div>
     <div id="sw-res"></div>`;
   openModal(box);
   const form = renderForm(st, [
-    { k: "kind", label: "Collegamento", type: "select", redraw: true, options: [["home_assistant", "Home Assistant"], ["tasmota", "Firmware Tasmota"], ["esphome", "Firmware ESPHome"]] },
+    { k: "kind", label: "Collegamento", type: "select", redraw: true, options: [["ewelink", "App eWeLink (bridge Zigbee Sonoff, cloud)"], ["home_assistant", "Home Assistant"], ["tasmota", "Firmware Tasmota"], ["esphome", "Firmware ESPHome"]] },
+    { k: "app_id", label: "APPID (da dev.ewelink.cc)", show: x => x.kind === "ewelink", help: "Una volta sola: entra in <b>dev.ewelink.cc</b> con l'account eWeLink → Console → <i>Create</i> un'applicazione (ruolo standard) → copia APPID e APP SECRET." },
+    { k: "app_secret", label: "APP SECRET", type: "password", show: x => x.kind === "ewelink" },
+    { k: "email", label: "Email dell'account eWeLink", show: x => x.kind === "ewelink" },
+    { k: "password", label: "Password dell'account eWeLink", type: "password", show: x => x.kind === "ewelink" },
+    { k: "country_code", label: "Prefisso del paese", show: x => x.kind === "ewelink", placeholder: "+39" },
     { k: "url", label: "Indirizzo di Home Assistant", show: x => x.kind === "home_assistant", wide: true },
     { k: "token", label: "Token di accesso a lunga durata", type: "password", show: x => x.kind === "home_assistant", wide: true, help: "In Home Assistant: clic sul tuo nome in basso a sinistra → Sicurezza → Token di accesso a lunga durata → Crea token." },
     { k: "host", label: "Indirizzo IP del dispositivo", show: x => x.kind !== "home_assistant", placeholder: "192.168.1.50" },
     { k: "user", label: "Utente (se protetto)", show: x => x.kind !== "home_assistant" },
     { k: "pass", label: "Password (se protetto)", type: "password", show: x => x.kind !== "home_assistant" },
-  ], () => { $("#sw-scan").classList.toggle("hidden", st.kind === "home_assistant"); });
+  ], () => { $("#sw-scan").classList.toggle("hidden", st.kind === "home_assistant" || st.kind === "ewelink"); });
   $("#sw-form").appendChild(form);
-  $("#sw-scan").classList.toggle("hidden", st.kind === "home_assistant");
+  $("#sw-scan").classList.toggle("hidden", st.kind === "home_assistant" || st.kind === "ewelink");
   $("#sw-scan").onclick = e => busy(e.target, async () => {
     $("#sw-msg").textContent = "Ricerca nella rete (fino a un minuto)…";
     const devs = await api("POST", "/api/sensors/scan");
@@ -994,7 +1001,8 @@ function sensorWizard() {
     $("#sw-res").querySelectorAll("[data-h]").forEach(b => b.onclick = () => { st.kind = b.dataset.k; st.host = b.dataset.h; form.redraw(); $("#sw-read").click(); });
   });
   $("#sw-read").onclick = e => busy(e.target, async () => {
-    const r = await api("POST", "/api/sensors/read", { Kind: st.kind, Host: st.host, User: st.user, Pass: st.pass, URL: st.url, Token: st.token });
+    const ewSettings = { app_id: st.app_id.trim(), app_secret: st.app_secret.trim(), email: st.email.trim(), password: st.password, country_code: st.country_code.trim() || "+39", region: ew.region || "" };
+    const r = await api("POST", "/api/sensors/read", { Kind: st.kind, Host: st.host, User: st.user, Pass: st.pass, URL: st.url, Token: st.token, EWeLink: ewSettings });
     $("#sw-res").innerHTML = `<h3>Valori disponibili</h3><p class="help">Spunta quelli da mostrare in sovrimpressione.</p>
       <table>${r.map((v, i) => `<tr><td><input type="checkbox" data-i="${i}" ${(/^°/.test(v.unit) || v.unit === "%") && !/rugiad|dew/i.test(v.label) && i < 4 ? "checked" : ""}></td><td>${esc(v.label)}${v.entity ? `<div class="help">${esc(v.entity)}</div>` : ""}</td><td><b>${esc(v.value)} ${esc(v.unit)}</b></td></tr>`).join("")}</table>
       <div class="toolbar" style="margin-top:14px"><label class="help">Aggiungi la scritta alla webcam <select id="sw-cam" style="width:auto"><option value="">— solo crea i dati live —</option>${cfg.cameras.map(c => `<option value="${esc(c.id)}">${esc(c.name || c.id)}</option>`).join("")}</select></label>
@@ -1003,12 +1011,13 @@ function sensorWizard() {
       const chosen = [...document.querySelectorAll("#sw-res [data-i]:checked")].map(c => r[Number(c.dataset.i)]);
       if (!chosen.length) throw new Error("Seleziona almeno un valore");
       const next = clone(cfg), parts = [];
+      if (st.kind === "ewelink") next.ewelink = ewSettings; // l'account resta salvato per le letture periodiche
       for (const v of chosen) {
         const short = /temp/i.test(v.label) ? "Temperatura" : /umid|humid/i.test(v.label) ? "Umidità" : v.label;
         const id = uniqueId("sensore-" + short, next.data_sources);
         const unit = /^°/.test(v.unit) ? v.unit : v.unit ? (v.unit === "%" ? "%" : " " + v.unit) : "";
-        next.data_sources.push({ id, name: v.label, type: v.type, url: v.url, path: v.path || "", entity: v.entity || "", token: v.type === "home_assistant" ? st.token : "",
-          unit, decimals: v.unit === "%" ? 0 : 1, refresh_seconds: 120, latitude: 0, longitude: 0, variable: "", station: "" });
+        next.data_sources.push({ id, name: v.label, type: v.type, url: v.url || "", path: v.path || "", entity: v.entity || "", token: v.type === "home_assistant" ? st.token : "",
+          unit, decimals: v.unit === "%" ? 0 : 1, refresh_seconds: v.type === "ewelink" ? 300 : 120, latitude: 0, longitude: 0, variable: "", station: "" });
         parts.push(`${short} {data:${id}}`);
       }
       const camId = $("#sw-cam").value;

@@ -211,6 +211,7 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("POST /api/sensors/read", func(w http.ResponseWriter, r *http.Request) {
 		var req struct {
 			Kind, Host, User, Pass, URL, Token string
+			EWeLink                            EWeLinkSettings
 		}
 		if !readJSON(w, r, &req) {
 			return
@@ -226,6 +227,15 @@ func (s *Server) Handler() http.Handler {
 			out, err = ReadESPHome(ctx, req.Host, req.User, req.Pass)
 		case "home_assistant":
 			out, err = ReadHomeAssistant(ctx, req.URL, req.Token)
+		case "ewelink":
+			st, saved := req.EWeLink, a.store.Get().EWeLink
+			if st.AppSecret == mask || st.AppSecret == "" {
+				st.AppSecret = saved.AppSecret
+			}
+			if st.Password == mask || st.Password == "" {
+				st.Password = saved.Password
+			}
+			out, err = ReadEWeLink(ctx, st)
 		default:
 			err = fmt.Errorf("tipo di dispositivo sconosciuto")
 		}
@@ -645,6 +655,12 @@ func maskConfig(cfg Config) Config {
 	if cfg.WUApiKey != "" {
 		cfg.WUApiKey = mask
 	}
+	if cfg.EWeLink.AppSecret != "" {
+		cfg.EWeLink.AppSecret = mask
+	}
+	if cfg.EWeLink.Password != "" {
+		cfg.EWeLink.Password = mask
+	}
 	return cfg
 }
 
@@ -661,6 +677,12 @@ func unmask(cfg *Config, old Config) {
 	}
 	if cfg.WUApiKey == mask {
 		cfg.WUApiKey = old.WUApiKey
+	}
+	if cfg.EWeLink.AppSecret == mask {
+		cfg.EWeLink.AppSecret = old.EWeLink.AppSecret
+	}
+	if cfg.EWeLink.Password == mask {
+		cfg.EWeLink.Password = old.EWeLink.Password
 	}
 	for i := range cfg.Cameras {
 		if cfg.Cameras[i].Password == mask {

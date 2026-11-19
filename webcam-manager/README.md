@@ -126,7 +126,12 @@ Le coordinate GPS si possono scegliere in tre modi:
 
 Spunta temperatura e umidità: vengono creati i dati live e, se scegli una webcam, anche la scritta in sovrimpressione, da spostare col mouse.
 
-Con il **firmware originale eWeLink**, senza Home Assistant, il programma non può leggere il sensore in locale. In quel caso conviene aggiungerlo a Home Assistant (integrazione eWeLink/SonoffLAN) o passare a Tasmota/ESPHome.
+**App eWeLink** (sensori Zigbee SNZB-02 su bridge Sonoff, TH con firmware originale): i dati si leggono dal cloud eWeLink con le API ufficiali.
+
+1. Una volta sola, entra su **dev.ewelink.cc** con l'account eWeLink → Console → crea un'applicazione (ruolo standard) e copia **APPID** e **APP SECRET**.
+2. Nel pannello scegli *App eWeLink* e inserisci le due chiavi, l'email e la password dell'account eWeLink e il prefisso del paese (+39).
+
+I valori vengono riletti ogni 5 minuti, nel rispetto dei limiti di eWeLink.
 
 ### OneDrive
 
