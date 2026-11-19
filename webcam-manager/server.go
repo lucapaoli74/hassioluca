@@ -9,6 +9,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"html"
 	"io"
 	"io/fs"
 	"log"
@@ -19,6 +20,7 @@ import (
 	"regexp"
 	"sort"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -32,6 +34,9 @@ var historyHTML = func() []byte {
 	}
 	return b
 }()
+
+// ewelinkStates: richieste di collegamento eWeLink in corso (state → redirect)
+var ewelinkStates sync.Map
 
 // mask sostituisce le password nelle risposte al browser; se torna indietro
 // invariato significa "lascia la password attuale".
@@ -201,6 +206,74 @@ func (s *Server) Handler() http.Handler {
 		writeJSON(w, map[string]string{"ok": "1"})
 	})
 	mux.HandleFunc("POST /api/test-datasource", s.testDataSource)
+	// collegamento autorizzato eWeLink (OAuth): apre la pagina ufficiale di login
+	mux.HandleFunc("POST /api/ewelink/auth-url", func(w http.ResponseWriter, r *http.Request) {
+		var req struct {
+			AppID, AppSecret, CountryCode, Redirect string
+		}
+		if !readJSON(w, r, &req) {
+			return
+		}
+		cfg := a.store.Get()
+		st := cfg.EWeLink
+		if req.AppID != st.AppID { // applicazione nuova: i vecchi token non valgono più
+			st.AccessToken, st.RefreshToken = "", ""
+		}
+		st.AppID = strings.TrimSpace(req.AppID)
+		if req.AppSecret != "" && req.AppSecret != mask {
+			st.AppSecret = strings.TrimSpace(req.AppSecret)
+		}
+		if req.CountryCode != "" {
+			st.CountryCode = req.CountryCode
+		}
+		if st.AppID == "" || st.AppSecret == "" {
+			httpError(w, http.StatusBadRequest, "inserisci APPID e APP SECRET della tua applicazione su dev.ewelink.cc")
+			return
+		}
+		cfg.EWeLink = st
+		if err := a.store.Replace(cfg); err != nil {
+			httpError(w, http.StatusBadRequest, err.Error())
+			return
+		}
+		state := randomPassword()
+		ewelinkStates.Store(state, req.Redirect)
+		writeJSON(w, map[string]string{"url": EWeLinkAuthURL(st, req.Redirect, state)})
+	})
+	mux.HandleFunc("GET /api/ewelink/callback", func(w http.ResponseWriter, r *http.Request) {
+		q := r.URL.Query()
+		redirect, ok := ewelinkStates.LoadAndDelete(q.Get("state"))
+		page := func(ok bool, msg string) {
+			w.Header().Set("Content-Type", "text/html; charset=utf-8")
+			icon := map[bool]string{true: "✅", false: "❌"}[ok]
+			fmt.Fprintf(w, `<!doctype html><meta charset="utf-8"><title>eWeLink</title><body style="font-family:system-ui;padding:40px;text-align:center"><h2>%s %s</h2><p>Puoi chiudere questa finestra e tornare al pannello.</p><script>try{window.opener&&window.opener.postMessage({ewelink:%v},"*")}catch(e){};setTimeout(()=>window.close(),2500)</script>`, icon, html.EscapeString(msg), ok)
+		}
+		if !ok {
+			page(false, "Richiesta scaduta: riprova “Collega account eWeLink” dal pannello")
+			return
+		}
+		if q.Get("code") == "" {
+			page(false, "eWeLink non ha autorizzato l'accesso")
+			return
+		}
+		cfg := a.store.Get()
+		region := q.Get("region")
+		if region == "" {
+			region = "eu"
+		}
+		st, err := EWeLinkExchange(r.Context(), cfg.EWeLink, q.Get("code"), region, redirect.(string))
+		if err != nil {
+			page(false, err.Error())
+			return
+		}
+		cfg = a.store.Get()
+		cfg.EWeLink.AccessToken, cfg.EWeLink.RefreshToken, cfg.EWeLink.Region = st.AccessToken, st.RefreshToken, st.Region
+		if err := a.store.Replace(cfg); err != nil {
+			page(false, err.Error())
+			return
+		}
+		ewSession = &ewelinkSession{}
+		page(true, "Account eWeLink collegato")
+	})
 	mux.HandleFunc("POST /api/sensors/scan", func(w http.ResponseWriter, r *http.Request) {
 		devs := FindSensorDevices(r.Context())
 		if devs == nil {
@@ -234,6 +307,12 @@ func (s *Server) Handler() http.Handler {
 			}
 			if st.Password == mask || st.Password == "" {
 				st.Password = saved.Password
+			}
+			if st.AppID == saved.AppID {
+				st.AccessToken, st.RefreshToken = saved.AccessToken, saved.RefreshToken
+				if st.Region == "" {
+					st.Region = saved.Region
+				}
 			}
 			out, err = ReadEWeLink(ctx, st)
 		default:
@@ -661,6 +740,12 @@ func maskConfig(cfg Config) Config {
 	if cfg.EWeLink.Password != "" {
 		cfg.EWeLink.Password = mask
 	}
+	if cfg.EWeLink.AccessToken != "" {
+		cfg.EWeLink.AccessToken = mask
+	}
+	if cfg.EWeLink.RefreshToken != "" {
+		cfg.EWeLink.RefreshToken = mask
+	}
 	return cfg
 }
 
@@ -683,6 +768,12 @@ func unmask(cfg *Config, old Config) {
 	}
 	if cfg.EWeLink.Password == mask {
 		cfg.EWeLink.Password = old.EWeLink.Password
+	}
+	if cfg.EWeLink.AccessToken == mask {
+		cfg.EWeLink.AccessToken = old.EWeLink.AccessToken
+	}
+	if cfg.EWeLink.RefreshToken == mask {
+		cfg.EWeLink.RefreshToken = old.EWeLink.RefreshToken
 	}
 	for i := range cfg.Cameras {
 		if cfg.Cameras[i].Password == mask {

@@ -128,8 +128,8 @@ Spunta temperatura e umidità: vengono creati i dati live e, se scegli una webca
 
 **App eWeLink** (sensori Zigbee SNZB-02 su bridge Sonoff, TH con firmware originale): i dati si leggono dal cloud eWeLink con le API ufficiali.
 
-1. Una volta sola, entra su **dev.ewelink.cc** con l'account eWeLink → Console → crea un'applicazione (ruolo standard) e copia **APPID** e **APP SECRET**.
-2. Nel pannello scegli *App eWeLink* e inserisci le due chiavi, l'email e la password dell'account eWeLink e il prefisso del paese (+39).
+1. Una volta sola, entra su **dev.ewelink.cc** con l'account eWeLink → Console → crea un'applicazione (ruolo standard). Come **Redirect URL** inserisci quello mostrato nel pannello, es. `http://localhost:8080/api/ewelink/callback`. Poi copia **APPID** e **APP SECRET**.
+2. Nel pannello scegli *App eWeLink*, inserisci le due chiavi e premi **🔗 Collega account eWeLink**: si apre la pagina ufficiale di eWeLink, dove accedi e autorizzi. La password eWeLink non viene salvata nel programma e l'autorizzazione si rinnova da sola.
 
 I valori vengono riletti ogni 5 minuti, nel rispetto dei limiti di eWeLink.
 

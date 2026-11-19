@@ -82,6 +82,14 @@ func NewApp(dataDir, listen string) (*App, error) {
 	a.data = NewDataManager()
 	wuGlobalKey = func() string { return store.Get().WUApiKey }
 	ewelinkSettings = func() EWeLinkSettings { return store.Get().EWeLink }
+	ewelinkSaveTokens = func(at, rt, region string) {
+		cfg := store.Get()
+		cfg.EWeLink.AccessToken, cfg.EWeLink.RefreshToken = at, rt
+		if region != "" {
+			cfg.EWeLink.Region = region
+		}
+		_ = store.Replace(cfg)
+	}
 	a.renderer = NewRenderer(a.logoDir(), a.data)
 	a.renderer.store = store
 	a.sync = LoadSyncState(filepath.Join(dataDir, "history-sync.json"))

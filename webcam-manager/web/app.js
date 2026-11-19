@@ -974,23 +974,46 @@ function sensorWizard() {
   box.innerHTML = `<h2 style="margin-top:0">🔌 Sensore di temperatura e umidità</h2>
     <p class="help">Come è collegato il sensore Sonoff? <b>App eWeLink</b>: sensore Zigbee (SNZB-02…) su bridge Sonoff o TH con firmware originale, letto dal cloud eWeLink. <b>Home Assistant</b>: il Sonoff è già in HA (Zigbee SNZB-02, integrazione eWeLink/SonoffLAN…). <b>Tasmota</b> o <b>ESPHome</b>: il Sonoff ha uno di questi firmware e si legge direttamente in rete.</p>
     <div id="sw-form"></div>
+    <div id="sw-ew" class="card" style="margin-top:12px"></div>
     <div class="toolbar" style="margin:12px 0 0"><button class="primary" id="sw-read">Leggi i sensori</button><button id="sw-scan">🔎 Cerca dispositivi nella rete</button><span id="sw-msg" class="help"></span></div>
     <div id="sw-res"></div>`;
   openModal(box);
   const form = renderForm(st, [
     { k: "kind", label: "Collegamento", type: "select", redraw: true, options: [["ewelink", "App eWeLink (bridge Zigbee Sonoff, cloud)"], ["home_assistant", "Home Assistant"], ["tasmota", "Firmware Tasmota"], ["esphome", "Firmware ESPHome"]] },
-    { k: "app_id", label: "APPID (da dev.ewelink.cc)", show: x => x.kind === "ewelink", help: "Una volta sola: entra in <b>dev.ewelink.cc</b> con l'account eWeLink → Console → <i>Create</i> un'applicazione (ruolo standard) → copia APPID e APP SECRET." },
+    { k: "app_id", label: "APPID (da dev.ewelink.cc)", show: x => x.kind === "ewelink", help: "Su <b>dev.ewelink.cc</b>, nella tua applicazione, inserisci come <b>Redirect URL</b> l'indirizzo qui sotto, poi copia qui APPID e APP SECRET." },
     { k: "app_secret", label: "APP SECRET", type: "password", show: x => x.kind === "ewelink" },
-    { k: "email", label: "Email dell'account eWeLink", show: x => x.kind === "ewelink" },
-    { k: "password", label: "Password dell'account eWeLink", type: "password", show: x => x.kind === "ewelink" },
-    { k: "country_code", label: "Prefisso del paese", show: x => x.kind === "ewelink", placeholder: "+39" },
     { k: "url", label: "Indirizzo di Home Assistant", show: x => x.kind === "home_assistant", wide: true },
     { k: "token", label: "Token di accesso a lunga durata", type: "password", show: x => x.kind === "home_assistant", wide: true, help: "In Home Assistant: clic sul tuo nome in basso a sinistra → Sicurezza → Token di accesso a lunga durata → Crea token." },
     { k: "host", label: "Indirizzo IP del dispositivo", show: x => x.kind !== "home_assistant", placeholder: "192.168.1.50" },
     { k: "user", label: "Utente (se protetto)", show: x => x.kind !== "home_assistant" },
     { k: "pass", label: "Password (se protetto)", type: "password", show: x => x.kind !== "home_assistant" },
-  ], () => { $("#sw-scan").classList.toggle("hidden", st.kind === "home_assistant" || st.kind === "ewelink"); });
+  ], () => { $("#sw-scan").classList.toggle("hidden", st.kind === "home_assistant" || st.kind === "ewelink"); drawEw(); });
   $("#sw-form").appendChild(form);
+  // eWeLink: collegamento autorizzato (le app "standard" non possono usare email e password)
+  const redirect = location.origin + "/api/ewelink/callback";
+  let connected = !!(ew.refresh_token);
+  const drawEw = () => {
+    const box = $("#sw-ew"); if (!box) return;
+    box.classList.toggle("hidden", st.kind !== "ewelink");
+    box.innerHTML = `<div class="help" style="margin-bottom:6px">Redirect URL da inserire nella tua applicazione su dev.ewelink.cc:</div>
+      <div class="toolbar" style="margin:0"><code id="sw-redir" style="flex:1;word-break:break-all">${esc(redirect)}</code><button class="small" id="sw-copy">📋 Copia</button></div>
+      <div class="toolbar" style="margin:10px 0 0">${connected ? '<span class="badge ok">account collegato</span>' : '<span class="badge warn">account non collegato</span>'}
+      <button class="${connected ? "" : "primary"}" id="sw-connect">🔗 ${connected ? "Ricollega" : "Collega"} account eWeLink</button></div>
+      <p class="help">Si apre la pagina ufficiale di eWeLink: accedi con il tuo account e autorizza. La password eWeLink non viene salvata nel programma.</p>`;
+    $("#sw-copy").onclick = () => navigator.clipboard.writeText(redirect).then(() => toast("Copiato"), () => toast("Seleziona e copia con Ctrl+C", true));
+    $("#sw-connect").onclick = e => busy(e.target, async () => {
+      const r = await api("POST", "/api/ewelink/auth-url", { AppID: st.app_id.trim(), AppSecret: st.app_secret.trim(), CountryCode: st.country_code, Redirect: redirect });
+      const win = window.open(r.url, "ewelink", "width=520,height=760");
+      if (!win) { location.href = r.url; return; }
+      toast("Accedi a eWeLink nella finestra che si è aperta");
+    });
+  };
+  window.addEventListener("message", async ev => {
+    if (!ev.data || typeof ev.data.ewelink !== "boolean") return;
+    if (ev.data.ewelink) { connected = true; await loadConfig(); drawEw(); toast("Account eWeLink collegato"); $("#sw-read") && $("#sw-read").click(); }
+    else toast("Collegamento eWeLink non riuscito: riprova", true);
+  });
+  drawEw();
   $("#sw-scan").classList.toggle("hidden", st.kind === "home_assistant" || st.kind === "ewelink");
   $("#sw-scan").onclick = e => busy(e.target, async () => {
     $("#sw-msg").textContent = "Ricerca nella rete (fino a un minuto)…";
@@ -1001,7 +1024,9 @@ function sensorWizard() {
     $("#sw-res").querySelectorAll("[data-h]").forEach(b => b.onclick = () => { st.kind = b.dataset.k; st.host = b.dataset.h; form.redraw(); $("#sw-read").click(); });
   });
   $("#sw-read").onclick = e => busy(e.target, async () => {
-    const ewSettings = { app_id: st.app_id.trim(), app_secret: st.app_secret.trim(), email: st.email.trim(), password: st.password, country_code: st.country_code.trim() || "+39", region: ew.region || "" };
+    const cur = cfg.ewelink || {};
+    const ewSettings = { app_id: st.app_id.trim(), app_secret: st.app_secret.trim(), email: "", password: "", country_code: st.country_code.trim() || "+39", region: cur.region || "",
+      access_token: cur.access_token || "", refresh_token: cur.refresh_token || "" };
     const r = await api("POST", "/api/sensors/read", { Kind: st.kind, Host: st.host, User: st.user, Pass: st.pass, URL: st.url, Token: st.token, EWeLink: ewSettings });
     $("#sw-res").innerHTML = `<h3>Valori disponibili</h3><p class="help">Spunta quelli da mostrare in sovrimpressione.</p>
       <table>${r.map((v, i) => `<tr><td><input type="checkbox" data-i="${i}" ${(/^°/.test(v.unit) || v.unit === "%") && !/rugiad|dew/i.test(v.label) && i < 4 ? "checked" : ""}></td><td>${esc(v.label)}${v.entity ? `<div class="help">${esc(v.entity)}</div>` : ""}</td><td><b>${esc(v.value)} ${esc(v.unit)}</b></td></tr>`).join("")}</table>

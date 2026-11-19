@@ -80,3 +80,61 @@ func TestEWeLinkCloud(t *testing.T) {
 		t.Fatalf("accessi a eWeLink: %d (deve riusare il token)", logins)
 	}
 }
+
+func TestEWeLinkOAuth(t *testing.T) {
+	tokenNow := "AT1"
+	mux := http.NewServeMux()
+	mux.HandleFunc("/eu/v2/user/oauth/token", func(w http.ResponseWriter, r *http.Request) {
+		body, _ := io.ReadAll(r.Body)
+		if r.Header.Get("Authorization") != "Sign "+ewelinkSign("secret1", body) || !strings.Contains(string(body), `"code":"C0DE"`) {
+			w.Write([]byte(`{"error":400,"msg":"bad"}`))
+			return
+		}
+		w.Write([]byte(`{"error":0,"data":{"accessToken":"AT1","refreshToken":"RT1","atExpiredTime":1,"rtExpiredTime":2}}`))
+	})
+	mux.HandleFunc("/eu/v2/user/refresh", func(w http.ResponseWriter, r *http.Request) {
+		body, _ := io.ReadAll(r.Body)
+		if !strings.Contains(string(body), `"rt":"RT1"`) {
+			w.Write([]byte(`{"error":401,"msg":"rt"}`))
+			return
+		}
+		tokenNow = "AT2"
+		w.Write([]byte(`{"error":0,"data":{"at":"AT2","rt":"RT2"}}`))
+	})
+	mux.HandleFunc("/eu/v2/device/thing", func(w http.ResponseWriter, r *http.Request) {
+		if r.Header.Get("Authorization") != "Bearer "+tokenNow {
+			w.Write([]byte(`{"error":401,"msg":"token expired"}`))
+			return
+		}
+		w.Write([]byte(`{"error":0,"data":{"thingList":[{"itemData":{"deviceid":"a1","name":"SNZB","online":true,"extra":{"uiid":1770},"params":{"temperature":"-245","humidity":"9120"}}}]}}`))
+	})
+	srv := httptest.NewServer(mux)
+	defer srv.Close()
+	old := ewelinkBase
+	ewelinkBase = func(region string) string { return srv.URL + "/" + region }
+	defer func() { ewelinkBase = old }()
+
+	st := EWeLinkSettings{AppID: "app1", AppSecret: "secret1"}
+	u := EWeLinkAuthURL(st, "http://localhost:8080/api/ewelink/callback", "abcdefgh12345678")
+	if !strings.HasPrefix(u, "https://c2ccdn.coolkit.cc/oauth/index.html?") || !strings.Contains(u, "clientId=app1") || !strings.Contains(u, "redirectUrl=http%3A%2F%2Flocalhost%3A8080%2Fapi%2Fewelink%2Fcallback") {
+		t.Fatalf("url: %s", u)
+	}
+	st, err := EWeLinkExchange(context.Background(), st, "C0DE", "eu", "http://localhost:8080/api/ewelink/callback")
+	if err != nil || st.AccessToken != "AT1" || st.RefreshToken != "RT1" {
+		t.Fatalf("scambio: %+v %v", st, err)
+	}
+	ewSession = &ewelinkSession{}
+	r, err := ReadEWeLink(context.Background(), st)
+	if err != nil || len(r) != 2 || r[0].Value != "-2,5" && r[0].Value != "-2,4" {
+		t.Fatalf("lettura: %+v %v", r, err)
+	}
+	// il token scade: deve rinnovarsi da solo con il refresh token e salvarlo
+	tokenNow = "EXPIRED"
+	saved := ""
+	ewelinkSaveTokens = func(at, rt, region string) { saved = at + "/" + rt }
+	defer func() { ewelinkSaveTokens = nil }()
+	ewSession.fetched = ewSession.fetched.Add(-2 * 60e9)
+	if _, err := ReadEWeLink(context.Background(), st); err != nil || saved != "AT2/RT2" {
+		t.Fatalf("rinnovo: saved=%q err=%v", saved, err)
+	}
+}

@@ -3,6 +3,10 @@
 Ogni versione rilasciata ha qui la sua voce: il testo diventa le note della
 release mostrate nel pannello (Impostazioni → Aggiornamenti).
 
+## [0.3.1] - 2026-11-19
+
+- eWeLink: accesso con il collegamento autorizzato ufficiale (OAuth), obbligatorio per le applicazioni "standard" di dev.ewelink.cc (errore 407 con email e password). Pulsante "Collega account eWeLink", rinnovo automatico dell'autorizzazione, password eWeLink non più salvata.
+
 ## [0.3.0] - 2026-11-19
 
 - Sensori Sonoff collegati all'app eWeLink (Zigbee SNZB-02 su bridge Sonoff, TH con firmware originale): temperatura e umidità lette dal cloud eWeLink con le API ufficiali (servono APPID e APP SECRET gratuiti da dev.ewelink.cc), con creazione guidata della scritta in sovrimpressione.

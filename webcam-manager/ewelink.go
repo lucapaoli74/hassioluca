@@ -12,6 +12,7 @@ import (
 	"io"
 	"math"
 	"net/http"
+	"net/url"
 	"os"
 	"strconv"
 	"strings"
@@ -32,6 +33,80 @@ type EWeLinkSettings struct {
 	Password    string `json:"password"`
 	CountryCode string `json:"country_code"` // es. "+39"
 	Region      string `json:"region"`       // eu, us, as, cn (ricavata al primo accesso)
+	// collegamento autorizzato (OAuth): obbligatorio per le applicazioni "standard"
+	AccessToken  string `json:"access_token"`
+	RefreshToken string `json:"refresh_token"`
+}
+
+// ewelinkSaveTokens salva i token rinnovati nella configurazione (impostata da App).
+var ewelinkSaveTokens func(at, rt, region string)
+
+// EWeLinkAuthURL restituisce la pagina ufficiale di accesso eWeLink: dopo il
+// login eWeLink rimanda a redirect con ?code=...&region=...&state=...
+func EWeLinkAuthURL(st EWeLinkSettings, redirect, state string) string {
+	seq := strconv.FormatInt(time.Now().UnixMilli(), 10)
+	q := url.Values{}
+	q.Set("clientId", st.AppID)
+	q.Set("seq", seq)
+	q.Set("authorization", ewelinkSign(st.AppSecret, []byte(st.AppID+"_"+seq)))
+	q.Set("redirectUrl", redirect)
+	q.Set("grantType", "authorization_code")
+	q.Set("state", state)
+	q.Set("nonce", state[:8])
+	q.Set("showQRCode", "false")
+	return "https://c2ccdn.coolkit.cc/oauth/index.html?" + q.Encode()
+}
+
+// EWeLinkExchange scambia il codice ricevuto con i token di accesso.
+func EWeLinkExchange(ctx context.Context, st EWeLinkSettings, code, region, redirect string) (EWeLinkSettings, error) {
+	body, _ := json.Marshal(map[string]string{"code": code, "redirectUrl": redirect, "grantType": "authorization_code"})
+	req, _ := http.NewRequest(http.MethodPost, ewelinkBase(region)+"/v2/user/oauth/token", bytes.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("X-CK-Appid", st.AppID)
+	req.Header.Set("Authorization", "Sign "+ewelinkSign(st.AppSecret, body))
+	r, err := ewelinkDo(ctx, req)
+	if err != nil {
+		return st, err
+	}
+	var d struct {
+		AccessToken  string `json:"accessToken"`
+		RefreshToken string `json:"refreshToken"`
+	}
+	_ = json.Unmarshal(r.Data, &d)
+	if r.Error != 0 || d.AccessToken == "" {
+		return st, fmt.Errorf("eWeLink: autorizzazione non riuscita (%d %s)", r.Error, r.Msg)
+	}
+	st.AccessToken, st.RefreshToken, st.Region = d.AccessToken, d.RefreshToken, region
+	return st, nil
+}
+
+// refresh rinnova il token di accesso con il refresh token (valido circa 60 giorni:
+// letto ogni pochi minuti, l'autorizzazione resta valida finché il programma gira).
+func (s *ewelinkSession) refresh(ctx context.Context, st EWeLinkSettings) error {
+	body, _ := json.Marshal(map[string]string{"rt": s.rt})
+	for _, auth := range []string{"Bearer " + s.token, "Sign " + ewelinkSign(st.AppSecret, body)} {
+		req, _ := http.NewRequest(http.MethodPost, ewelinkBase(s.region)+"/v2/user/refresh", bytes.NewReader(body))
+		req.Header.Set("Content-Type", "application/json")
+		req.Header.Set("X-CK-Appid", st.AppID)
+		req.Header.Set("Authorization", auth)
+		r, err := ewelinkDo(ctx, req)
+		if err != nil {
+			return err
+		}
+		var d struct {
+			At string `json:"at"`
+			Rt string `json:"rt"`
+		}
+		_ = json.Unmarshal(r.Data, &d)
+		if r.Error == 0 && d.At != "" {
+			s.token, s.rt = d.At, d.Rt
+			if ewelinkSaveTokens != nil {
+				ewelinkSaveTokens(d.At, d.Rt, s.region)
+			}
+			return nil
+		}
+	}
+	return errors.New("autorizzazione eWeLink scaduta: ricollega l'account con “Collega account eWeLink”")
 }
 
 // ewelinkBase restituisce l'indirizzo delle API per la regione (sostituibile nei test).
@@ -52,6 +127,7 @@ type ewelinkSession struct {
 	mu      sync.Mutex
 	key     string // credenziali a cui si riferisce il token
 	token   string
+	rt      string
 	region  string
 	things  []ewelinkThing
 	fetched time.Time
@@ -148,16 +224,22 @@ func (s *ewelinkSession) login(ctx context.Context, st EWeLinkSettings) error {
 func (s *ewelinkSession) devices(ctx context.Context, st EWeLinkSettings) ([]ewelinkThing, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	key := st.AppID + "|" + st.Email + "|" + st.Password
+	key := st.AppID + "|" + st.Email + "|" + st.Password + "|" + st.RefreshToken
 	if s.key != key {
-		s.key, s.token, s.things = key, "", nil
+		s.key, s.token, s.rt, s.region, s.things = key, st.AccessToken, st.RefreshToken, st.Region, nil
 	}
 	if s.things != nil && time.Since(s.fetched) < 60*time.Second {
 		return s.things, nil
 	}
 	for attempt := 0; attempt < 2; attempt++ {
 		if s.token == "" {
-			if err := s.login(ctx, st); err != nil {
+			if s.rt != "" {
+				if err := s.refresh(ctx, st); err != nil {
+					return nil, err
+				}
+			} else if st.Email == "" && st.Password == "" {
+				return nil, errors.New("account eWeLink non collegato: premi “Collega account eWeLink”")
+			} else if err := s.login(ctx, st); err != nil {
 				return nil, err
 			}
 		}
@@ -169,7 +251,7 @@ func (s *ewelinkSession) devices(ctx context.Context, st EWeLinkSettings) ([]ewe
 			return nil, err
 		}
 		if r.Error == 401 || r.Error == 402 || r.Error == 406 {
-			s.token = "" // token scaduto: nuovo accesso
+			s.token = "" // token scaduto: si rinnova (refresh token) o si rifà l'accesso
 			continue
 		}
 		if r.Error != 0 {
