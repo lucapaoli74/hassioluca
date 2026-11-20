@@ -6,6 +6,7 @@ import (
 	"context"
 	"crypto/md5"
 	"crypto/rand"
+	"crypto/tls"
 	"encoding/hex"
 	"errors"
 	"fmt"
@@ -19,6 +20,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"runtime"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -31,6 +33,41 @@ var httpClient = &http.Client{Timeout: 20 * time.Second}
 // streamClient non ha timeout globale: gli stream live durano finché il
 // browser resta collegato e sono chiusi tramite il context.
 var streamClient = &http.Client{}
+
+// Le telecamere in rete locale spesso usano HTTPS con un certificato creato
+// da loro (es. Reolink con firmware recenti): per le sole richieste alle
+// telecamere il certificato non viene verificato.
+var camTransport = func() *http.Transport {
+	t := http.DefaultTransport.(*http.Transport).Clone()
+	t.TLSClientConfig = &tls.Config{InsecureSkipVerify: true} //nolint:gosec // telecamere in LAN
+	return t
+}()
+
+var (
+	camClient       = &http.Client{Timeout: 20 * time.Second, Transport: camTransport}
+	camStreamClient = &http.Client{Transport: camTransport}
+)
+
+// reolinkSnapURL completa l'indirizzo dello snapshot Reolink
+// (/cgi-bin/api.cgi?cmd=Snap): utente e password vanno nell'indirizzo, non
+// nell'autenticazione HTTP, e serve il parametro rs.
+func reolinkSnapURL(raw, user, pass string) string {
+	u, err := url.Parse(raw)
+	if err != nil || !strings.Contains(strings.ToLower(u.Path), "/cgi-bin/api.cgi") || !strings.EqualFold(u.Query().Get("cmd"), "Snap") {
+		return raw
+	}
+	q := u.Query()
+	if q.Get("channel") == "" {
+		q.Set("channel", "0")
+	}
+	q.Set("rs", strconv.FormatInt(time.Now().UnixNano()%1e9, 36))
+	if user != "" && q.Get("user") == "" && q.Get("token") == "" {
+		q.Set("user", user)
+		q.Set("password", pass)
+	}
+	u.RawQuery = q.Encode()
+	return u.String()
+}
 
 // effectiveSource corregge il tipo di sorgente quando l'indirizzo non lascia
 // dubbi (es. un URL rtsp:// impostato per errore come "snapshot").
@@ -54,7 +91,7 @@ func CaptureFrame(ctx context.Context, cam Camera) ([]byte, error) {
 	case "mjpeg":
 		ctx, cancel := context.WithTimeout(ctx, 20*time.Second)
 		defer cancel()
-		resp, err := doCameraRequest(ctx, streamClient, cam.URL, cam.Username, cam.Password)
+		resp, err := doCameraRequest(ctx, camStreamClient, cam.URL, cam.Username, cam.Password)
 		if err != nil {
 			return nil, err
 		}
@@ -67,7 +104,7 @@ func CaptureFrame(ctx context.Context, cam Camera) ([]byte, error) {
 }
 
 func fetchSnapshot(ctx context.Context, cam Camera) ([]byte, error) {
-	resp, err := doCameraRequest(ctx, httpClient, cam.URL, cam.Username, cam.Password)
+	resp, err := doCameraRequest(ctx, camClient, reolinkSnapURL(cam.URL, cam.Username, cam.Password), cam.Username, cam.Password)
 	if err != nil {
 		return nil, err
 	}
@@ -77,6 +114,17 @@ func fetchSnapshot(ctx context.Context, cam Camera) ([]byte, error) {
 		return nil, err
 	}
 	if len(data) < 2 || data[0] != 0xFF || data[1] != 0xD8 {
+		// Reolink e altre rispondono con un errore in JSON (es. "login failed")
+		if t := strings.TrimSpace(string(data[:min(len(data), 300)])); strings.HasPrefix(t, "{") || strings.HasPrefix(t, "[") {
+			low := strings.ToLower(t)
+			switch {
+			case strings.Contains(low, "login") || strings.Contains(low, "password") || strings.Contains(low, "auth"):
+				return nil, errors.New("la telecamera rifiuta utente o password")
+			case strings.Contains(low, "not support") || strings.Contains(low, "disable"):
+				return nil, errors.New("la telecamera non permette lo snapshot: attiva HTTP/HTTPS nelle impostazioni di rete")
+			}
+			return nil, fmt.Errorf("la telecamera ha risposto con un errore: %s", hideCreds(t))
+		}
 		return nil, errors.New("la risposta non è un'immagine JPEG (controlla l'URL)")
 	}
 	return data, nil
@@ -267,7 +315,12 @@ func ffmpegPath() (string, error) {
 var credsInURL = regexp.MustCompile(`(rtsps?://)[^/@\s]+@`)
 
 // hideCreds toglie utente e password dagli URL contenuti nei messaggi.
-func hideCreds(s string) string { return credsInURL.ReplaceAllString(s, "${1}***@") }
+func hideCreds(s string) string {
+	s = credsInURL.ReplaceAllString(s, "${1}***@")
+	return rePassParam.ReplaceAllString(s, "${1}***")
+}
+
+var rePassParam = regexp.MustCompile(`(?i)((?:password|pwd|pass)=)[^&\s"]+`)
 
 // rtspTransports ricorda, per ogni URL, il trasporto che ha funzionato.
 var (
@@ -386,7 +439,7 @@ func LiveStream(ctx context.Context, cam Camera, emit func([]byte) error) error 
 	cam.Source = effectiveSource(cam)
 	switch cam.Source {
 	case "mjpeg":
-		resp, err := doCameraRequest(ctx, streamClient, cam.URL, cam.Username, cam.Password)
+		resp, err := doCameraRequest(ctx, camStreamClient, cam.URL, cam.Username, cam.Password)
 		if err != nil {
 			return err
 		}

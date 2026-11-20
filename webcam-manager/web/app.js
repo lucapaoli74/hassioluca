@@ -389,6 +389,7 @@ pages.ricerca = async (page) => {
         ${d.onvif ? `<button class="small" data-onvif>Leggi URL via ONVIF</button>` : ""}
         <a class="btn small" href="http://${esc(d.ip)}" target="_blank" rel="noopener">Pagina web ↗</a></div>
         ${d.server ? `<div class="help">${esc(d.server)}</div>` : ""}
+        ${d.brand === "Reolink" ? `<div class="help">💡 Reolink: usa lo <b>Snapshot</b> (consigliato) con utente e password della telecamera. Se non risponde, nell'app Reolink → Impostazioni → Rete → Avanzate → Impostazioni server attiva <b>HTTP/HTTPS</b> e <b>RTSP</b>. I modelli a batteria (Argus, Go) non hanno RTSP né snapshot.</div>` : ""}
         ${d.brand === "EZVIZ" || d.brand === "Hikvision" ? `<div class="help">💡 EZVIZ: utente <b>admin</b>, password = <b>codice di verifica</b> di 6 lettere sull'etichetta della telecamera. Se non risponde, nell'app EZVIZ attiva RTSP / “Visione live in LAN”.</div>` : ""}
         <table data-urls><tbody></tbody></table>`;
       const tbody = card.querySelector("tbody");

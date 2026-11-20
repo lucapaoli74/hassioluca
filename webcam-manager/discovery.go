@@ -309,7 +309,14 @@ func suggestURLs(d *FoundDevice) []Suggestion {
 		add("RTSP principale", "rtsp", "rtsp://"+ip+":554/cam/realmonitor?channel=1&subtype=0")
 		add("RTSP secondario", "rtsp", "rtsp://"+ip+":554/cam/realmonitor?channel=1&subtype=1")
 	case "Reolink":
+		// lo snapshot HTTP è il modo più leggero e affidabile per le Reolink
+		scheme := "http"
+		if hasAny(d.Ports, 443) && !hasAny(d.Ports, 80) {
+			scheme = "https"
+		}
+		add("Snapshot Reolink (consigliato)", "snapshot", scheme+"://"+ip+"/cgi-bin/api.cgi?cmd=Snap&channel=0")
 		add("RTSP principale", "rtsp", "rtsp://"+ip+":554/h264Preview_01_main")
+		add("RTSP principale H.265 (modelli 4K)", "rtsp", "rtsp://"+ip+":554/h265Preview_01_main")
 		add("RTSP secondario", "rtsp", "rtsp://"+ip+":554/h264Preview_01_sub")
 	case "Axis":
 		add("Snapshot Axis", "snapshot", "http://"+ip+"/axis-cgi/jpg/image.cgi")

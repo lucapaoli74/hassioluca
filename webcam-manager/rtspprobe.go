@@ -25,7 +25,7 @@ var knownRTSPPaths = []string{
 	"/ch1/main", "/ch1/sub", "/ch2/main", "/ch2/sub",
 	"/cam/realmonitor?channel=1&subtype=0", "/cam/realmonitor?channel=2&subtype=0",
 	"/stream1", "/stream2",
-	"/h264Preview_01_main", "/h264Preview_02_main",
+	"/h264Preview_01_main", "/h264Preview_01_sub", "/h265Preview_01_main", "/Preview_01_main", "/Preview_01_sub", "/h264Preview_02_main",
 	"/live/ch00_0", "/live/ch01_0",
 	"/onvif1", "/onvif2", "/11", "/12", "/21", "/22",
 	"/live", "/media/video1", "/media/video2",

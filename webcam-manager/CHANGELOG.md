@@ -3,6 +3,10 @@
 Ogni versione rilasciata ha qui la sua voce: il testo diventa le note della
 release mostrate nel pannello (Impostazioni → Aggiornamenti).
 
+## [0.3.2] - 2026-11-20
+
+- Reolink: snapshot HTTP (/cgi-bin/api.cgi?cmd=Snap) con utente e password aggiunti da soli all'indirizzo, consigliato nella ricerca; supporto alle telecamere solo HTTPS con certificato autofirmato; percorsi RTSP H.265 e secondari; messaggi d'errore chiari (es. credenziali rifiutate) senza mostrare la password.
+
 ## [0.3.1] - 2026-11-19
 
 - eWeLink: accesso con il collegamento autorizzato ufficiale (OAuth), obbligatorio per le applicazioni "standard" di dev.ewelink.cc (errore 407 con email e password). Pulsante "Collega account eWeLink", rinnovo automatico dell'autorizzazione, password eWeLink non più salvata.
