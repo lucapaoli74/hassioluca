@@ -47,7 +47,7 @@ type Suggestion struct {
 // Porte tipiche delle telecamere IP: RTSP, web, SDK Hikvision/Dahua/XMEye.
 // Poche porte e pochi tentativi in parallelo: una scansione aggressiva viene
 // scambiata dagli antivirus per un attacco e il programma viene bloccato.
-var scanPorts = []int{554, 80, 8000, 8080, 37777}
+var scanPorts = []int{554, 80, 443, 8000, 8080, 9000, 37777}
 
 const scanWorkers = 24
 
@@ -272,6 +272,8 @@ func guessBrand(d *FoundDevice) string {
 		}
 	}
 	switch {
+	case hasAny(d.Ports, 9000) && hasAny(d.Ports, 554):
+		return "Reolink" // porta 9000: protocollo proprietario Reolink
 	case hasAny(d.Ports, 37777):
 		return "Dahua"
 	case hasAny(d.Ports, 34567):

@@ -36,3 +36,21 @@ func TestReolinkSnapshot(t *testing.T) {
 		t.Fatalf("errore credenziali: %v", err)
 	}
 }
+
+func TestDiagnoseFindsReolinkSnapshot(t *testing.T) {
+	frame := testJPEG(t, 320, 180, color.RGBA{1, 2, 3, 255})
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/cgi-bin/api.cgi" && r.URL.Query().Get("user") == "admin" {
+			w.Write(frame)
+			return
+		}
+		http.NotFound(w, r)
+	}))
+	defer srv.Close()
+	host := strings.TrimPrefix(srv.URL, "http://")
+	rep := DiagnoseCamera(context.Background(), Camera{Source: "mjpeg", URL: srv.URL + "/ISAPI/Streaming/channels/101/picture", Username: "admin", Password: "x"})
+	t.Log(rep)
+	if !strings.Contains(rep, "FUNZIONA: http://"+host+"/cgi-bin/api.cgi?cmd=Snap&channel=0") {
+		t.Fatal("indirizzo Reolink non proposto")
+	}
+}

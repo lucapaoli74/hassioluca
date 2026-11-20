@@ -3,6 +3,11 @@
 Ogni versione rilasciata ha qui la sua voce: il testo diventa le note della
 release mostrate nel pannello (Impostazioni → Aggiornamenti).
 
+## [0.3.3] - 2026-11-20
+
+- Reolink riconosciute nella ricerca (porta 9000): non vengono più scambiate per Hikvision.
+- Diagnostica: se l'indirizzo della webcam dà errore (es. 404), prova da sola gli indirizzi snapshot noti (Reolink, Hikvision, Dahua, Axis, generici) in http e https con le stesse credenziali e mostra quelli che funzionano.
+
 ## [0.3.2] - 2026-11-20
 
 - Reolink: snapshot HTTP (/cgi-bin/api.cgi?cmd=Snap) con utente e password aggiunti da soli all'indirizzo, consigliato nella ricerca; supporto alle telecamere solo HTTPS con certificato autofirmato; percorsi RTSP H.265 e secondari; messaggi d'errore chiari (es. credenziali rifiutate) senza mostrare la password.

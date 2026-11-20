@@ -180,3 +180,51 @@ func normalizeSDP(sdp string) string {
 	}
 	return strings.Join(keep, "\n")
 }
+
+// Indirizzi snapshot noti (percorso dopo l'IP), per marca.
+var knownSnapshotPaths = []string{
+	"/cgi-bin/api.cgi?cmd=Snap&channel=0",   // Reolink
+	"/ISAPI/Streaming/channels/101/picture", // Hikvision
+	"/cgi-bin/snapshot.cgi",                 // Dahua, Amcrest
+	"/axis-cgi/jpg/image.cgi",               // Axis
+	"/snapshot.jpg", "/snap.jpg", "/image.jpg", "/jpg/image.jpg", "/tmpfs/auto.jpg", "/webcapture.jpg?command=snap&channel=1",
+}
+
+// ProbeSnapshotURLs prova gli indirizzi snapshot noti sullo stesso
+// apparecchio di rawURL (stessa porta e schema, poi http/https standard) e
+// restituisce quelli che rispondono con un'immagine JPEG.
+func ProbeSnapshotURLs(ctx context.Context, rawURL, user, pass string) []string {
+	u, err := url.Parse(rawURL)
+	if err != nil || u.Hostname() == "" {
+		return nil
+	}
+	bases := []string{}
+	add := func(b string) {
+		for _, x := range bases {
+			if x == b {
+				return
+			}
+		}
+		bases = append(bases, b)
+	}
+	if u.Scheme == "http" || u.Scheme == "https" {
+		add(u.Scheme + "://" + u.Host)
+	}
+	add("http://" + u.Hostname())
+	add("https://" + u.Hostname())
+	var out []string
+	for _, base := range bases {
+		for _, p := range knownSnapshotPaths {
+			cctx, cancel := context.WithTimeout(ctx, 5*time.Second)
+			_, err := fetchSnapshot(cctx, Camera{Source: "snapshot", URL: base + p, Username: user, Password: pass})
+			cancel()
+			if err == nil {
+				out = append(out, base+p)
+			}
+		}
+		if len(out) > 0 {
+			break
+		}
+	}
+	return out
+}

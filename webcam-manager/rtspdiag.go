@@ -25,6 +25,18 @@ func DiagnoseCamera(ctx context.Context, cam Camera) string {
 		_, err := CaptureFrame(ctx, cam)
 		if err != nil {
 			line("Cattura: ERRORE %v", err)
+			// prova gli indirizzi snapshot noti sullo stesso IP
+			if u, perr := url.Parse(cam.URL); perr == nil && u.Hostname() != "" {
+				line("\nProvo gli indirizzi snapshot noti su %s:", u.Hostname())
+				found := false
+				for _, s := range ProbeSnapshotURLs(ctx, cam.URL, cam.Username, cam.Password) {
+					line("    FUNZIONA: %s  (tipo: Snapshot HTTP)", s)
+					found = true
+				}
+				if !found {
+					line("    nessuno risponde con un'immagine: controlla utente/password e che HTTP/HTTPS sia attivo nella telecamera")
+				}
+			}
 		} else {
 			line("Cattura: OK")
 		}
