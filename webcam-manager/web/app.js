@@ -1211,7 +1211,7 @@ pages.meteo = async page => {
   $("#ms-fields").onchange = () => { s.page.fields = [...document.querySelectorAll("#ms-fields [data-f]:checked")].map(c => c.dataset.f); };
   let info = { ips: [], port: "8080", push: {} };
   const drawHow = () => {
-    $("#ms-scan").classList.toggle("hidden", s.source !== "local");
+    $("#ms-scan").classList.toggle("hidden", s.source === "wunderground");
     $("#ms-test").classList.toggle("hidden", s.source === "push");
     const how = $("#ms-how");
     if (s.source !== "push") { how.innerHTML = ""; return; }
@@ -1255,9 +1255,10 @@ pages.meteo = async page => {
     const devs = await api("POST", "/api/station/scan");
     $("#ms-msg").textContent = "";
     $("#ms-scanres").innerHTML = devs.length ? `<h3>Console trovate</h3>${devs.map(d => `<div class="list-item"><div class="grow"><b>${esc(d.name || d.host)}</b> <span class="help">${esc(d.host)} ${esc(d.mac || "")}</span>
-      <div class="help">${d.error ? `<span class="err-text">${esc(d.error)}</span>` : d.list.slice(0, 6).map(v => esc(v.label) + " <b>" + esc(v.text) + "</b>").join(" · ")}</div></div><button class="small primary" data-h="${esc(d.host)}">Usa questa</button></div>`).join("")}`
-      : `<p class="help">Nessuna console trovata con la lettura diretta. Molte stazioni (es. Froggit WH3000 SE PRO) non la supportano: usa il collegamento <b>“La stazione invia i dati al programma”</b>.</p>`;
-    $("#ms-scanres").querySelectorAll("[data-h]").forEach(b => b.onclick = () => { s.host = b.dataset.h; form.redraw(); toast("Console scelta: premi 💾 Salva"); });
+      <div class="help">${d.error ? `Trovata, ma non risponde alla lettura diretta: usa “La stazione invia i dati al programma” e imposta il server personalizzato` : d.list.slice(0, 6).map(v => esc(v.label) + " <b>" + esc(v.text) + "</b>").join(" · ")}</div></div>${d.error ? "" : `<button class="small primary" data-h="${esc(d.host)}">Leggi da questa</button>`}</div>`).join("")}
+      <p class="help">Consiglio: anche se la console è stata trovata, il modo più affidabile resta farle inviare i dati al programma (istruzioni sopra).</p>`
+      : `<p class="help">Nessuna stazione risponde alla ricerca. Succede con le console che non hanno la lettura diretta (molte Froggit/Sainlogic): non serve conoscerne l'indirizzo, basta impostare il <b>server personalizzato</b> come indicato sopra dall'app <b>WS View Plus</b>, che trova la console da sola. Appena la stazione invia, qui compare il suo indirizzo.</p>`;
+    $("#ms-scanres").querySelectorAll("[data-h]").forEach(b => b.onclick = () => { s.source = "local"; s.host = b.dataset.h; form.redraw(); drawHow(); toast("Console scelta: premi 💾 Salva"); });
   });
   $("#ms-ov").onclick = e => busy(e.target, async () => {
     const chosen = [...document.querySelectorAll("#ms-vals [data-v]:checked")].map(c => current.find(v => v.key === c.dataset.v)).filter(Boolean);

@@ -197,3 +197,13 @@ func TestStationCondition(t *testing.T) {
 		t.Fatal(c)
 	}
 }
+
+func TestParseEcowittBroadcast(t *testing.T) {
+	ssid := "GW1100A-WIFI1234"
+	b := []byte{0xFF, 0xFF, 0x12, 0, 0, 0x48, 0x3F, 0xDA, 0x01, 0x02, 0x03, 192, 168, 1, 77, 0xAF, 0xC8, byte(len(ssid))}
+	b = append(b, ssid...)
+	d, ok := parseEcowittBroadcast(b)
+	if !ok || d.Host != "192.168.1.77" || d.MAC != "48:3F:DA:01:02:03" || d.Name != ssid {
+		t.Fatalf("%+v", d)
+	}
+}

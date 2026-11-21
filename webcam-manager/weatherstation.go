@@ -913,8 +913,10 @@ type StationDevice struct {
 	Error  string             `json:"error,omitempty"`
 }
 
-// DiscoverStations cerca le console nella rete: annuncio UDP Ecowitt
-// (porta 46000) e porta 45000 aperta.
+// DiscoverStations cerca le console nella rete (Ecowitt e cloni: Froggit,
+// Sainlogic, Ambient, Bresser…): risposta all'annuncio UDP (porta 46000, come
+// l'app WS View), annunci spontanei (porta 59387), porta 45000 aperta e
+// pagina locale /get_livedata_info sulle console con interfaccia web.
 func DiscoverStations(ctx context.Context) []StationDevice {
 	found := map[string]*StationDevice{}
 	var mu sync.Mutex
@@ -945,7 +947,18 @@ func DiscoverStations(ctx context.Context) []StationDevice {
 					if err == nil {
 						c.Close()
 						add(StationDevice{Host: h})
+						continue
 					}
+					c, err = net.DialTimeout("tcp", net.JoinHostPort(h, "80"), 500*time.Millisecond)
+					if err != nil {
+						continue
+					}
+					c.Close()
+					hctx, cancel := context.WithTimeout(ctx, 3*time.Second)
+					if _, err := ecowittHTTPLive(hctx, h); err == nil {
+						add(StationDevice{Host: h, Name: "console con pagina locale"})
+					}
+					cancel()
 				}
 			}()
 		}
@@ -977,6 +990,23 @@ func DiscoverStations(ctx context.Context) []StationDevice {
 }
 
 func udpDiscover(ctx context.Context, add func(StationDevice)) {
+	// annunci spontanei delle console più recenti
+	if l, err := net.ListenUDP("udp4", &net.UDPAddr{Port: 59387}); err == nil {
+		go func() {
+			defer l.Close()
+			buf := make([]byte, 512)
+			_ = l.SetReadDeadline(time.Now().Add(6 * time.Second))
+			for {
+				n, _, err := l.ReadFromUDP(buf)
+				if err != nil {
+					return
+				}
+				if d, ok := parseEcowittBroadcast(buf[:n]); ok {
+					add(d)
+				}
+			}
+		}()
+	}
 	conn, err := net.ListenUDP("udp4", &net.UDPAddr{})
 	if err != nil {
 		return
@@ -998,10 +1028,15 @@ func udpDiscover(ctx context.Context, add func(StationDevice)) {
 			}
 		}
 	}
-	for _, t := range targets {
-		_, _ = conn.WriteToUDP(msg, &net.UDPAddr{IP: net.ParseIP(t), Port: 46000})
-	}
-	deadline := time.Now().Add(3 * time.Second)
+	go func() { // tre richieste: l'UDP può perdersi
+		for i := 0; i < 3 && ctx.Err() == nil; i++ {
+			for _, t := range targets {
+				_, _ = conn.WriteToUDP(msg, &net.UDPAddr{IP: net.ParseIP(t), Port: 46000})
+			}
+			time.Sleep(1500 * time.Millisecond)
+		}
+	}()
+	deadline := time.Now().Add(6 * time.Second)
 	buf := make([]byte, 512)
 	for time.Now().Before(deadline) && ctx.Err() == nil {
 		_ = conn.SetReadDeadline(deadline)

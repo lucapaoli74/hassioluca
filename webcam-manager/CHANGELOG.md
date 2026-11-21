@@ -3,6 +3,10 @@
 Ogni versione rilasciata ha qui la sua voce: il testo diventa le note della
 release mostrate nel pannello (Impostazioni → Aggiornamenti).
 
+## [0.3.5] - 2026-11-21
+
+- Stazione meteo: ricerca nella rete più completa (risposta all'annuncio come l'app WS View, annunci spontanei, porta 45000 e pagina locale delle console con interfaccia web), disponibile anche con il collegamento "server personalizzato"; spiegazioni chiare se la console non si lascia leggere.
+
 ## [0.3.4] - 2026-11-21
 
 - Nuova sezione 🌦️ Stazione meteo: dati in tempo reale dalla stazione personale (Froggit WH3000 SE PRO, Ecowitt, Fine Offset, Sainlogic, Bresser…) direttamente in rete locale, senza ritardi. La console invia i dati al programma ("server personalizzato", protocollo Ecowitt o Wunderground) oppure il programma la legge (porta 45000 / pagina locale) con ricerca automatica nella rete; Weather Underground resta come riserva.
