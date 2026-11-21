@@ -1267,12 +1267,23 @@ pages.meteo = async page => {
         <div class="toolbar" style="margin:8px 0 0"><label class="help">Invia a questo PC <input id="ms-csrv" value="${esc(r.server)}" style="width:140px"></label><label class="help">porta <input id="ms-cport" value="${esc(r.port)}" style="width:80px"></label>
         <label class="help">ogni <select id="ms-cint" style="width:auto"><option>30</option><option selected>60</option><option>120</option></select> s</label><button class="primary" id="ms-cset">🔧 Imposta la stazione</button></div>
         <p class="help">Cambia solo il “server personalizzato” della stazione: Weather Underground e gli altri servizi continuano a funzionare.</p>`;
+    } else if (i.live && i.live.length) {
+      h += `<p><span class="badge ok">dati live letti direttamente dalla stazione</span> <span class="help">${esc(i.live_from)}</span></p>
+        <div class="help">${i.live.slice(0, 10).map(v => esc(v.label) + " <b>" + esc(v.text) + "</b>").join(" · ")}</div>
+        <p class="help">Non serve configurare nulla nella stazione: il programma legge questi valori ogni 30 secondi.</p>
+        <button class="primary" id="ms-uselive">✔ Usa la lettura diretta</button>`;
     } else {
-      h += `<p><span class="badge warn">la stazione non si lascia configurare dalla rete</span> <span class="help">${esc(i.api_error || "")}</span></p>`;
+      h += `<p><span class="badge warn">la stazione non si lascia configurare dalla rete</span> <span class="help">${esc(i.api_error || "")}</span>${i.title ? ` · pagina web: “${esc(i.title)}”` : ""}</p>`;
       h += i.web_ui ? `<p>La stazione ha una <b>pagina di configurazione</b>: apri <a href="${esc(i.web_ui)}" target="_blank" rel="noopener">${esc(i.web_ui)}</a> nel browser di <b>questo PC</b> (anche dal desktop remoto), vai in <b>Weather Services → Customized</b> e inserisci i valori della tabella qui sotto.</p>`
         : `<p class="help">Imposta i valori della tabella qui sotto dal <b>menu della console</b> (tasto SET / impostazioni → Wi-Fi / Weather Services → Customized). Se il menu della console non ha questa voce, la stazione può inviare solo ai siti meteo: usa il collegamento Weather Underground.</p>`;
     }
     $("#ms-cres").innerHTML = h;
+    const use = $("#ms-uselive");
+    if (use) use.onclick = ev => busy(ev.target, async () => {
+      s.enabled = true; s.source = "local"; s.host = host; s.refresh_seconds = 30;
+      const next = clone(cfg); next.station = s; await saveConfig(next); form.redraw(); drawHow();
+      toast("Stazione collegata: i dati arrivano ogni 30 secondi");
+    });
     const set = $("#ms-cset");
     if (set) set.onclick = ev => busy(ev.target, async () => {
       if (!confirm("Impostare la stazione per inviare i dati a " + $("#ms-csrv").value + ":" + $("#ms-cport").value + "?")) return;

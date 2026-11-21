@@ -3,6 +3,10 @@
 Ogni versione rilasciata ha qui la sua voce: il testo diventa le note della
 release mostrate nel pannello (Impostazioni → Aggiornamenti).
 
+## [0.3.7] - 2026-11-21
+
+- Stazione meteo: lettura diretta anche delle stazioni con pagina locale livedata.htm (Weather Logger / ObserverIP: Froggit, Ambient, Bresser…), con le unità prese dalla pagina della stazione; "Controlla la stazione" mostra subito i dati live se la stazione li espone e li collega con un clic.
+
 ## [0.3.6] - 2026-11-21
 
 - Stazione meteo: "Imposta la stazione da qui" — basta l'indirizzo IP della stazione: il programma legge la console (stessi comandi dell'app WS View, porta 45000) e la imposta per inviare i dati a questo PC, senza smartphone; verifica rileggendo le impostazioni. Se la console non lo permette indica la sua pagina di configurazione o il menu da usare.

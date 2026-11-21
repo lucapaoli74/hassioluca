@@ -633,6 +633,9 @@ func ReadEcowittLocal(ctx context.Context, host string) (map[string]float64, str
 	if herr == nil && len(hv) > 0 {
 		return hv, "Ecowitt (pagina locale)", nil
 	}
+	if ov, oerr := readObserverLive(ctx, h); oerr == nil {
+		return ov, "pagina livedata.htm", nil
+	}
 	if err == nil {
 		err = errors.New("nessun valore")
 	}
@@ -957,6 +960,8 @@ func DiscoverStations(ctx context.Context) []StationDevice {
 					hctx, cancel := context.WithTimeout(ctx, 3*time.Second)
 					if _, err := ecowittHTTPLive(hctx, h); err == nil {
 						add(StationDevice{Host: h, Name: "console con pagina locale"})
+					} else if _, err := readObserverLive(hctx, h); err == nil {
+						add(StationDevice{Host: h, Name: "stazione con pagina livedata.htm"})
 					}
 					cancel()
 				}

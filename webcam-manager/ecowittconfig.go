@@ -189,6 +189,9 @@ type ConsoleInfo struct {
 	Firmware string         `json:"firmware,omitempty"`
 	Custom   *EcowittCustom `json:"custom,omitempty"`
 	WebUI    string         `json:"web_ui,omitempty"` // indirizzo della pagina di configurazione
+	Title    string         `json:"title,omitempty"`  // titolo della pagina web del dispositivo
+	Live     []StationValue `json:"live,omitempty"`   // dati letti direttamente (pagina locale)
+	LiveFrom string         `json:"live_from,omitempty"`
 }
 
 // ReadEcowittConsole legge firmware e impostazioni del server personalizzato.
@@ -209,6 +212,16 @@ func ReadEcowittConsole(ctx context.Context, host string) ConsoleInfo {
 		}
 	}
 	cancel()
+	if info.WebUI != "" {
+		info.Title = pageTitle(ctx, h)
+		if v, err := readObserverLive(ctx, h); err == nil {
+			completeStation(v)
+			info.Live, info.LiveFrom = stationValueList(v), "http://"+h+"/livedata.htm"
+		} else if v, err := ecowittHTTPLive(ctx, h); err == nil {
+			completeStation(v)
+			info.Live, info.LiveFrom = stationValueList(v), "http://"+h+"/get_livedata_info"
+		}
+	}
 	if fw, err := ecowittRequest(ctx, host, cmdReadFirmware, nil); err == nil {
 		info.API = true
 		if len(fw) > 1 {
