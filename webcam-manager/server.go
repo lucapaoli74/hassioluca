@@ -125,15 +125,7 @@ func (s *Server) Handler() http.Handler {
 	// stazione meteo
 	mux.HandleFunc("GET /api/station", func(w http.ResponseWriter, r *http.Request) {
 		st := a.station.Status()
-		addr := a.listen
-		if addr == "" {
-			addr = a.store.Get().Listen
-		}
-		port := strings.TrimPrefix(addr, ":")
-		if _, p, err := net.SplitHostPort(addr); err == nil {
-			port = p
-		}
-		st["port"] = port
+		st["port"] = a.panelPort()
 		st["ips"] = localIPs()
 		writeJSON(w, st)
 	})
@@ -152,6 +144,48 @@ func (s *Server) Handler() http.Handler {
 		}
 		completeStation(vals)
 		writeJSON(w, map[string]any{"model": model, "values": stationValueList(vals)})
+	})
+	mux.HandleFunc("POST /api/station/console", func(w http.ResponseWriter, r *http.Request) {
+		var req struct{ Host string }
+		if !readJSON(w, r, &req) {
+			return
+		}
+		req.Host = strings.TrimSpace(req.Host)
+		if net.ParseIP(req.Host) == nil {
+			httpError(w, http.StatusBadRequest, "scrivi l'indirizzo IP della stazione, es. 192.168.1.60")
+			return
+		}
+		ctx, cancel := context.WithTimeout(r.Context(), 30*time.Second)
+		defer cancel()
+		writeJSON(w, map[string]any{"info": ReadEcowittConsole(ctx, req.Host), "server": pcIPFor(req.Host), "port": a.panelPort()})
+	})
+	mux.HandleFunc("POST /api/station/configure", func(w http.ResponseWriter, r *http.Request) {
+		var req struct {
+			Host, Server string
+			Port         int
+			Interval     int
+		}
+		if !readJSON(w, r, &req) {
+			return
+		}
+		if net.ParseIP(strings.TrimSpace(req.Host)) == nil || net.ParseIP(strings.TrimSpace(req.Server)) == nil || req.Port <= 0 {
+			httpError(w, http.StatusBadRequest, "indirizzi o porta non validi")
+			return
+		}
+		ctx, cancel := context.WithTimeout(r.Context(), 45*time.Second)
+		defer cancel()
+		c, err := ConfigureEcowittConsole(ctx, strings.TrimSpace(req.Host), strings.TrimSpace(req.Server), req.Port, req.Interval)
+		if err != nil {
+			httpError(w, http.StatusBadGateway, err.Error())
+			return
+		}
+		log.Printf("stazione meteo %s impostata per inviare a %s:%d", req.Host, req.Server, req.Port)
+		cfg := a.store.Get()
+		cfg.Station.Enabled, cfg.Station.Source, cfg.Station.Host = true, "push", strings.TrimSpace(req.Host)
+		if err := a.store.Replace(cfg); err == nil {
+			a.Reload()
+		}
+		writeJSON(w, map[string]any{"custom": c})
 	})
 	mux.HandleFunc("POST /api/station/scan", func(w http.ResponseWriter, r *http.Request) {
 		ctx, cancel := context.WithTimeout(r.Context(), 90*time.Second)
@@ -1267,4 +1301,16 @@ func (s *Server) importZip(w http.ResponseWriter, r *http.Request) {
 	}
 	s.app.Reload()
 	writeJSON(w, map[string]string{"ok": "Configurazione importata"})
+}
+
+// panelPort è la porta su cui risponde il pannello (e la stazione invia).
+func (a *App) panelPort() string {
+	addr := a.listen
+	if addr == "" {
+		addr = a.store.Get().Listen
+	}
+	if _, p, err := net.SplitHostPort(addr); err == nil {
+		return p
+	}
+	return strings.TrimPrefix(addr, ":")
 }

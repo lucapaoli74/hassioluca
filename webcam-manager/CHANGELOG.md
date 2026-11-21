@@ -3,6 +3,10 @@
 Ogni versione rilasciata ha qui la sua voce: il testo diventa le note della
 release mostrate nel pannello (Impostazioni → Aggiornamenti).
 
+## [0.3.6] - 2026-11-21
+
+- Stazione meteo: "Imposta la stazione da qui" — basta l'indirizzo IP della stazione: il programma legge la console (stessi comandi dell'app WS View, porta 45000) e la imposta per inviare i dati a questo PC, senza smartphone; verifica rileggendo le impostazioni. Se la console non lo permette indica la sua pagina di configurazione o il menu da usare.
+
 ## [0.3.5] - 2026-11-21
 
 - Stazione meteo: ricerca nella rete più completa (risposta all'annuncio come l'app WS View, annunci spontanei, porta 45000 e pagina locale delle console con interfaccia web), disponibile anche con il collegamento "server personalizzato"; spiegazioni chiare se la console non si lascia leggere.

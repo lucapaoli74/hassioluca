@@ -1180,7 +1180,9 @@ pages.meteo = async page => {
   s.source = s.source || "push";
   page.innerHTML = `<h1>🌦️ Stazione meteo</h1>
     <p class="help">Dati <b>in tempo reale</b> dalla tua stazione meteo (Froggit, Ecowitt, Fine Offset, Sainlogic, Bresser…) direttamente nella rete locale, senza passare da Weather Underground. I dati si possono mettere in sovrimpressione sulle webcam e pubblicare come pagina web.</p>
-    <div class="card"><h3 style="margin-top:0">1 · Collegamento</h3><div id="ms-form"></div><div id="ms-how" style="margin-top:12px"></div>
+    <div class="card"><h3 style="margin-top:0">1 · Collegamento</h3><div id="ms-form"></div><div id="ms-remote" class="card" style="margin:12px 0 0;background:var(--bg)"><b>🔧 Imposta la stazione da qui</b> <span class="help">(senza smartphone: serve l'indirizzo IP della stazione)</span>
+        <div class="toolbar" style="margin:8px 0 0"><input id="ms-cip" placeholder="IP della stazione, es. 192.168.1.60" style="max-width:260px" value="${esc(s.host || "")}"><button id="ms-cchk">Controlla la stazione</button></div><div id="ms-cres"></div></div>
+      <div id="ms-how" style="margin-top:12px"></div>
       <div class="toolbar" style="margin:12px 0 0"><button class="primary" id="ms-save">💾 Salva</button><button id="ms-scan">🔎 Cerca la stazione nella rete</button><button id="ms-test">Prova lettura</button><span id="ms-msg" class="help"></span></div><div id="ms-scanres"></div></div>
     <div class="card"><h3 style="margin-top:0">2 · Dati attuali <span id="ms-age" class="help"></span></h3><div id="ms-vals"><span class="help">In attesa dei dati…</span></div>
       <div class="toolbar" style="margin-top:14px"><label class="help">Metti i valori spuntati sulla webcam <select id="ms-cam" style="width:auto"><option value="">— solo crea i dati live —</option>${cfg.cameras.map(c => `<option value="${esc(c.id)}">${esc(c.name || c.id)}</option>`).join("")}</select></label>
@@ -1213,6 +1215,7 @@ pages.meteo = async page => {
   const drawHow = () => {
     $("#ms-scan").classList.toggle("hidden", s.source === "wunderground");
     $("#ms-test").classList.toggle("hidden", s.source === "push");
+    $("#ms-remote").classList.toggle("hidden", s.source !== "push");
     const how = $("#ms-how");
     if (s.source !== "push") { how.innerHTML = ""; return; }
     const ip = info.ips[0] || "IP-DI-QUESTO-PC", p = info.push || {};
@@ -1249,6 +1252,35 @@ pages.meteo = async page => {
   $("#ms-test").onclick = e => busy(e.target, async () => {
     const r = await api("POST", "/api/station/read", s);
     drawVals(r.values, new Date().toISOString()); toast("Lettura riuscita: " + (r.model || "") + " — premi 💾 Salva");
+  });
+  $("#ms-cchk").onclick = e => busy(e.target, async () => {
+    const host = $("#ms-cip").value.trim();
+    $("#ms-cres").innerHTML = `<p class="help">Collegamento alla stazione ${esc(host)}…</p>`;
+    const r = await api("POST", "/api/station/console", { host });
+    const i = r.info, c = i.custom;
+    let h = "";
+    if (c) {
+      const ok = c.enabled && c.server === r.server && String(c.port) === String(r.port) && c.protocol === "ecowitt";
+      h += `<p><span class="badge ok">stazione trovata</span> ${esc(i.firmware || "")}</p>
+        <p class="help">Server personalizzato attuale: ${c.enabled ? "attivo" : "<b>spento</b>"} · ${esc(c.protocol)} · ${esc(c.server || "—")}:${c.port} ${esc(c.path_ecowitt || "")} · ogni ${c.interval} s</p>
+        ${ok ? `<p class="ok-text">✔ La stazione è già impostata per inviare a questo PC.</p>` : ""}
+        <div class="toolbar" style="margin:8px 0 0"><label class="help">Invia a questo PC <input id="ms-csrv" value="${esc(r.server)}" style="width:140px"></label><label class="help">porta <input id="ms-cport" value="${esc(r.port)}" style="width:80px"></label>
+        <label class="help">ogni <select id="ms-cint" style="width:auto"><option>30</option><option selected>60</option><option>120</option></select> s</label><button class="primary" id="ms-cset">🔧 Imposta la stazione</button></div>
+        <p class="help">Cambia solo il “server personalizzato” della stazione: Weather Underground e gli altri servizi continuano a funzionare.</p>`;
+    } else {
+      h += `<p><span class="badge warn">la stazione non si lascia configurare dalla rete</span> <span class="help">${esc(i.api_error || "")}</span></p>`;
+      h += i.web_ui ? `<p>La stazione ha una <b>pagina di configurazione</b>: apri <a href="${esc(i.web_ui)}" target="_blank" rel="noopener">${esc(i.web_ui)}</a> nel browser di <b>questo PC</b> (anche dal desktop remoto), vai in <b>Weather Services → Customized</b> e inserisci i valori della tabella qui sotto.</p>`
+        : `<p class="help">Imposta i valori della tabella qui sotto dal <b>menu della console</b> (tasto SET / impostazioni → Wi-Fi / Weather Services → Customized). Se il menu della console non ha questa voce, la stazione può inviare solo ai siti meteo: usa il collegamento Weather Underground.</p>`;
+    }
+    $("#ms-cres").innerHTML = h;
+    const set = $("#ms-cset");
+    if (set) set.onclick = ev => busy(ev.target, async () => {
+      if (!confirm("Impostare la stazione per inviare i dati a " + $("#ms-csrv").value + ":" + $("#ms-cport").value + "?")) return;
+      await api("POST", "/api/station/configure", { host, server: $("#ms-csrv").value.trim(), port: Number($("#ms-cport").value), interval: Number($("#ms-cint").value) });
+      await loadConfig(); s.enabled = true; s.source = "push"; s.host = host; form.redraw();
+      $("#ms-cres").insertAdjacentHTML("beforeend", `<p class="ok-text"><b>✔ Stazione impostata.</b> Entro un minuto qui sotto deve comparire “la stazione sta inviando”.</p>`);
+      toast("Stazione impostata");
+    });
   });
   $("#ms-scan").onclick = e => busy(e.target, async () => {
     $("#ms-msg").textContent = "Ricerca nella rete (fino a un minuto)…";
