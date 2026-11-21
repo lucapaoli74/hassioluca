@@ -3,6 +3,12 @@
 Ogni versione rilasciata ha qui la sua voce: il testo diventa le note della
 release mostrate nel pannello (Impostazioni → Aggiornamenti).
 
+## [0.3.4] - 2026-11-21
+
+- Nuova sezione 🌦️ Stazione meteo: dati in tempo reale dalla stazione personale (Froggit WH3000 SE PRO, Ecowitt, Fine Offset, Sainlogic, Bresser…) direttamente in rete locale, senza ritardi. La console invia i dati al programma ("server personalizzato", protocollo Ecowitt o Wunderground) oppure il programma la legge (porta 45000 / pagina locale) con ricerca automatica nella rete; Weather Underground resta come riserva.
+- Tutti i valori (temperatura, umidità, rugiada, percepita, minima e massima del giorno, vento, raffiche, direzione, pressione, pioggia, radiazione, UV, sensori aggiuntivi 1-8, valori interni) diventano dati live e scritte in sovrimpressione con un clic.
+- Pagina web meteo con colori che cambiano col tempo, icone animate, valori in tempo reale, grafici interattivi 24 ore / 7 giorni / 30 giorni / 12 mesi, riepilogo degli ultimi giorni e webcam; si pubblica dai Siti FTP come una webcam ("🌦️ Pagina meteo", nome del file e periodicità) e si aggiorna da sola.
+
 ## [0.3.3] - 2026-11-20
 
 - Reolink riconosciute nella ricerca (porta 9000): non vengono più scambiate per Hikvision.

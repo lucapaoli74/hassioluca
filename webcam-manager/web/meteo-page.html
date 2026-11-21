@@ -1,0 +1,299 @@
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>__TITLE__</title>
+<style>
+:root{--bg1:#e9f2fb;--bg2:#f6f9fc;--card:#ffffffd9;--fg:#132033;--mute:#5b6b7f;--line:#d9e3ee;--shadow:0 6px 24px rgba(20,40,80,.10)}
+@media (prefers-color-scheme:dark){:root{--bg1:#0b1220;--bg2:#121b2c;--card:#18233acc;--fg:#e9eff7;--mute:#93a3b8;--line:#26344d;--shadow:0 6px 24px rgba(0,0,0,.35)}}
+*{box-sizing:border-box}
+html{background:var(--bg2)}html,body{margin:0}
+body{background:linear-gradient(180deg,var(--bg1),var(--bg2) 600px);color:var(--fg);font:16px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;min-height:100vh}
+.wrap{max-width:1080px;margin:0 auto;padding:18px 16px 36px}
+.hero{position:relative;overflow:hidden;border-radius:22px;color:#fff;padding:22px 24px;box-shadow:var(--shadow);transition:background 1s}
+.hero::after{content:"";position:absolute;inset:0;background:radial-gradient(circle at 85% 0%,rgba(255,255,255,.25),transparent 55%);pointer-events:none}
+.hero.sun{background:linear-gradient(135deg,#ff8a3d 0%,#ffbe55 35%,#3fa8f5 100%)}
+.hero.partly{background:linear-gradient(135deg,#f7b267 0%,#5fa8e8 45%,#2f7fd0 100%)}
+.hero.cloudy{background:linear-gradient(135deg,#5f738d,#93a6bf)}
+.hero.rain{background:linear-gradient(135deg,#2e4565,#5a7fa8)}
+.hero.storm{background:linear-gradient(135deg,#1b2033,#4a3b74)}
+.hero.snow{background:linear-gradient(135deg,#7aa7d6,#c9e2fb)}
+.hero.fog{background:linear-gradient(135deg,#7f8e9c,#c3ccd4)}
+.hero.wind{background:linear-gradient(135deg,#1e86b8,#4fc3d6)}
+.hero.night{background:linear-gradient(135deg,#0a0f2c 0%,#24245f 60%,#4b2f78 100%)}
+.top{display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;position:relative;z-index:1}
+.top h1{margin:0;font-size:24px;letter-spacing:.2px;text-shadow:0 1px 3px rgba(0,0,0,.25)}
+.top .sub{opacity:.9;font-size:14px}
+.live{display:inline-flex;align-items:center;gap:6px;background:rgba(0,0,0,.22);padding:4px 10px;border-radius:99px;font-size:13px;height:max-content}
+.live i{width:8px;height:8px;border-radius:50%;background:#4cff8a;box-shadow:0 0 0 0 rgba(76,255,138,.7);animation:ping 2s infinite}
+.live.old i{background:#ffb84c;animation:none}
+@keyframes ping{0%{box-shadow:0 0 0 0 rgba(76,255,138,.7)}70%{box-shadow:0 0 0 9px rgba(76,255,138,0)}100%{box-shadow:0 0 0 0 rgba(76,255,138,0)}}
+.main{display:flex;flex-wrap:wrap;align-items:center;gap:18px 28px;margin-top:14px;position:relative;z-index:1}
+.bigicon{width:132px;height:132px;flex:none;filter:drop-shadow(0 6px 14px rgba(0,0,0,.25))}
+.temp{font-size:78px;font-weight:750;line-height:.95;letter-spacing:-2px;text-shadow:0 2px 10px rgba(0,0,0,.2)}
+.desc{font-size:19px;font-weight:600;margin-top:6px}
+.mm{display:flex;gap:14px;margin-top:8px;font-size:15px;opacity:.95}
+.mm b{font-weight:700}
+.camwrap{margin-left:auto;max-width:100%}
+.camwrap img{width:400px;max-width:100%;border-radius:14px;display:block;box-shadow:0 8px 24px rgba(0,0,0,.3);border:2px solid rgba(255,255,255,.35)}
+.camwrap div{font-size:12px;opacity:.85;margin-top:4px;text-align:right}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(165px,1fr));gap:12px;margin-top:16px}
+.card{background:var(--card);backdrop-filter:blur(8px);border:1px solid var(--line);border-radius:16px;padding:14px 14px 12px;box-shadow:var(--shadow);position:relative;overflow:hidden;animation:rise .5s both}
+.card::before{content:"";position:absolute;left:0;top:0;bottom:0;width:4px;background:var(--acc,#3fa8f5)}
+@keyframes rise{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+.card .h{display:flex;align-items:center;gap:8px;color:var(--mute);font-size:13px;font-weight:600}
+.card .h svg{width:30px;height:30px;flex:none}
+.card .v{font-size:26px;font-weight:720;margin-top:6px;letter-spacing:-.3px}
+.card .x{color:var(--mute);font-size:13px}
+.bar{height:6px;border-radius:9px;background:var(--line);margin-top:8px;overflow:hidden}
+.bar i{display:block;height:100%;border-radius:9px;background:var(--acc);transition:width 1s}
+section{margin-top:22px}
+.sh{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px}
+.sh h2{margin:0;font-size:19px}
+.tabs{display:inline-flex;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:3px;box-shadow:var(--shadow)}
+.tabs button{border:0;background:none;color:var(--fg);font:inherit;font-size:14px;padding:7px 12px;border-radius:9px;cursor:pointer}
+.tabs button.on{background:linear-gradient(135deg,#2f7fd0,#3fa8f5);color:#fff;font-weight:600}
+.charts{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,470px),1fr));gap:12px;margin-top:12px}
+.chart{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:12px 12px 6px;box-shadow:var(--shadow);position:relative}
+.chart h3{margin:0 0 4px;font-size:14px;color:var(--mute);display:flex;justify-content:space-between;gap:8px}
+.chart h3 span:last-child{color:var(--fg)}
+.chart svg{display:block;width:100%;height:190px;touch-action:pan-y}
+.tip{position:absolute;pointer-events:none;background:rgba(15,25,45,.92);color:#fff;font-size:12px;padding:6px 8px;border-radius:8px;white-space:nowrap;transform:translate(-50%,-110%);opacity:0;transition:opacity .15s;z-index:2}
+table{width:100%;border-collapse:collapse;background:var(--card);border:1px solid var(--line);border-radius:16px;overflow:hidden;box-shadow:var(--shadow);margin-top:12px;font-size:14px}
+th,td{padding:8px 10px;text-align:right;border-bottom:1px solid var(--line)}th:first-child,td:first-child{text-align:left}
+th{color:var(--mute);font-weight:600;font-size:13px}tr:last-child td{border-bottom:0}
+.tmin{color:#2f7fd0;font-weight:650}.tmax{color:#e4572e;font-weight:650}
+.empty{padding:30px;text-align:center;color:var(--mute)}
+footer{margin-top:26px;text-align:center;color:var(--mute);font-size:13px}
+@media (max-width:600px){.temp{font-size:62px}.bigicon{width:104px;height:104px}.camwrap{margin-left:0}.top h1{font-size:20px}}
+/* animazioni icone */
+.spin{animation:spin 14s linear infinite;transform-origin:center;transform-box:fill-box}
+.fan{animation:spin var(--sp,4s) linear infinite;transform-origin:center;transform-box:fill-box}
+@keyframes spin{to{transform:rotate(360deg)}}
+.drift{animation:drift 6s ease-in-out infinite alternate}
+.drift2{animation:drift 8s ease-in-out infinite alternate-reverse}
+@keyframes drift{from{transform:translateX(-5px)}to{transform:translateX(6px)}}
+.drop{animation:fall 1.1s linear infinite}
+.drop:nth-child(2){animation-delay:.35s}.drop:nth-child(3){animation-delay:.7s}
+@keyframes fall{0%{transform:translateY(-6px);opacity:0}30%{opacity:1}100%{transform:translateY(18px);opacity:0}}
+.flake{animation:snow 2.6s linear infinite;transform-box:fill-box;transform-origin:center}
+.flake:nth-child(2){animation-delay:.9s}.flake:nth-child(3){animation-delay:1.7s}
+@keyframes snow{0%{transform:translateY(-6px) rotate(0);opacity:0}25%{opacity:1}100%{transform:translateY(20px) rotate(180deg);opacity:0}}
+.flash{animation:flash 3.2s infinite}
+@keyframes flash{0%,82%,100%{opacity:0}84%,90%{opacity:1}87%{opacity:.3}}
+.twinkle{animation:tw 2.4s ease-in-out infinite}.twinkle:nth-child(2){animation-delay:.8s}.twinkle:nth-child(3){animation-delay:1.6s}
+@keyframes tw{0%,100%{opacity:.25}50%{opacity:1}}
+.gust{stroke-dasharray:30 70;animation:gust 2.2s linear infinite}
+.gust:nth-child(2){animation-delay:.6s}.gust:nth-child(3){animation-delay:1.2s}
+@keyframes gust{from{stroke-dashoffset:100}to{stroke-dashoffset:0}}
+.fogl{animation:fog 5s ease-in-out infinite alternate}.fogl:nth-child(2){animation-direction:alternate-reverse}
+@keyframes fog{from{transform:translateX(-8px)}to{transform:translateX(8px)}}
+.bob{animation:bob 2.6s ease-in-out infinite}
+@keyframes bob{0%,100%{transform:translateY(0)}50%{transform:translateY(-3px)}}
+.pulse{animation:pulse 2.4s ease-in-out infinite;transform-box:fill-box;transform-origin:center}
+@keyframes pulse{0%,100%{transform:scale(1)}50%{transform:scale(1.12)}}
+.needle{animation:needle 4s ease-in-out infinite;transform-origin:16px 20px}
+@keyframes needle{0%,100%{transform:rotate(-12deg)}50%{transform:rotate(14deg)}}
+@media (prefers-reduced-motion:reduce){*{animation:none!important}}
+</style>
+</head>
+<body>
+<div class="wrap" id="app"></div>
+<script id="wdata" type="application/json">__DATA__</script>
+<script>
+(function(){
+"use strict";
+var D=JSON.parse(document.getElementById("wdata").textContent);
+var range="day";
+try{range=localStorage.getItem("meteo-range")||"day"}catch(e){}
+var $=function(s,el){return (el||document).querySelector(s)};
+function esc(s){return String(s==null?"":s).replace(/[&<>"]/g,function(c){return{"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]})}
+function num(v,d){if(v==null||isNaN(v))return "—";return Number(v).toFixed(d).replace(".",",")}
+function cur(k){return D.cur&&D.cur[k]}
+var condText={sun:"Sereno",partly:"Poco nuvoloso",cloudy:"Nuvoloso",rain:"Pioggia",storm:"Pioggia forte",snow:"Neve",fog:"Nebbia",wind:"Vento forte",night:"Sereno"};
+
+// ---------- icone grandi animate ----------
+var SUN='<g class="spin"><g stroke="#ffd34d" stroke-width="5" stroke-linecap="round">'+[0,45,90,135,180,225,270,315].map(function(a){var r=a*Math.PI/180;return '<line x1="'+(50+Math.cos(r)*30)+'" y1="'+(50+Math.sin(r)*30)+'" x2="'+(50+Math.cos(r)*40)+'" y2="'+(50+Math.sin(r)*40)+'"/>'}).join("")+'</g></g><circle class="pulse" cx="50" cy="50" r="20" fill="url(#gs)"/>';
+var DEFS='<defs><radialGradient id="gs"><stop offset="0" stop-color="#fff3a8"/><stop offset=".6" stop-color="#ffd34d"/><stop offset="1" stop-color="#ffab2e"/></radialGradient><linearGradient id="gc" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffffff"/><stop offset="1" stop-color="#d9e4f2"/></linearGradient><linearGradient id="gd" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#b9c6d8"/><stop offset="1" stop-color="#7d8ea8"/></linearGradient></defs>';
+function cloud(x,y,s,fill,cls){return '<g class="'+(cls||"")+'"><path transform="translate('+x+' '+y+') scale('+s+')" d="M14 40h44a14 14 0 0 0 0-28 20 20 0 0 0-38-4A16 16 0 0 0 14 40z" fill="'+fill+'"/></g>'}
+function bigIcon(c){
+  var s='<svg viewBox="0 0 100 100" class="bigicon">'+DEFS;
+  if(c==="sun")s+=SUN;
+  else if(c==="partly")s+='<g transform="translate(-12 -12)">'+SUN+'</g>'+cloud(14,34,1.05,"url(#gc)","drift");
+  else if(c==="cloudy")s+=cloud(4,18,.95,"url(#gd)","drift2")+cloud(16,34,1.05,"url(#gc)","drift");
+  else if(c==="rain"||c==="storm"){s+=cloud(10,14,1.15,c==="storm"?"url(#gd)":"url(#gc)","drift");if(c==="storm")s+='<path class="flash" d="M52 58l-10 18h9l-6 16 16-22h-9l7-12z" fill="#ffd34d"/>';s+='<g stroke="#8fd0ff" stroke-width="4" stroke-linecap="round"><line class="drop" x1="34" y1="66" x2="31" y2="74"/><line class="drop" x1="50" y1="66" x2="47" y2="74"/><line class="drop" x1="66" y1="66" x2="63" y2="74"/></g>'}
+  else if(c==="snow")s+=cloud(10,14,1.15,"url(#gc)","drift")+'<g fill="#fff">'+[32,50,68].map(function(x){return '<g class="flake"><path d="M'+x+' 64v12M'+(x-5)+' 67l10 6M'+(x-5)+' 73l10-6" stroke="#fff" stroke-width="2.4" stroke-linecap="round"/></g>'}).join("")+'</g>';
+  else if(c==="fog")s+=cloud(10,8,1.1,"url(#gc)","")+'<g stroke="#fff" stroke-width="5" stroke-linecap="round" opacity=".9"><line class="fogl" x1="18" y1="66" x2="82" y2="66"/><line class="fogl" x1="26" y1="78" x2="74" y2="78"/></g>';
+  else if(c==="wind")s+='<g fill="none" stroke="#fff" stroke-width="5" stroke-linecap="round"><path class="gust" pathLength="100" d="M10 38h52a10 10 0 1 0-10-10"/><path class="gust" pathLength="100" d="M10 54h66a10 10 0 1 1-10 10"/><path class="gust" pathLength="100" d="M18 70h34"/></g>';
+  else if(c==="night")s+='<g fill="#fff"><circle class="twinkle" cx="20" cy="22" r="2"/><circle class="twinkle" cx="80" cy="30" r="1.8"/><circle class="twinkle" cx="70" cy="80" r="1.6"/></g><path class="pulse" d="M62 20a32 32 0 1 0 22 46A26 26 0 1 1 62 20z" fill="#ffe9a8"/>';
+  return s+'</svg>';
+}
+
+// ---------- icone piccole animate ----------
+var IC={
+ temp:function(){return '<svg viewBox="0 0 32 32"><rect x="12" y="3" width="8" height="19" rx="4" fill="none" stroke="currentColor" stroke-width="2"/><rect x="14.5" y="10" width="3" height="12" fill="#e4572e"/><circle class="pulse" cx="16" cy="24" r="5" fill="#e4572e"/></svg>'},
+ feels:function(){return IC.temp()},
+ humidity:function(){return '<svg viewBox="0 0 32 32"><path class="bob" d="M16 3C11 11 7 15 7 20a9 9 0 0 0 18 0c0-5-4-9-9-17z" fill="#3fa8f5"/><path d="M12 20a4 4 0 0 0 4 4" stroke="#fff" stroke-width="2" fill="none" stroke-linecap="round"/></svg>'},
+ dewpt:function(){return '<svg viewBox="0 0 32 32"><path class="bob" d="M16 6C12 12 9 15 9 19a7 7 0 0 0 14 0c0-4-3-7-7-13z" fill="#7ec8e3"/><circle cx="24" cy="8" r="3" fill="#bfe6f5" class="pulse"/></svg>'},
+ wind:function(v){var sp=v>0.5?Math.max(.35,6-v/6):0;return '<svg viewBox="0 0 32 32"><line x1="16" y1="16" x2="16" y2="30" stroke="currentColor" stroke-width="2"/><g class="fan" style="--sp:'+sp+'s'+(sp?"":";animation:none")+'"><path d="M16 16C14 9 15 4 17 3s2 6-1 13zM16 16c6-3 11-2 12 0s-6 3-12 0zM16 16c-4 5-9 8-11 7s1-6 11-7z" fill="#22b8a8"/></g><circle cx="16" cy="16" r="2" fill="currentColor"/></svg>'},
+ gust:function(){return '<svg viewBox="0 0 32 32" fill="none" stroke="#22b8a8" stroke-width="2.6" stroke-linecap="round"><path class="gust" pathLength="100" d="M3 12h16a4 4 0 1 0-4-4"/><path class="gust" pathLength="100" d="M3 18h22a4 4 0 1 1-4 4"/><path class="gust" pathLength="100" d="M5 24h10"/></svg>'},
+ gust_max:function(){return IC.gust()},
+ winddir:function(v){return '<svg viewBox="0 0 32 32"><circle cx="16" cy="16" r="13" fill="none" stroke="currentColor" stroke-width="1.6" opacity=".5"/><g style="transform:rotate('+((v+180)%360)+'deg);transform-origin:16px 16px;transition:transform 1s"><path d="M16 4l5 14h-10z" fill="#e4572e"/><path d="M16 28l-5-10h10z" fill="currentColor" opacity=".45"/></g></svg>'},
+ winddir_text:function(v){return IC.winddir(D.cur.winddir?D.cur.winddir.v:0)},
+ pressure:function(){return '<svg viewBox="0 0 32 32"><path d="M4 22a12 12 0 0 1 24 0" fill="none" stroke="#8e7cc3" stroke-width="3" stroke-linecap="round"/><line class="needle" x1="16" y1="20" x2="16" y2="9" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/><circle cx="16" cy="20" r="2.4" fill="currentColor"/></svg>'},
+ pressure_abs:function(){return IC.pressure()},
+ rain_rate:function(){return '<svg viewBox="0 0 32 32"><path d="M4 15a12 12 0 0 1 24 0z" fill="#5a7fd6"/><line x1="16" y1="15" x2="16" y2="25" stroke="currentColor" stroke-width="2"/><path d="M16 25a3 3 0 0 1-6 0" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><g stroke="#3fa8f5" stroke-width="2" stroke-linecap="round"><line class="drop" x1="7" y1="18" x2="6" y2="21"/><line class="drop" x1="25" y1="18" x2="24" y2="21"/></g></svg>'},
+ solar:function(){return '<svg viewBox="0 0 32 32"><g class="spin" stroke="#ffb02e" stroke-width="2.4" stroke-linecap="round">'+[0,45,90,135,180,225,270,315].map(function(a){var r=a*Math.PI/180;return '<line x1="'+(16+Math.cos(r)*10)+'" y1="'+(16+Math.sin(r)*10)+'" x2="'+(16+Math.cos(r)*14)+'" y2="'+(16+Math.sin(r)*14)+'"/>'}).join("")+'</g><circle class="pulse" cx="16" cy="16" r="6.5" fill="#ffc93c"/></svg>'},
+ uv:function(){return '<svg viewBox="0 0 32 32"><circle class="pulse" cx="16" cy="16" r="12" fill="#a259d9" opacity=".25"/><circle cx="16" cy="16" r="8" fill="#a259d9"/><text x="16" y="19.5" font-size="8" font-weight="700" text-anchor="middle" fill="#fff">UV</text></svg>'},
+ house:function(){return '<svg viewBox="0 0 32 32"><path d="M5 15L16 5l11 10v12H5z" fill="none" stroke="currentColor" stroke-width="2"/><rect class="pulse" x="13" y="18" width="6" height="9" fill="#f29e4c"/></svg>'}
+};
+["rain_day","rain_event","rain_hour","rain_week","rain_month","rain_year"].forEach(function(k){IC[k]=IC.rain_rate});
+["temp_min","temp_max"].forEach(function(k){IC[k]=IC.temp});
+function icon(k,v){if(IC[k])return IC[k](v);if(/_in$/.test(k))return IC.house();if(/^temp/.test(k))return IC.temp();if(/^humid/.test(k))return IC.humidity();return IC.temp()}
+var ACC={temp:"#e4572e",feels:"#f08a4b",temp_min:"#2f7fd0",temp_max:"#e4572e",humidity:"#3fa8f5",dewpt:"#7ec8e3",wind:"#22b8a8",gust:"#16a085",gust_max:"#16a085",winddir:"#22b8a8",winddir_text:"#22b8a8",pressure:"#8e7cc3",pressure_abs:"#8e7cc3",solar:"#ffb02e",uv:"#a259d9"};
+function accent(k){return ACC[k]||(/^rain/.test(k)?"#5a7fd6":/_in$/.test(k)?"#f29e4c":"#3fa8f5")}
+function tempColor(t){var stops=[[-10,[90,120,255]],[0,[63,168,245]],[10,[34,184,168]],[20,[255,190,85]],[30,[228,87,46]],[40,[170,30,60]]];for(var i=1;i<stops.length;i++){if(t<=stops[i][0]){var a=stops[i-1],b=stops[i],f=Math.max(0,(t-a[0])/(b[0]-a[0]));return "rgb("+a[1].map(function(x,j){return Math.round(x+(b[1][j]-x)*f)}).join(",")+")"}}return "rgb(170,30,60)"}
+function extra(k,c){
+  if(k==="humidity")return {bar:c.v};
+  if(k==="uv"){var l=c.v<3?"basso":c.v<6?"moderato":c.v<8?"alto":c.v<11?"molto alto":"estremo";return {x:l,bar:Math.min(100,c.v/11*100)}}
+  if(k==="wind"&&cur("winddir"))return {x:"da "+cur("winddir_text").t};
+  if(k==="gust"&&cur("gust_max"))return {x:"max oggi "+cur("gust_max").t};
+  if(k==="solar")return {bar:Math.min(100,c.v/10)};
+  if(k==="temp"||k==="feels")return {col:tempColor(c.v)};
+  return {};
+}
+
+// ---------- grafici ----------
+function fmtT(ms,long){var d=new Date(ms);var hm=("0"+d.getHours()).slice(-2)+":"+("0"+d.getMinutes()).slice(-2);return long?d.toLocaleDateString("it-IT",{weekday:"short",day:"numeric",month:"short"})+" "+hm:hm}
+function fmtD(s){var p=s.split("-");return new Date(+p[0],+p[1]-1,+p[2]).toLocaleDateString("it-IT",{day:"numeric",month:"short"})}
+// cfg: {title, unit, dec, xs (ms o etichette), lines:[{v:[], color, name, fill}], bars:[{v, color, name}], band:[lo,hi], daily}
+function drawChart(cfg){
+  var box=document.createElement("div");box.className="chart";
+  box.innerHTML='<h3><span>'+esc(cfg.title)+'</span><span>'+(cfg.summary||"")+'</span></h3><div class="tip"></div>';
+  var W=Math.max(300,(box.clientWidth||520)),H=190,L=40,R=10,T=10,B=24;
+  var xs=cfg.xs,n=xs.length;
+  var all=[];(cfg.lines||[]).concat(cfg.bars||[]).forEach(function(s){s.v.forEach(function(v){if(v!=null)all.push(v)})});
+  if(!all.length)return null;
+  var lo=Math.min.apply(null,all),hi=Math.max.apply(null,all);
+  if(cfg.bars||cfg.zero)lo=Math.min(0,lo);
+  var ms=cfg.minspan||2;if(hi-lo<ms){if(cfg.bars||cfg.zero){lo=Math.min(0,lo);hi=lo+ms}else{var m=(hi+lo)/2;lo=m-ms/2;hi=m+ms/2}}
+  var pad=(hi-lo)*.08;hi+=pad;if(!(cfg.bars||cfg.zero))lo-=pad;
+  var svgNS="http://www.w3.org/2000/svg";
+  var svg=document.createElementNS(svgNS,"svg");box.appendChild(svg);
+  function render(){
+    W=Math.max(300,box.clientWidth-24);svg.setAttribute("viewBox","0 0 "+W+" "+H);
+    var X=function(i){return n<2?L:L+(W-L-R)*i/(n-1)},Y=function(v){return T+(H-T-B)*(hi-v)/(hi-lo)};
+    var bw=Math.max(2,(W-L-R)/n*.7);
+    if(cfg.bars)X=function(i){return L+(W-L-R)*(i+.5)/n};
+    var s="";
+    var g=cfg.grad||"g"+Math.random().toString(36).slice(2,7);
+    s+='<defs>'+(cfg.lines||[]).map(function(l,j){return '<linearGradient id="'+g+j+'" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="'+l.color+'" stop-opacity=".35"/><stop offset="1" stop-color="'+l.color+'" stop-opacity="0"/></linearGradient>'}).join("")+'</defs>';
+    var step=niceStep((hi-lo)/4);
+    for(var v=Math.ceil(lo/step)*step;v<=hi;v+=step){s+='<line x1="'+L+'" x2="'+(W-R)+'" y1="'+Y(v)+'" y2="'+Y(v)+'" stroke="currentColor" stroke-opacity=".1"/><text x="'+(L-6)+'" y="'+(Y(v)+4)+'" font-size="11" text-anchor="end" fill="currentColor" fill-opacity=".55">'+num(v,step<1?1:0)+'</text>'}
+    // etichette asse x
+    var lab=Math.max(1,Math.round(n/Math.max(2,Math.floor((W-L)/70))));
+    for(var i=0;i<n;i+=lab){s+='<text x="'+X(i)+'" y="'+(H-6)+'" font-size="11" text-anchor="'+(X(i)>W-R-25?"end":X(i)<L+20?"start":"middle")+'" fill="currentColor" fill-opacity=".55">'+esc(cfg.label(i))+'</text>'}
+    if(cfg.band){var bp="",bq="";for(var i=0;i<n;i++){if(cfg.band[0][i]==null)continue;bp+=(bp?"L":"M")+X(i)+" "+Y(cfg.band[1][i])+" ";bq=" L"+X(i)+" "+Y(cfg.band[0][i])+bq}
+      if(bp)s+='<path d="'+bp+bq+' Z" fill="'+cfg.bandColor+'" fill-opacity=".18"/>'}
+    (cfg.bars||[]).forEach(function(b){for(var i=0;i<n;i++){var v=b.v[i];if(v==null||v<=0)continue;s+='<rect x="'+(X(i)-bw/2)+'" y="'+Y(v)+'" width="'+bw+'" height="'+Math.max(1,Y(0)-Y(v))+'" rx="2" fill="'+b.color+'"/>'}});
+    (cfg.lines||[]).forEach(function(l,j){
+      var fills="",d="",seg=[];
+      function path(p){var r="M"+p[0][0].toFixed(1)+" "+p[0][1].toFixed(1);for(var k=1;k<p.length;k++)r+="L"+p[k][0].toFixed(1)+" "+p[k][1].toFixed(1);if(l.fill&&p.length>1)fills+='<path d="'+r+"L"+p[p.length-1][0].toFixed(1)+" "+(H-B)+"L"+p[0][0].toFixed(1)+" "+(H-B)+'Z" fill="url(#'+g+j+')"/>';return r+" "}
+      for(var i=0;i<n;i++){if(l.v[i]==null){if(seg.length){d+=path(seg);seg=[]}continue}seg.push([X(i),Y(l.v[i])])}
+      if(seg.length)d+=path(seg);
+      if(d)s+=fills+'<path d="'+d+'" fill="none" stroke="'+l.color+'" stroke-width="'+(l.w||2.4)+'" stroke-linejoin="round" stroke-linecap="round"'+(l.dash?' stroke-dasharray="4 4"':'')+'/>';
+    });
+    s+='<line class="cur" y1="'+T+'" y2="'+(H-B)+'" stroke="currentColor" stroke-opacity=".35" stroke-dasharray="3 3" visibility="hidden"/><circle class="dot" r="4" fill="#fff" stroke="#2f7fd0" stroke-width="2" visibility="hidden"/>';
+    svg.innerHTML=s;
+    var tip=$(".tip",box),cl=$(".cur",svg),dot=$(".dot",svg);
+    function move(ev){
+      var r=svg.getBoundingClientRect();var cx=((ev.touches?ev.touches[0].clientX:ev.clientX)-r.left)*W/r.width;
+      var i=cfg.bars?Math.floor((cx-L)/((W-L-R)/n)):Math.round((cx-L)/((W-L-R)/Math.max(1,n-1)));i=Math.max(0,Math.min(n-1,i));
+      var rows=[];(cfg.lines||[]).concat(cfg.bars||[]).forEach(function(s){if(s.v[i]!=null)rows.push('<span style="color:'+s.color+'">●</span> '+esc(s.name||cfg.title)+": <b>"+num(s.v[i],cfg.dec)+cfg.unit+"</b>")});
+      if(!rows.length)return;
+      tip.innerHTML=esc(cfg.label(i,true))+"<br>"+rows.join("<br>");
+      cl.setAttribute("x1",X(i));cl.setAttribute("x2",X(i));cl.setAttribute("visibility","visible");
+      var fl=(cfg.lines||[])[0];if(fl&&fl.v[i]!=null){dot.setAttribute("cx",X(i));dot.setAttribute("cy",Y(fl.v[i]));dot.setAttribute("stroke",fl.color);dot.setAttribute("visibility","visible")}
+      tip.style.left=Math.min(r.width-60,Math.max(60,X(i)*r.width/W+12))+"px";tip.style.top=(svg.offsetTop+20)+"px";tip.style.opacity=1;
+    }
+    function out(){tip.style.opacity=0;cl.setAttribute("visibility","hidden");dot.setAttribute("visibility","hidden")}
+    svg.onmousemove=move;svg.ontouchstart=move;svg.ontouchmove=move;svg.onmouseleave=out;svg.ontouchend=function(){setTimeout(out,1500)};
+  }
+  box._render=render;
+  return box;
+}
+function niceStep(x){var p=Math.pow(10,Math.floor(Math.log10(Math.max(x,1e-6))));var f=x/p;return (f<1.5?1:f<3?2:f<7?5:10)*p}
+
+function chartsFor(r){
+  var out=[];
+  function minmaxTxt(arr,dec,u){var v=arr.filter(function(x){return x!=null});if(!v.length)return "";return '<span class="tmin">'+num(Math.min.apply(null,v),dec)+u+'</span> / <span class="tmax">'+num(Math.max.apply(null,v),dec)+u+'</span>'}
+  if(r==="day"||r==="week"){
+    var S=D[r];if(!S||!S.t||S.t.length<2)return out;
+    var lab=function(i,long){return fmtT(S.t[i],long||r==="week"?(long?true:false):false)};
+    if(r==="week")lab=function(i,long){var d=new Date(S.t[i]);return long?fmtT(S.t[i],true):d.toLocaleDateString("it-IT",{weekday:"short",day:"numeric"})};
+    out.push({title:"Temperatura",unit:"°C",dec:1,xs:S.t,label:lab,lines:[{v:S.temp,color:"#e4572e",fill:true,name:"Temperatura"}],summary:minmaxTxt(S.temp,1,"°")});
+    out.push({title:"Umidità",unit:"%",dec:0,xs:S.t,label:lab,lines:[{v:S.humidity,color:"#3fa8f5",fill:true,name:"Umidità"}],minspan:10});
+    out.push({title:"Vento e raffiche",unit:" km/h",dec:1,xs:S.t,label:lab,zero:true,lines:[{v:S.gust,color:"#16a085",w:1.6,dash:true,name:"Raffica"},{v:S.wind,color:"#22b8a8",fill:true,name:"Vento"}]});
+    out.push({title:"Pressione",unit:" hPa",dec:1,xs:S.t,label:lab,lines:[{v:S.pressure,color:"#8e7cc3",fill:true,name:"Pressione"}],minspan:4});
+    if(r==="day"&&D.rain24&&D.rain24.length){var rt=D.rain24.map(function(x){return x[0]}),rv=D.rain24.map(function(x){return x[1]});var tot=rv.reduce(function(a,b){return a+b},0);
+      out.push({title:"Pioggia per ora",unit:" mm",dec:1,xs:rt,label:function(i,long){return fmtT(rt[i],long)},bars:[{v:rv,color:"#5a7fd6",name:"Pioggia"}],minspan:1,summary:"totale "+num(tot,1)+" mm"})}
+    if(r==="week"){var dd=(D.days||[]).slice(-7);if(dd.length)out.push({title:"Pioggia al giorno",unit:" mm",dec:1,xs:dd,label:function(i){return fmtD(dd[i].d)},bars:[{v:dd.map(function(x){return x.rain==null?null:x.rain}),color:"#5a7fd6",name:"Pioggia"}],minspan:1})}
+    out.push({title:"Radiazione solare",unit:" W/m²",dec:0,xs:S.t,label:lab,zero:true,lines:[{v:S.solar,color:"#ffb02e",fill:true,name:"Radiazione"}]});
+  }else{
+    var days=(D.days||[]).slice(r==="month"?-30:-366);if(days.length<2)return out;
+    var lab2=function(i){return fmtD(days[i].d)};
+    var g=function(k){return days.map(function(x){return x[k]==null?null:x[k]})};
+    out.push({title:"Temperature minime e massime",unit:"°C",dec:1,xs:days,label:lab2,band:[g("tmin"),g("tmax")],bandColor:"#f08a4b",lines:[{v:g("tmax"),color:"#e4572e",name:"Massima"},{v:g("tmin"),color:"#2f7fd0",name:"Minima"}],summary:minmaxTxt(g("tmin").concat(g("tmax")),1,"°")});
+    if(r==="month"){out.push({title:"Pioggia al giorno",unit:" mm",dec:1,xs:days,label:lab2,bars:[{v:g("rain"),color:"#5a7fd6",name:"Pioggia"}],minspan:1,summary:"totale "+num(g("rain").reduce(function(a,b){return a+(b||0)},0),1)+" mm"})}
+    else{var months={},order=[];days.forEach(function(x){var m=x.d.slice(0,7);if(!(m in months)){months[m]=0;order.push(m)}months[m]+=x.rain||0});
+      out.push({title:"Pioggia al mese",unit:" mm",dec:1,xs:order,label:function(i){var p=order[i].split("-");return new Date(+p[0],+p[1]-1,1).toLocaleDateString("it-IT",{month:"short",year:"2-digit"})},bars:[{v:order.map(function(m){return Math.round(months[m]*10)/10}),color:"#5a7fd6",name:"Pioggia"}],minspan:1,summary:"totale "+num(order.reduce(function(a,m){return a+months[m]},0),1)+" mm"})}
+    out.push({title:"Raffica massima",unit:" km/h",dec:1,xs:days,label:lab2,bars:[{v:g("gust"),color:"#16a085",name:"Raffica"}]});
+    out.push({title:"Umidità minima e massima",unit:"%",dec:0,xs:days,label:lab2,band:[g("hmin"),g("hmax")],bandColor:"#3fa8f5",lines:[{v:g("hmax"),color:"#3fa8f5",name:"Massima"},{v:g("hmin"),color:"#7ec8e3",name:"Minima"}],minspan:10});
+  }
+  return out;
+}
+
+// ---------- pagina ----------
+function render(){
+  var app=document.getElementById("app");
+  var age=D.updated?(Date.now()-D.updated)/60000:1e9;
+  var t=cur("temp");
+  var h='<div class="hero '+esc(D.cond)+'"><div class="top"><div><h1>'+esc(D.title)+'</h1><div class="sub">'+esc(D.location&&D.title.indexOf(D.location)<0?D.location+(D.altitude?" · ":""):"")+(D.altitude?D.altitude+" m s.l.m.":"")+'</div></div>'+
+    '<div class="live'+(age>30?" old":"")+'"><i></i>'+(D.updated?(age>30?"dati di ":"live · ")+fmtT(D.updated,age>720):"in attesa dei dati")+'</div></div>'+
+    '<div class="main">'+bigIcon(D.cond)+'<div>'+(t?'<div class="temp">'+esc(t.t)+'</div>':'')+'<div class="desc">'+esc(condText[D.cond]||"")+(cur("feels")&&t?" · percepita "+esc(cur("feels").t):"")+'</div>'+
+    (D.minmax?'<div class="mm"><span>▼ <b>'+num(D.minmax.min,1)+'°</b> alle '+esc(D.minmax.min_at)+'</span><span>▲ <b>'+num(D.minmax.max,1)+'°</b> alle '+esc(D.minmax.max_at)+'</span></div>':'')+'</div>'+
+    (D.cam?'<div class="camwrap"><img id="cam" src="'+esc(D.cam)+'?t='+Date.now()+'" alt="'+esc(D.cam_name||"webcam")+'"><div>'+esc(D.cam_name||"")+'</div></div>':'')+'</div></div>';
+  h+='<div class="grid">';
+  var shown=0;
+  (D.fields||[]).forEach(function(k,ix){var c=cur(k);if(!c||(k==="temp"))return;var e=extra(k,c);shown++;
+    h+='<div class="card" style="--acc:'+accent(k)+';animation-delay:'+(ix*25)+'ms"><div class="h">'+icon(k,c.v)+esc(c.l)+'</div><div class="v"'+(e.col?' style="color:'+e.col+'"':'')+'>'+esc(c.t)+'</div>'+(e.x?'<div class="x">'+esc(e.x)+'</div>':'')+(e.bar!=null?'<div class="bar"><i style="width:'+Math.max(2,Math.min(100,e.bar))+'%"></i></div>':'')+'</div>'});
+  h+='</div>';
+  if(!D.updated)h+='<div class="empty">In attesa dei primi dati dalla stazione meteo…</div>';
+  h+='<section><div class="sh"><h2>Andamento</h2><div class="tabs">'+[["day","24 ore"],["week","7 giorni"],["month","30 giorni"],["year","12 mesi"]].map(function(x){return '<button data-r="'+x[0]+'"'+(x[0]===range?' class="on"':'')+'>'+x[1]+'</button>'}).join("")+'</div></div><div class="charts" id="charts"></div></section>';
+  var days=(D.days||[]).slice(-7).reverse();
+  if(days.length)h+='<section><h2>Ultimi giorni</h2><table><tr><th>Giorno</th><th>Min</th><th>Max</th><th>Pioggia</th><th>Raffica max</th></tr>'+days.map(function(x){return '<tr><td>'+esc(new Date(x.d+"T12:00").toLocaleDateString("it-IT",{weekday:"long",day:"numeric",month:"long"}))+'</td><td class="tmin">'+num(x.tmin,1)+'°</td><td class="tmax">'+num(x.tmax,1)+'°</td><td>'+num(x.rain,1)+' mm</td><td>'+num(x.gust,1)+' km/h</td></tr>'}).join("")+'</table></section>';
+  h+='<footer>Dati in tempo reale dalla stazione meteo · '+esc(D.credits||"")+'</footer>';
+  app.innerHTML=h;
+  app.querySelectorAll(".tabs button").forEach(function(b){b.onclick=function(){range=b.dataset.r;try{localStorage.setItem("meteo-range",range)}catch(e){}app.querySelectorAll(".tabs button").forEach(function(x){x.classList.toggle("on",x===b)});drawCharts()}});
+  drawCharts();
+}
+var boxes=[];
+function drawCharts(){
+  var el=document.getElementById("charts");el.innerHTML="";boxes=[];
+  chartsFor(range).forEach(function(c){var b=drawChart(c);if(b){el.appendChild(b);boxes.push(b)}});
+  // disegna quando la griglia ha preso le sue misure
+  requestAnimationFrame(function(){boxes.forEach(function(b){b._render()})});
+  if(!boxes.length)el.innerHTML='<div class="empty">Lo storico si sta formando: i grafici compaiono man mano che arrivano i dati.</div>';
+}
+var rt;window.addEventListener("resize",function(){clearTimeout(rt);rt=setTimeout(function(){boxes.forEach(function(b){b._render()})},150)});
+render();
+// aggiornamento automatico senza ricaricare la pagina
+setInterval(function(){
+  if(!D.json||location.protocol==="file:")return;
+  fetch(D.json+"?t="+Date.now(),{cache:"no-store"}).then(function(r){return r.ok?r.json():null}).then(function(j){if(j&&j.generated!==D.generated){j.json=D.json;if(D.cam&&j.cam&&D.cam.indexOf("/snapshot/")===0)j.cam=D.cam;D=j;render()}else{var i=document.getElementById("cam");if(i)i.src=i.src.split("?")[0]+"?t="+Date.now()}}).catch(function(){});
+},60000);
+})();
+</script>
+</body>
+</html>

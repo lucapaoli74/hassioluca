@@ -13,6 +13,7 @@ import (
 	"io"
 	"io/fs"
 	"log"
+	"net"
 	"net/http"
 	"net/url"
 	"os"
@@ -120,6 +121,89 @@ func (s *Server) Handler() http.Handler {
 		writeJSON(w, recentLog.Lines())
 	})
 	mux.HandleFunc("GET /api/diagnostics", s.diagnostics)
+
+	// stazione meteo
+	mux.HandleFunc("GET /api/station", func(w http.ResponseWriter, r *http.Request) {
+		st := a.station.Status()
+		addr := a.listen
+		if addr == "" {
+			addr = a.store.Get().Listen
+		}
+		port := strings.TrimPrefix(addr, ":")
+		if _, p, err := net.SplitHostPort(addr); err == nil {
+			port = p
+		}
+		st["port"] = port
+		st["ips"] = localIPs()
+		writeJSON(w, st)
+	})
+	mux.HandleFunc("POST /api/station/read", func(w http.ResponseWriter, r *http.Request) {
+		var st StationSettings
+		if !readJSON(w, r, &st) {
+			return
+		}
+		if st.APIKey == mask {
+			st.APIKey = a.store.Get().Station.APIKey
+		}
+		vals, model, err := ReadStation(r.Context(), st)
+		if err != nil {
+			httpError(w, http.StatusBadGateway, err.Error())
+			return
+		}
+		completeStation(vals)
+		writeJSON(w, map[string]any{"model": model, "values": stationValueList(vals)})
+	})
+	mux.HandleFunc("POST /api/station/scan", func(w http.ResponseWriter, r *http.Request) {
+		ctx, cancel := context.WithTimeout(r.Context(), 90*time.Second)
+		defer cancel()
+		devs := DiscoverStations(ctx)
+		type dev struct {
+			StationDevice
+			List []StationValue `json:"list"`
+		}
+		out := []dev{}
+		for _, d := range devs {
+			out = append(out, dev{d, stationValueList(d.Values)})
+		}
+		writeJSON(w, out)
+	})
+	mux.HandleFunc("GET /api/station/preview", func(w http.ResponseWriter, r *http.Request) {
+		cfg := a.store.Get()
+		var site *Site
+		if len(cfg.Sites) > 0 {
+			site = &cfg.Sites[0]
+			for i := range cfg.Sites {
+				for _, p := range cfg.Sites[i].Publications {
+					if p.CameraID == StationPubID {
+						site = &cfg.Sites[i]
+					}
+				}
+			}
+		}
+		files := a.station.StationPageFiles(cfg, site, "meteo.html")
+		page := files["meteo.html"]
+		// nell'anteprima la webcam si vede dal pannello
+		if c, ok := a.station.stationPageJSON(cfg, site)["cam"].(string); ok && site != nil {
+			for _, p := range site.Publications {
+				if p.Filename == c {
+					page = bytes.Replace(page, []byte(`"cam":"`+c+`"`), []byte(`"cam":"/snapshot/`+p.CameraID+`.jpg"`), 1)
+				}
+			}
+		}
+		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+		noCache(w)
+		w.Write(page)
+	})
+	mux.HandleFunc("POST /api/station/publish", func(w http.ResponseWriter, r *http.Request) {
+		ctx, cancel := context.WithTimeout(r.Context(), 3*time.Minute)
+		defer cancel()
+		errs := a.station.PublishDue(ctx, true)
+		if len(errs) > 0 {
+			httpError(w, http.StatusBadGateway, errs[0].Error())
+			return
+		}
+		writeJSON(w, map[string]string{"ok": "Pagina meteo pubblicata"})
+	})
 
 	mux.HandleFunc("POST /api/cameras/{id}/capture", func(w http.ResponseWriter, r *http.Request) {
 		if !a.sched.Trigger(r.PathValue("id")) {
@@ -596,6 +680,10 @@ func (s *Server) withAuth(next http.Handler) http.Handler {
 			s.public(w, r)
 			return
 		}
+		if IsStationPushPath(r.URL.Path) {
+			s.app.station.HandlePush(w, r)
+			return
+		}
 		if r.URL.Path == "/healthz" {
 			s.health(w)
 			return
@@ -734,6 +822,9 @@ func maskConfig(cfg Config) Config {
 	if cfg.WUApiKey != "" {
 		cfg.WUApiKey = mask
 	}
+	if cfg.Station.APIKey != "" {
+		cfg.Station.APIKey = mask
+	}
 	if cfg.EWeLink.AppSecret != "" {
 		cfg.EWeLink.AppSecret = mask
 	}
@@ -762,6 +853,9 @@ func unmask(cfg *Config, old Config) {
 	}
 	if cfg.WUApiKey == mask {
 		cfg.WUApiKey = old.WUApiKey
+	}
+	if cfg.Station.APIKey == mask {
+		cfg.Station.APIKey = old.Station.APIKey
 	}
 	if cfg.EWeLink.AppSecret == mask {
 		cfg.EWeLink.AppSecret = old.EWeLink.AppSecret

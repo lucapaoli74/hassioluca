@@ -147,6 +147,23 @@ In alternativa usa il tipo *cartella locale* puntando alla cartella OneDrive sin
 
 ---
 
+### Stazione meteo (dati in tempo reale)
+
+Menu **🌦️ Stazione meteo**. Per le stazioni Froggit / Ecowitt / Fine Offset (es. WH3000 SE PRO) il modo consigliato è far inviare i dati direttamente al programma: nell'app **WS View Plus** (o dal menu della console) → *Weather Services* → *Customized*:
+
+| Campo | Valore |
+|---|---|
+| Customized | Enable |
+| Protocol Type Same As | Ecowitt |
+| Server IP / Hostname | indirizzo IP del PC con Webcam Manager |
+| Path | `/data/report/` |
+| Port | porta del pannello (es. 8080) |
+| Upload Interval | 16–60 secondi |
+
+Il pannello mostra subito quando arrivano i dati. Da lì: **Crea scritta in sovrimpressione** mette i valori sulla webcam; la **pagina web meteo** si pubblica da *Siti FTP* aggiungendo la pubblicazione “🌦️ Pagina meteo” (es. `meteo.html`, con accanto `meteo.json`).
+
+In alternativa il programma può leggere la console (porta 45000, console GW1000/GW2000/HP2550…) con la ricerca automatica nella rete.
+
 ## Aggiornamenti e gestione delle modifiche
 
 - **Versioni**: ogni modifica rilasciata ha un numero (`1.2.0`) e una voce in [CHANGELOG.md](CHANGELOG.md).

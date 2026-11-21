@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"sort"
+	"strings"
 	"sync"
 	"time"
 )
@@ -29,6 +30,7 @@ type Config struct {
 	Cameras       []Camera        `json:"cameras"`
 	Sites         []Site          `json:"sites"`
 	DataSources   []DataSource    `json:"data_sources"` // dati live per le sovrimpressioni
+	Station       StationSettings `json:"station"`      // stazione meteo personale
 }
 
 // Location identifica l'installazione: compare nelle scritte, nel titolo del
@@ -223,6 +225,7 @@ func (c *Config) applyDefaults() {
 	if c.AdminPassword == "" {
 		c.AdminPassword = randomPassword()
 	}
+	c.Station.applyDefaults()
 	if c.SchemaVersion == 0 {
 		c.SchemaVersion = currentSchema
 	}
@@ -376,6 +379,10 @@ func (c *Config) Validate() error {
 			if ds.URL == "" {
 				return fmt.Errorf("dato live %q: URL mancante", ds.ID)
 			}
+		case "station":
+			if _, ok := stationVarInfo(ds.Variable); !ok {
+				return fmt.Errorf("dato live %q: grandezza della stazione meteo %q sconosciuta", ds.ID, ds.Variable)
+			}
 		case "ewelink":
 			if ds.Entity == "" || (ds.Path != "temperature" && ds.Path != "humidity") {
 				return fmt.Errorf("dato live %q: sensore eWeLink non valido", ds.ID)
@@ -433,6 +440,12 @@ func (c *Config) Validate() error {
 			return fmt.Errorf("sito %q: protocollo %q sconosciuto", s.ID, s.Protocol)
 		}
 		for _, p := range s.Publications {
+			if p.CameraID == StationPubID {
+				if !strings.HasSuffix(strings.ToLower(p.Filename), ".html") || !filenamePattern.MatchString(p.Filename) {
+					return fmt.Errorf("sito %q: il nome della pagina meteo deve finire con .html (es. meteo.html)", s.ID)
+				}
+				continue
+			}
 			if !cams[p.CameraID] {
 				return fmt.Errorf("sito %q: la webcam %q non esiste", s.ID, p.CameraID)
 			}
@@ -447,7 +460,7 @@ func (c *Config) Validate() error {
 			return fmt.Errorf("sito %q: cartella storico %q non valida", s.ID, s.HistoryDir)
 		}
 	}
-	return nil
+	return c.Station.validate()
 }
 
 // Get restituisce una copia profonda della configurazione.

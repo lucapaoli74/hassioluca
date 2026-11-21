@@ -177,6 +177,12 @@ func FetchDataSource(ctx context.Context, ds DataSource) (string, error) {
 			st = ewelinkSettings()
 		}
 		raw, err = readEWeLinkSource(ctx, ds, st)
+	case "station":
+		if stationHub == nil {
+			err = fmt.Errorf("stazione meteo non disponibile")
+		} else {
+			raw, err = stationHub.Value(ds.Variable)
+		}
 	case "http_text":
 		var body []byte
 		body, err = getBody(ctx, ds.URL, ds.Token)

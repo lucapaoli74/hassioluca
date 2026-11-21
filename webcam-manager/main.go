@@ -16,6 +16,7 @@ import (
 	"os/exec"
 	"os/signal"
 	"path/filepath"
+	"sort"
 	"strings"
 	"sync"
 	"syscall"
@@ -39,6 +40,7 @@ type App struct {
 	live     *LiveHub
 	updater  *Updater
 	alerter  *Alerter
+	station  *StationHub
 	listen   string
 	restartc chan struct{}
 
@@ -54,6 +56,7 @@ func (a *App) Reload() {
 	defer a.reloadMu.Unlock()
 	cfg := a.store.Get()
 	a.data.Restart(cfg.DataSources)
+	a.station.Restart(cfg.Station)
 	a.sched.Restart()
 }
 
@@ -96,6 +99,12 @@ func NewApp(dataDir, listen string) (*App, error) {
 	a.tl = NewTimelapse(filepath.Join(dataDir, "timelapse"))
 	a.sched = NewScheduler(store, a.renderer, archive, a.tl, a.sync, dataDir)
 	a.live = NewLiveHub()
+	a.station = NewStationHub(filepath.Join(dataDir, "station.json"), store.Get, a.publishFiles)
+	a.station.isDue = func(siteID string, p Publication) bool {
+		return a.sched.isDue(siteID, p, Camera{IntervalSeconds: 30}, time.Now())
+	}
+	a.station.setPub = a.sched.setPub
+	stationHub = a.station
 	a.restartc = make(chan struct{}, 1)
 	a.updater = NewUpdater(store, a.RequestRestart)
 	a.alerter = NewAlerter(a)
@@ -264,4 +273,30 @@ func relaunch() error {
 	cmd.Env = append(os.Environ(), "WEBCAM_MANAGER_RELAUNCH=1") // niente menu dopo l'aggiornamento
 	cmd.Stdout, cmd.Stderr, cmd.Stdin = os.Stdout, os.Stderr, os.Stdin
 	return cmd.Start()
+}
+
+// publishFiles carica alcuni file su un sito (una connessione alla volta per sito).
+func (a *App) publishFiles(ctx context.Context, site Site, files map[string][]byte) error {
+	lock := a.sched.siteLock(site.ID)
+	lock.Lock()
+	defer lock.Unlock()
+	conn, err := OpenSite(ctx, a.store, site)
+	if err != nil {
+		return err
+	}
+	defer conn.Close()
+	// prima i dati, poi la pagina
+	names := make([]string, 0, len(files))
+	for n := range files {
+		names = append(names, n)
+	}
+	sort.Slice(names, func(i, j int) bool {
+		return strings.HasSuffix(names[i], ".json") && !strings.HasSuffix(names[j], ".json")
+	})
+	for _, n := range names {
+		if err := conn.Put(n, files[n]); err != nil {
+			return fmt.Errorf("%s: %w", n, err)
+		}
+	}
+	return nil
 }

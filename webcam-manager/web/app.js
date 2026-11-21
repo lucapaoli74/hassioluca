@@ -311,7 +311,7 @@ pages.stato = async (page) => {
       if (s.last_capture) img.src = `/snapshot/${encodeURIComponent(c.id)}.jpg?t=${Date.parse(s.last_capture)}`;
     }
     const names = Object.fromEntries(cfg.sites.map(s => [s.id, s.name || s.id]));
-    $("#st-pubs").innerHTML = st.pubs.length ? st.pubs.map(p => `<tr><td>${esc(names[p.site_id] || p.site_id)}</td><td>${esc(p.filename)}</td><td>${esc(p.camera_id)}</td>
+    $("#st-pubs").innerHTML = st.pubs.length ? st.pubs.map(p => `<tr><td>${esc(names[p.site_id] || p.site_id)}</td><td>${esc(p.filename)}</td><td>${p.camera_id === "_meteo" ? "🌦️ Pagina meteo" : esc(p.camera_id)}</td>
       <td>${ago(p.last_upload)}</td><td>${p.last_error ? `<span class="badge err">errore</span> <span class="err-text">${esc(p.last_error)}</span>` : '<span class="badge ok">ok</span>'}</td></tr>`).join("")
       : `<tr><td colspan="5" class="help">Nessun invio ancora effettuato.</td></tr>`;
     for (const [id, s] of Object.entries(st.sites)) {
@@ -909,19 +909,25 @@ const meteoVars = [["temperature_2m", "Temperatura", "°C"], ["apparent_temperat
 const wuVars = [["temp", "Temperatura", "°C"], ["humidity", "Umidità", "%"], ["windSpeed", "Vento", " km/h"], ["windGust", "Raffiche", " km/h"], ["winddir", "Direzione vento", "°"],
   ["pressure", "Pressione", " hPa"], ["precipRate", "Intensità pioggia", " mm/h"], ["precipTotal", "Pioggia oggi", " mm"], ["dewpt", "Punto di rugiada", "°C"],
   ["heatIndex", "Indice di calore", "°C"], ["windChill", "Temperatura percepita (vento)", "°C"], ["uv", "Indice UV", ""], ["solarRadiation", "Radiazione solare", " W/m²"]];
+const stVars = [["temp", "Temperatura", "°C"], ["feels", "Percepita", "°C"], ["temp_min", "Minima oggi", "°C"], ["temp_max", "Massima oggi", "°C"], ["humidity", "Umidità", "%"], ["dewpt", "Punto di rugiada", "°C"],
+  ["wind", "Vento", " km/h"], ["gust", "Raffica", " km/h"], ["gust_max", "Raffica max oggi", " km/h"], ["winddir", "Direzione vento (gradi)", "°"], ["winddir_text", "Direzione vento (N, NE…)", ""],
+  ["pressure", "Pressione", " hPa"], ["rain_rate", "Intensità pioggia", " mm/h"], ["rain_day", "Pioggia oggi", " mm"], ["rain_event", "Pioggia evento", " mm"], ["rain_month", "Pioggia mese", " mm"], ["rain_year", "Pioggia anno", " mm"],
+  ["solar", "Radiazione solare", " W/m²"], ["uv", "Indice UV", ""], ["temp_in", "Temperatura interna", "°C"], ["humidity_in", "Umidità interna", "%"]];
+for (let i = 1; i <= 8; i++) stVars.push([`temp_ch${i}`, `Temperatura sensore ${i}`, "°C"], [`humidity_ch${i}`, `Umidità sensore ${i}`, "%"]);
 const dataFields = [
   { k: "name", label: "Nome", placeholder: "Es. Temperatura esterna" },
   { k: "id", label: "ID (per il segnaposto {data:ID})" },
-  { k: "type", label: "Fonte", type: "select", redraw: true, options: [["open_meteo", "Meteo Open-Meteo (gratis, senza chiave)"], ["wunderground", "Stazione Weather Underground"], ["home_assistant", "Sensore di Home Assistant"], ["ewelink", "Sensore Sonoff (app eWeLink)"], ["html", "Valore da una pagina web"], ["http_json", "URL JSON"], ["http_text", "URL testo semplice"]] },
+  { k: "type", label: "Fonte", type: "select", redraw: true, options: [["station", "Stazione meteo (tempo reale)"], ["open_meteo", "Meteo Open-Meteo (gratis, senza chiave)"], ["wunderground", "Stazione Weather Underground"], ["home_assistant", "Sensore di Home Assistant"], ["ewelink", "Sensore Sonoff (app eWeLink)"], ["html", "Valore da una pagina web"], ["http_json", "URL JSON"], ["http_text", "URL testo semplice"]] },
   { k: "coords", label: "Coordinate del punto", type: "coords", show: d => d.type === "open_meteo" },
   { k: "variable", label: "Grandezza", type: "select", show: d => d.type === "open_meteo", options: meteoVars.map(v => [v[0], v[1]]) },
+  { k: "variable", label: "Grandezza", type: "select", show: d => d.type === "station", options: stVars.map(v => [v[0], v[1]]), help: "Dalla stazione configurata in 🌦️ Stazione meteo." },
   { k: "station", label: "ID stazione", show: d => d.type === "wunderground", placeholder: "es. ISANTA123", help: "Usa “Cerca stazioni Weather Underground” nella pagina Dati live per trovarla. Se la chiave qui sotto è vuota si usa quella generale." },
   { k: "variable", label: "Grandezza", type: "select", show: d => d.type === "wunderground", options: wuVars.map(v => [v[0], v[1]]) },
   { k: "url", label: "Indirizzo Home Assistant", show: d => d.type === "home_assistant", placeholder: "http://homeassistant.local:8123", wide: true },
   { k: "url", label: "URL", show: d => d.type === "http_json" || d.type === "http_text", wide: true },
   { k: "url", label: "Indirizzo della pagina web", show: d => d.type === "html", wide: true, placeholder: "https://…/meteo/…", help: "Incolla l'indirizzo della pagina, poi premi 🔎 Cerca i valori nella pagina e scegli il valore." },
   { k: "path", label: "Valore scelto (espressione)", show: d => d.type === "html", wide: true, help: "Compilato da “Cerca i valori nella pagina”. Non serve modificarlo." },
-  { k: "token", label: "Chiave / token", type: "password", show: d => d.type !== "open_meteo", help: "Weather Underground: chiave API (gratuita per chi ha una stazione: wunderground.com → My Profile → API Keys). Home Assistant: token di accesso a lunga durata. Altri: bearer token opzionale." },
+  { k: "token", label: "Chiave / token", type: "password", show: d => d.type !== "open_meteo" && d.type !== "station", help: "Weather Underground: chiave API (gratuita per chi ha una stazione: wunderground.com → My Profile → API Keys). Home Assistant: token di accesso a lunga durata. Altri: bearer token opzionale." },
   { k: "entity", label: "Entità", show: d => d.type === "home_assistant", placeholder: "sensor.temperatura_esterna" },
   { k: "path", label: "Campo da leggere", show: d => d.type === "http_json" || d.type === "home_assistant", placeholder: "es. main.temp oppure attributes.humidity", help: "Percorso puntato nel JSON. Per HA vuoto = stato del sensore." },
   { k: "decimals", label: "Decimali", type: "number", min: -1, max: 4, help: "-1 = come arriva" },
@@ -939,7 +945,7 @@ pages.dati = async (page, arg) => {
   const st = await api("GET", "/api/status");
   $("#dt-list").innerHTML = cfg.data_sources.length ? cfg.data_sources.map(d => {
     const v = st.data[d.id] || {};
-    return `<div class="list-item"><div class="grow"><b>${esc(d.name || d.id)}</b> <code>{data:${esc(d.id)}}</code><div class="help">${esc({ ewelink: "Sonoff eWeLink " + (d.entity || ""), html: "Pagina web", open_meteo: "Open-Meteo", wunderground: "Weather Underground " + (d.station || ""), home_assistant: "Home Assistant", http_json: "URL JSON", http_text: "URL testo" }[d.type] || d.type)} · ogni ${d.refresh_seconds}s ${v.error ? `· <span class="err-text">${esc(v.error)}</span>` : ""}</div></div>
+    return `<div class="list-item"><div class="grow"><b>${esc(d.name || d.id)}</b> <code>{data:${esc(d.id)}}</code><div class="help">${esc({ station: "Stazione meteo · " + d.variable, ewelink: "Sonoff eWeLink " + (d.entity || ""), html: "Pagina web", open_meteo: "Open-Meteo", wunderground: "Weather Underground " + (d.station || ""), home_assistant: "Home Assistant", http_json: "URL JSON", http_text: "URL testo" }[d.type] || d.type)} · ogni ${d.refresh_seconds}s ${v.error ? `· <span class="err-text">${esc(v.error)}</span>` : ""}</div></div>
       <b style="font-size:18px">${esc(v.value || "—")}</b><a class="btn small" href="#dati/${encodeURIComponent(d.id)}">Modifica</a></div>`;
   }).join("") : `<span class="help">Nessun dato configurato.</span>`;
 };
@@ -1096,7 +1102,7 @@ async function editData(page, id) {
   page.innerHTML = `<h1>${isNew ? "Nuovo dato live" : esc(ds.name || ds.id)}</h1><div class="card" id="dt-form"></div>
     <div class="toolbar"><button class="primary" id="dt-save">💾 Salva</button><button id="dt-find">🔎 Cerca i valori nella pagina</button><button id="dt-test">Prova lettura</button><span id="dt-res"></span><span class="spacer"></span><a class="btn" href="#dati">Annulla</a>${isNew ? "" : '<button class="danger" id="dt-del">Elimina</button>'}</div>`;
   const form = renderForm(ds, dataFields, k => {
-    if (k === "variable") { const v = (ds.type === "wunderground" ? wuVars : meteoVars).find(m => m[0] === ds.variable); if (v) { ds.unit = v[2]; ds.name = v[1]; form.redraw(); } }
+    if (k === "variable") { const v = (ds.type === "wunderground" ? wuVars : ds.type === "station" ? stVars : meteoVars).find(m => m[0] === ds.variable); if (v) { ds.unit = v[2]; ds.name = v[1]; form.redraw(); } }
     if (k === "type") { if (ds.type === "wunderground" && !wuVars.some(v => v[0] === ds.variable)) ds.variable = "temp"; if (ds.type === "open_meteo" && !meteoVars.some(v => v[0] === ds.variable)) ds.variable = "temperature_2m"; form.redraw(); }
     if (k === "name" && isNew) { ds.id = uniqueId(ds.name, cfg.data_sources); form.setValue("id", ds.id); }
   });
@@ -1162,6 +1168,129 @@ async function editData(page, id) {
     await saveConfig(next); location.hash = "#dati";
   }); };
 }
+
+// ======================================================================
+// STAZIONE METEO
+// ======================================================================
+const stPageDefault = ["temp", "humidity", "dewpt", "wind", "gust", "pressure", "rain_rate", "rain_day", "solar", "uv"];
+pages.meteo = async page => {
+  const s = clone(cfg.station || {});
+  s.page = s.page || { title: "", camera_id: "", fields: [] };
+  if (!s.page.fields || !s.page.fields.length) s.page.fields = stPageDefault.slice();
+  s.source = s.source || "push";
+  page.innerHTML = `<h1>🌦️ Stazione meteo</h1>
+    <p class="help">Dati <b>in tempo reale</b> dalla tua stazione meteo (Froggit, Ecowitt, Fine Offset, Sainlogic, Bresser…) direttamente nella rete locale, senza passare da Weather Underground. I dati si possono mettere in sovrimpressione sulle webcam e pubblicare come pagina web.</p>
+    <div class="card"><h3 style="margin-top:0">1 · Collegamento</h3><div id="ms-form"></div><div id="ms-how" style="margin-top:12px"></div>
+      <div class="toolbar" style="margin:12px 0 0"><button class="primary" id="ms-save">💾 Salva</button><button id="ms-scan">🔎 Cerca la stazione nella rete</button><button id="ms-test">Prova lettura</button><span id="ms-msg" class="help"></span></div><div id="ms-scanres"></div></div>
+    <div class="card"><h3 style="margin-top:0">2 · Dati attuali <span id="ms-age" class="help"></span></h3><div id="ms-vals"><span class="help">In attesa dei dati…</span></div>
+      <div class="toolbar" style="margin-top:14px"><label class="help">Metti i valori spuntati sulla webcam <select id="ms-cam" style="width:auto"><option value="">— solo crea i dati live —</option>${cfg.cameras.map(c => `<option value="${esc(c.id)}">${esc(c.name || c.id)}</option>`).join("")}</select></label>
+      <span class="spacer"></span><button class="primary" id="ms-ov">🖌️ Crea scritta in sovrimpressione</button></div></div>
+    <div class="card"><h3 style="margin-top:0">3 · Pagina web meteo</h3>
+      <p class="help">Pagina colorata con icone animate, grafici delle ultime 24 ore, 7 giorni, 30 giorni e 12 mesi e la webcam. Si pubblica come una webcam: in <b>Siti FTP</b>, nelle pubblicazioni del sito, scegli <b>🌦️ Pagina meteo</b> con nome del file e periodicità.</p>
+      <div id="ms-page"></div>
+      <div class="field wide" style="margin-top:8px"><label>Valori nella pagina</label><div id="ms-fields" style="display:flex;flex-wrap:wrap;gap:6px 16px"></div></div>
+      <div class="toolbar" style="margin:12px 0 0"><button class="primary" id="ms-save2">💾 Salva</button><a class="btn" href="/api/station/preview" target="_blank" rel="noopener">👁️ Anteprima</a>
+        <label class="help">Pubblica su <select id="ms-site" style="width:auto">${cfg.sites.map(x => `<option value="${esc(x.id)}">${esc(x.name || x.id)}</option>`).join("")}</select></label><button id="ms-addsite">➕ Aggiungi al sito</button><button id="ms-pub">⬆️ Pubblica ora</button></div>
+      <div id="ms-where" class="help" style="margin-top:8px"></div></div>`;
+  const form = renderForm(s, [
+    { k: "enabled", label: "Stazione meteo attiva", type: "checkbox" },
+    { k: "name", label: "Nome", placeholder: "Es. Stazione Camping" },
+    { k: "source", label: "Collegamento", type: "select", redraw: true, wide: true, options: [["push", "La stazione invia i dati al programma (server personalizzato) — consigliato, tempo reale"], ["local", "Il programma legge la console nella rete (porta 45000, console Ecowitt/GW1000/GW2000/HP2550)"], ["wunderground", "Weather Underground (riserva, con ritardo)"]] },
+    { k: "host", label: "Indirizzo IP della console", show: x => x.source === "local", placeholder: "192.168.1.60" },
+    { k: "accept_key", label: "Accetta solo questa stazione (PASSKEY / ID)", show: x => x.source === "push", help: "Facoltativo: compilato con “Usa questa stazione” dopo il primo invio. Vuoto = accetta qualsiasi stazione della rete." },
+    { k: "station_id", label: "ID stazione Weather Underground", show: x => x.source === "wunderground", placeholder: "ISANTA123" },
+    { k: "api_key", label: "Chiave API Weather Underground", type: "password", show: x => x.source === "wunderground", help: "Vuota = quella generale (Dati live)." },
+    { k: "refresh_seconds", label: "Leggi ogni (secondi)", type: "number", min: 15, show: x => x.source !== "push" },
+  ], () => drawHow());
+  $("#ms-form").appendChild(form);
+  $("#ms-page").appendChild(renderForm(s.page, [
+    { k: "title", label: "Titolo della pagina", placeholder: "Meteo " + (cfg.location.name || "") },
+    { k: "camera_id", label: "Webcam nella pagina", type: "select", options: [["", "la prima webcam pubblicata sullo stesso sito"], ["none", "nessuna webcam"]].concat(cfg.cameras.map(c => [c.id, c.name || c.id])) },
+  ]));
+  $("#ms-fields").innerHTML = stVars.filter(v => !["temp_min", "temp_max", "winddir"].includes(v[0])).map(v => `<label class="help" style="white-space:nowrap"><input type="checkbox" data-f="${v[0]}" ${s.page.fields.includes(v[0]) ? "checked" : ""}> ${esc(v[1])}</label>`).join("");
+  $("#ms-fields").onchange = () => { s.page.fields = [...document.querySelectorAll("#ms-fields [data-f]:checked")].map(c => c.dataset.f); };
+  let info = { ips: [], port: "8080", push: {} };
+  const drawHow = () => {
+    $("#ms-scan").classList.toggle("hidden", s.source !== "local");
+    $("#ms-test").classList.toggle("hidden", s.source === "push");
+    const how = $("#ms-how");
+    if (s.source !== "push") { how.innerHTML = ""; return; }
+    const ip = info.ips[0] || "IP-DI-QUESTO-PC", p = info.push || {};
+    const got = p.time && Date.now() - Date.parse(p.time) < 10 * 60000;
+    how.innerHTML = `<div class="card" style="margin:0;background:var(--bg)"><b>Come impostare la stazione</b> (una volta sola), dall'app <b>WS View Plus</b> / <b>WSLink</b> o dal menu della console → <b>Weather Services</b> → <b>Customized</b> (server personalizzato):
+      <table style="margin-top:8px"><tr><td>Customized</td><td><b>Enable</b></td></tr><tr><td>Protocol Type Same As</td><td><b>Ecowitt</b></td></tr>
+      <tr><td>Server IP / Hostname</td><td><code>${esc(ip)}</code>${info.ips.length > 1 ? ` <span class="help">(o ${info.ips.slice(1).map(esc).join(", ")})</span>` : ""}</td></tr>
+      <tr><td>Path</td><td><code>/data/report/</code></td></tr><tr><td>Port</td><td><code>${esc(info.port)}</code></td></tr><tr><td>Upload Interval</td><td><b>16–60</b> secondi</td></tr></table>
+      <p class="help">Se la stazione offre solo il protocollo Wunderground: Path <code>/weatherstation/updateweatherstation.php?</code>, Station ID e Key a piacere. Il PC deve restare acceso con un indirizzo IP fisso (prenotalo nel router).</p>
+      <div style="margin-top:6px">${p.time ? (p.rejected ? `<span class="badge err">ricevuto ma scartato</span> ${esc(p.rejected)} · da ${esc(p.from)}` : `<span class="badge ${got ? "ok" : "warn"}">${got ? "la stazione sta inviando" : "ultimo invio"}</span> ${ago(p.time)} da <b>${esc(p.from)}</b> · protocollo ${esc(p.protocol)} · ${p.count} invii`)
+        + (p.key && !s.accept_key ? ` <button class="small" id="ms-lock">🔒 Usa solo questa stazione</button>` : "") : `<span class="badge warn">nessun dato ricevuto finora</span> <span class="help">appena la stazione invia, qui compare la conferma (si aggiorna da sé)</span>`}</div></div>`;
+    const lock = $("#ms-lock");
+    if (lock) lock.onclick = () => { s.accept_key = p.key; form.redraw(); drawHow(); toast("Premi 💾 Salva per confermare"); };
+  };
+  let current = [];
+  const drawVals = (vals, when) => {
+    current = vals || [];
+    $("#ms-age").textContent = when ? "· " + ago(when) : "";
+    const prev = new Set([...document.querySelectorAll("#ms-vals [data-v]:checked")].map(c => c.dataset.v));
+    const def = prev.size ? prev : new Set(["temp", "humidity", "wind"]);
+    $("#ms-vals").innerHTML = current.length ? `<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:6px 14px">${current.map(v => `<label style="display:flex;gap:8px;align-items:center"><input type="checkbox" data-v="${v.key}" ${def.has(v.key) ? "checked" : ""}><span class="grow">${esc(v.label)}</span><b>${esc(v.text)}</b></label>`).join("")}</div>`
+      : `<span class="help">Nessun dato ricevuto. ${s.source === "push" ? "Imposta la stazione come indicato sopra." : "Premi “Prova lettura”."}</span>`;
+  };
+  every(5000, async () => {
+    if (!$("#ms-how")) return;
+    info = await api("GET", "/api/station");
+    drawHow();
+    if (!document.querySelector("#ms-vals input:focus")) drawVals(info.values, info.reading && info.reading.time && !info.reading.time.startsWith("0001") ? info.reading.time : null);
+    const pubs = cfg.sites.flatMap(x => x.publications.filter(p => p.camera_id === "_meteo").map(p => `<b>${esc(x.name || x.id)}</b>: ${esc(p.filename)}${x.public_url ? ` — <a target="_blank" rel="noopener" href="${esc(x.public_url.replace(/\/?$/, "/") + p.filename)}">apri ↗</a>` : ""}`));
+    $("#ms-where").innerHTML = pubs.length ? "Pubblicata su " + pubs.join(" · ") : "Non ancora pubblicata su nessun sito.";
+  });
+  const save = e => busy(e.target, async () => { const next = clone(cfg); next.station = s; await saveConfig(next); });
+  $("#ms-save").onclick = save; $("#ms-save2").onclick = save;
+  $("#ms-test").onclick = e => busy(e.target, async () => {
+    const r = await api("POST", "/api/station/read", s);
+    drawVals(r.values, new Date().toISOString()); toast("Lettura riuscita: " + (r.model || "") + " — premi 💾 Salva");
+  });
+  $("#ms-scan").onclick = e => busy(e.target, async () => {
+    $("#ms-msg").textContent = "Ricerca nella rete (fino a un minuto)…";
+    const devs = await api("POST", "/api/station/scan");
+    $("#ms-msg").textContent = "";
+    $("#ms-scanres").innerHTML = devs.length ? `<h3>Console trovate</h3>${devs.map(d => `<div class="list-item"><div class="grow"><b>${esc(d.name || d.host)}</b> <span class="help">${esc(d.host)} ${esc(d.mac || "")}</span>
+      <div class="help">${d.error ? `<span class="err-text">${esc(d.error)}</span>` : d.list.slice(0, 6).map(v => esc(v.label) + " <b>" + esc(v.text) + "</b>").join(" · ")}</div></div><button class="small primary" data-h="${esc(d.host)}">Usa questa</button></div>`).join("")}`
+      : `<p class="help">Nessuna console trovata con la lettura diretta. Molte stazioni (es. Froggit WH3000 SE PRO) non la supportano: usa il collegamento <b>“La stazione invia i dati al programma”</b>.</p>`;
+    $("#ms-scanres").querySelectorAll("[data-h]").forEach(b => b.onclick = () => { s.host = b.dataset.h; form.redraw(); toast("Console scelta: premi 💾 Salva"); });
+  });
+  $("#ms-ov").onclick = e => busy(e.target, async () => {
+    const chosen = [...document.querySelectorAll("#ms-vals [data-v]:checked")].map(c => current.find(v => v.key === c.dataset.v)).filter(Boolean);
+    if (!chosen.length) throw new Error("Spunta almeno un valore");
+    const next = clone(cfg), parts = [];
+    next.station = s;
+    for (const v of chosen) {
+      let ds = next.data_sources.find(d => d.type === "station" && d.variable === v.key);
+      if (!ds) {
+        const def = stVars.find(x => x[0] === v.key) || [v.key, v.label, v.unit];
+        ds = { id: uniqueId("meteo-" + v.key.replace(/_/g, "-"), next.data_sources), name: v.label, type: "station", variable: v.key, unit: def[2], decimals: ["humidity", "humidity_in", "winddir", "uv", "solar"].includes(v.key) ? 0 : 1, refresh_seconds: 30, latitude: 0, longitude: 0, url: "", token: "", entity: "", path: "", station: "" };
+        next.data_sources.push(ds);
+      }
+      const short = { temp: "🌡", humidity: "💧", wind: "Vento", gust: "Raffica", pressure: "", rain_day: "Pioggia", rain_rate: "Pioggia" }[v.key];
+      parts.push(short === undefined ? `${v.label} {data:${ds.id}}` : (short ? short + " " : "") + `{data:${ds.id}}`);
+    }
+    const camId = $("#ms-cam").value;
+    if (camId) next.cameras.find(c => c.id === camId).overlays.push({ type: "text", enabled: true, text: parts.join("   "), anchor: "top-right", offset_x: 1.5, offset_y: 2, size: 3.4, color: "#ffffff", bold: true, shadow: true, background: "#000000", bg_opacity: 0.45, opacity: 1, full_width: false });
+    await saveConfig(next);
+    toast(camId ? "Scritta creata: spostala con il mouse" : "Dati live creati: usali con {data:ID}");
+    if (camId) location.hash = "#sovrimpressioni/" + encodeURIComponent(camId);
+  });
+  $("#ms-addsite").onclick = e => busy(e.target, async () => {
+    const id = $("#ms-site").value; if (!id) throw new Error("Crea prima un sito in Siti FTP");
+    const next = clone(cfg); next.station = s;
+    const site = next.sites.find(x => x.id === id);
+    if (site.publications.some(p => p.camera_id === "_meteo")) { toast("La pagina è già pubblicata su questo sito"); return; }
+    site.publications.push({ camera_id: "_meteo", filename: "meteo.html", interval_seconds: 300 });
+    await saveConfig(next); toast("Pagina meteo aggiunta al sito (meteo.html ogni 5 minuti): puoi cambiarli in Siti FTP");
+  });
+  $("#ms-pub").onclick = e => busy(e.target, async () => { const r = await api("POST", "/api/station/publish"); toast(r.ok); });
+  drawHow();
+};
 
 // ======================================================================
 // SITI FTP
@@ -1248,10 +1377,10 @@ async function editSite(page, id) {
     tb.innerHTML = site.publications.length ? "" : `<tr><td colspan="4" class="help">Nessuna webcam: aggiungine una.</td></tr>`;
     site.publications.forEach((p, i) => {
       const tr = document.createElement("tr");
-      tr.innerHTML = `<td><select>${cfg.cameras.map(c => `<option value="${esc(c.id)}" ${c.id === p.camera_id ? "selected" : ""}>${esc(c.name || c.id)}</option>`).join("")}</select></td>
+      tr.innerHTML = `<td><select>${cfg.cameras.map(c => `<option value="${esc(c.id)}" ${c.id === p.camera_id ? "selected" : ""}>${esc(c.name || c.id)}</option>`).join("")}<option value="_meteo" ${p.camera_id === "_meteo" ? "selected" : ""}>🌦️ Pagina meteo</option></select></td>
         <td><input value="${esc(p.filename)}"></td><td>${intervalSelect(p.interval_seconds)}</td><td><button class="small danger">✕</button></td>`;
       const [cs, fn, is] = tr.querySelectorAll("select, input");
-      cs.onchange = () => p.camera_id = cs.value;
+      cs.onchange = () => { const was = p.camera_id; p.camera_id = cs.value; if (cs.value === "_meteo" && !/\.html$/i.test(p.filename)) { p.filename = "meteo.html"; fn.value = p.filename; } else if (was === "_meteo" && cs.value !== "_meteo") { p.filename = cs.value + ".jpg"; fn.value = p.filename; } };
       fn.oninput = () => p.filename = fn.value;
       is.onchange = () => p.interval_seconds = Number(is.value);
       tr.querySelector("button").onclick = () => { site.publications.splice(i, 1); drawPubs(); };
