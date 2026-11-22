@@ -20,6 +20,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"sort"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -151,7 +152,7 @@ func (s *Server) Handler() http.Handler {
 			return
 		}
 		req.Host = strings.TrimSpace(req.Host)
-		if net.ParseIP(req.Host) == nil {
+		if !validStationHost(req.Host) {
 			httpError(w, http.StatusBadRequest, "scrivi l'indirizzo IP della stazione, es. 192.168.1.60")
 			return
 		}
@@ -168,7 +169,7 @@ func (s *Server) Handler() http.Handler {
 		if !readJSON(w, r, &req) {
 			return
 		}
-		if net.ParseIP(strings.TrimSpace(req.Host)) == nil || net.ParseIP(strings.TrimSpace(req.Server)) == nil || req.Port <= 0 {
+		if !validStationHost(strings.TrimSpace(req.Host)) || net.ParseIP(strings.TrimSpace(req.Server)) == nil || req.Port <= 0 {
 			httpError(w, http.StatusBadRequest, "indirizzi o porta non validi")
 			return
 		}
@@ -186,6 +187,20 @@ func (s *Server) Handler() http.Handler {
 			a.Reload()
 		}
 		writeJSON(w, map[string]any{"custom": c})
+	})
+	mux.HandleFunc("POST /api/station/probe", func(w http.ResponseWriter, r *http.Request) {
+		var req struct{ Host string }
+		if !readJSON(w, r, &req) {
+			return
+		}
+		req.Host = strings.TrimSpace(req.Host)
+		if net.ParseIP(req.Host) == nil {
+			httpError(w, http.StatusBadRequest, "scrivi l'indirizzo IP della stazione, es. 192.168.1.60")
+			return
+		}
+		ctx, cancel := context.WithTimeout(r.Context(), 4*time.Minute)
+		defer cancel()
+		writeJSON(w, StationProbe(ctx, req.Host))
 	})
 	mux.HandleFunc("POST /api/station/scan", func(w http.ResponseWriter, r *http.Request) {
 		ctx, cancel := context.WithTimeout(r.Context(), 90*time.Second)
@@ -1313,4 +1328,13 @@ func (a *App) panelPort() string {
 		return p
 	}
 	return strings.TrimPrefix(addr, ":")
+}
+
+// validStationHost accetta "IP" oppure "IP:porta".
+func validStationHost(h string) bool {
+	if host, port, err := net.SplitHostPort(h); err == nil {
+		n, err := strconv.Atoi(port)
+		return net.ParseIP(host) != nil && err == nil && n > 0 && n < 65536
+	}
+	return net.ParseIP(h) != nil
 }

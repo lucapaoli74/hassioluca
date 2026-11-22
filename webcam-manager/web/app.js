@@ -1181,7 +1181,7 @@ pages.meteo = async page => {
   page.innerHTML = `<h1>🌦️ Stazione meteo</h1>
     <p class="help">Dati <b>in tempo reale</b> dalla tua stazione meteo (Froggit, Ecowitt, Fine Offset, Sainlogic, Bresser…) direttamente nella rete locale, senza passare da Weather Underground. I dati si possono mettere in sovrimpressione sulle webcam e pubblicare come pagina web.</p>
     <div class="card"><h3 style="margin-top:0">1 · Collegamento</h3><div id="ms-form"></div><div id="ms-remote" class="card" style="margin:12px 0 0;background:var(--bg)"><b>🔧 Imposta la stazione da qui</b> <span class="help">(senza smartphone: serve l'indirizzo IP della stazione)</span>
-        <div class="toolbar" style="margin:8px 0 0"><input id="ms-cip" placeholder="IP della stazione, es. 192.168.1.60" style="max-width:260px" value="${esc(s.host || "")}"><button id="ms-cchk">Controlla la stazione</button></div><div id="ms-cres"></div></div>
+        <div class="toolbar" style="margin:8px 0 0"><input id="ms-cip" placeholder="IP della stazione, es. 192.168.1.60" style="max-width:260px" value="${esc(s.host || "")}"><button id="ms-cchk">Controlla la stazione</button><button id="ms-probe">🔬 Analisi approfondita</button></div><div id="ms-cres"></div></div>
       <div id="ms-how" style="margin-top:12px"></div>
       <div class="toolbar" style="margin:12px 0 0"><button class="primary" id="ms-save">💾 Salva</button><button id="ms-scan">🔎 Cerca la stazione nella rete</button><button id="ms-test">Prova lettura</button><span id="ms-msg" class="help"></span></div><div id="ms-scanres"></div></div>
     <div class="card"><h3 style="margin-top:0">2 · Dati attuali <span id="ms-age" class="help"></span></h3><div id="ms-vals"><span class="help">In attesa dei dati…</span></div>
@@ -1292,6 +1292,14 @@ pages.meteo = async page => {
       $("#ms-cres").insertAdjacentHTML("beforeend", `<p class="ok-text"><b>✔ Stazione impostata.</b> Entro un minuto qui sotto deve comparire “la stazione sta inviando”.</p>`);
       toast("Stazione impostata");
     });
+  });
+  $("#ms-probe").onclick = e => busy(e.target, async () => {
+    const host = $("#ms-cip").value.trim().replace(/:\d+$/, "");
+    $("#ms-cres").innerHTML = `<p class="help">Analisi di ${esc(host)} come fa l'app WS View: annuncio, tutte le porte, comandi… (2-3 minuti)</p>`;
+    const r = await api("POST", "/api/station/probe", { host });
+    $("#ms-cres").innerHTML = `<pre style="white-space:pre-wrap;font-size:12px;max-height:320px;overflow:auto">${esc(r.report)}</pre><button class="small" id="ms-pcopy">📋 Copia il rapporto</button>`;
+    $("#ms-pcopy").onclick = () => navigator.clipboard.writeText(r.report).then(() => toast("Copiato"), () => toast("Seleziona e copia con Ctrl+C", true));
+    if (r.config_addr) { $("#ms-cip").value = r.config_addr; toast("Trovata la porta dei comandi: controllo la stazione"); $("#ms-cchk").click(); }
   });
   $("#ms-scan").onclick = e => busy(e.target, async () => {
     $("#ms-msg").textContent = "Ricerca nella rete (fino a un minuto)…";

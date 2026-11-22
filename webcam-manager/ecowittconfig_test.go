@@ -79,3 +79,16 @@ func TestParseEcowittCustomRejectsUnknownFormat(t *testing.T) {
 		t.Fatal("formato sbagliato accettato")
 	}
 }
+
+func TestStationProbeFindsCommandPort(t *testing.T) {
+	if testing.Short() {
+		t.Skip("scansione di tutte le porte")
+	}
+	addr := fakeConfigConsole(t)
+	host, port, _ := net.SplitHostPort(addr)
+	r := StationProbe(context.Background(), host)
+	if r.ConfigAddr == "" {
+		t.Fatalf("porta %s non trovata:\n%s", port, r.Report)
+	}
+	t.Log(r.Report)
+}

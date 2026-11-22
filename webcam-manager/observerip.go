@@ -21,7 +21,7 @@ var (
 	attrRe     = regexp.MustCompile(`(?is)\b(name|value)\s*=\s*("([^"]*)"|'([^']*)'|([^\s>]+))`)
 	selectRe   = regexp.MustCompile(`(?is)<select\b[^>]*name\s*=\s*["']?([\w-]+)[^>]*>(.*?)</select>`)
 	selOptRe   = regexp.MustCompile(`(?is)<option\b[^>]*\bselected\b[^>]*>([^<]*)`)
-	devTitleRe    = regexp.MustCompile(`(?is)<title[^>]*>(.*?)</title>`)
+	devTitleRe = regexp.MustCompile(`(?is)<title[^>]*>(.*?)</title>`)
 )
 
 // htmlInputs restituisce i campi name=value della pagina.
