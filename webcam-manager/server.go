@@ -471,6 +471,66 @@ func (s *Server) Handler() http.Handler {
 		}
 		writeJSON(w, out)
 	})
+	// esplora un indirizzo della rete: porte web aperte e valori nelle pagine
+	mux.HandleFunc("POST /api/explore", func(w http.ResponseWriter, r *http.Request) {
+		var req struct{ Host string }
+		if !readJSON(w, r, &req) {
+			return
+		}
+		host := strings.TrimSpace(strings.TrimPrefix(strings.TrimPrefix(req.Host, "http://"), "https://"))
+		host = strings.TrimRight(host, "/")
+		if h, _, err := net.SplitHostPort(host); err == nil {
+			host = h
+		}
+		if net.ParseIP(host) == nil && !regexp.MustCompile(`^[A-Za-z0-9.-]+$`).MatchString(host) {
+			httpError(w, http.StatusBadRequest, "scrivi l'indirizzo, es. 10.0.33.202")
+			return
+		}
+		var report strings.Builder
+		fmt.Fprintf(&report, "Esplorazione di %s · %s\n", host, time.Now().Format("02/01/2006 15:04"))
+		values := []FoundValue{}
+		reached := false
+		for _, port := range []int{80, 8080, 8000, 8081, 3000, 5000, 1880, 8123, 8888, 9000, 443, 8443} {
+			c, err := net.DialTimeout("tcp", net.JoinHostPort(host, strconv.Itoa(port)), 1500*time.Millisecond)
+			if err != nil {
+				continue
+			}
+			c.Close()
+			reached = true
+			scheme := "http"
+			if port == 443 || port == 8443 {
+				scheme = "https"
+			}
+			u := scheme + "://" + host
+			if port != 80 && port != 443 {
+				u += ":" + strconv.Itoa(port)
+			}
+			u += "/"
+			ctx, cancel := context.WithTimeout(r.Context(), 45*time.Second)
+			scan, err := FindPageValues(ctx, u, "")
+			cancel()
+			if err != nil {
+				fmt.Fprintf(&report, "porta %d aperta: %s → %v\n", port, u, err)
+				continue
+			}
+			fmt.Fprintf(&report, "porta %d aperta: %s → %d valori (browser: %v %s)\n", port, u, len(scan.Values), scan.Rendered, scan.BrowserErr)
+			ex := scan.Excerpt
+			if len(ex) > 1500 {
+				ex = ex[:1500]
+			}
+			fmt.Fprintf(&report, "--- testo della pagina ---\n%s\n---\n", ex)
+			for _, v := range scan.Values {
+				if v.Source == "" {
+					v.Source = u
+				}
+				values = append(values, v)
+			}
+		}
+		if !reached {
+			fmt.Fprintf(&report, "nessuna porta web risponde: questo computer non raggiunge %s (rete diversa o dispositivo spento)\n", host)
+		}
+		writeJSON(w, map[string]any{"values": values, "report": report.String(), "reached": reached})
+	})
 	mux.HandleFunc("POST /api/page-values", func(w http.ResponseWriter, r *http.Request) {
 		var req struct{ URL, Label string }
 		if !readJSON(w, r, &req) {

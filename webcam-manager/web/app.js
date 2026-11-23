@@ -937,9 +937,10 @@ const dataFields = [
 pages.dati = async (page, arg) => {
   if (arg) return editData(page, arg);
   page.innerHTML = `<h1>Dati live</h1><p class="help">Valori aggiornati automaticamente (temperatura, vento, sensori…) da usare nelle sovrimpressioni con <code>{data:ID}</code>.</p>
-    <div class="toolbar"><a class="btn primary" href="#dati/nuovo">➕ Nuovo dato</a><button id="dt-page">🌐 Dato da una pagina web</button><button id="dt-sensor">🔌 Sensore Sonoff / Tasmota / ESPHome / Home Assistant</button><button id="wu-open">🔎 Cerca stazioni Weather Underground</button></div><div class="card" id="dt-list"></div>
+    <div class="toolbar"><a class="btn primary" href="#dati/nuovo">➕ Nuovo dato</a><button id="dt-explore">🔎 Cerca sensori a un indirizzo IP</button><button id="dt-page">🌐 Dato da una pagina web</button><button id="dt-sensor">🔌 Sensore Sonoff / Tasmota / ESPHome / Home Assistant</button><button id="wu-open">🔎 Cerca stazioni Weather Underground</button></div><div class="card" id="dt-list"></div>
     <div class="card hidden" id="wu-box"></div>`;
   $("#dt-sensor").onclick = () => sensorWizard();
+  $("#dt-explore").onclick = () => exploreWizard();
   $("#dt-page").onclick = () => { sessionStorage.setItem("newData", JSON.stringify({ type: "html", name: "Temperatura", unit: "°C", decimals: 1, refresh_seconds: 300 })); location.hash = "#dati/nuovo"; };
   $("#wu-open").onclick = () => { $("#wu-box").classList.toggle("hidden"); wuSearchUI($("#wu-box")); };
   const st = await api("GET", "/api/status");
@@ -966,6 +967,34 @@ pages.dati = async (page, arg) => {
       <b style="font-size:18px">${esc(v.value || "—")}</b><a class="btn small" href="#dati/${encodeURIComponent(d.id)}">Modifica</a></div>`;
   }).join("") : `<span class="help">Nessun dato configurato.</span>`;
 };
+// Esplora un dispositivo della rete (es. un hub che raccoglie i sensori):
+// trova le pagine web e i valori di temperatura/umidità, crea i dati con un clic.
+function exploreWizard() {
+  openModal(`<h2 style="margin-top:0">🔎 Cerca sensori a un indirizzo IP</h2>
+    <p class="help">Scrivi l'indirizzo del dispositivo (es. il relay hub) e premi Cerca: il programma prova le sue pagine web, anche quelle che caricano i dati con JavaScript, e mostra i valori trovati.</p>
+    <div class="toolbar" style="margin:0"><input id="ex-host" value="10.0.33.202" style="max-width:220px"><button class="primary" id="ex-go">🔎 Cerca</button></div><div id="ex-res"></div>`);
+  $("#ex-go").onclick = e => busy(e.target, async () => {
+    $("#ex-res").innerHTML = `<p class="help">Ricerca in corso (fino a un paio di minuti)…</p>`;
+    const r = await api("POST", "/api/explore", { host: $("#ex-host").value });
+    const rows = r.values.map((v, i) => `<tr><td>${esc(v.context || "—")}<div class="help">${esc((v.source || "").replace(/^https?:\/\//, "").slice(0, 70))}</div></td><td><b style="font-size:16px">${esc(v.value)} ${esc(v.unit)}</b></td><td style="text-align:right"><button class="small primary" data-i="${i}">Usa questo</button></td></tr>`).join("");
+    $("#ex-res").innerHTML = (r.values.length ? `<h3>Valori trovati</h3><table>${rows}</table>` : `<p><b>${r.reached ? "Nessun valore riconosciuto nelle pagine." : "Il dispositivo non risponde da questo computer."}</b></p>`)
+      + `<details ${r.values.length ? "" : "open"} style="margin-top:10px"><summary class="help">Rapporto (da copiare per l'assistenza)</summary><pre class="log" style="max-height:220px">${esc(r.report)}</pre><button class="small" id="ex-copy">📋 Copia il rapporto</button></details>`;
+    $("#ex-copy").onclick = () => navigator.clipboard.writeText(r.report).then(() => toast("Copiato"), () => toast("Seleziona e copia con Ctrl+C", true));
+    document.querySelectorAll("#ex-res [data-i]").forEach(b => b.onclick = () => busy(b, async () => {
+      const v = r.values[Number(b.dataset.i)];
+      const name = ((v.context || "Valore").replace(/\s*\(.*\)$/, "") || "Valore");
+      const next = clone(cfg);
+      const ds = { id: uniqueId(name, next.data_sources), name: name.charAt(0).toUpperCase() + name.slice(1), type: v.kind === "json" ? "http_json" : "html",
+        variable: v.kind === "raw" ? "raw" : v.kind === "browser" ? "browser" : "", url: v.source, path: v.pattern, token: "", entity: "", station: "",
+        unit: v.unit.startsWith("°") ? "°C" : v.unit === "%" ? "%" : v.unit ? " " + v.unit : "", decimals: /^-?\d+$/.test(v.value) ? 0 : 1,
+        refresh_seconds: v.kind === "browser" ? 300 : 120, latitude: 0, longitude: 0 };
+      next.data_sources.push(ds);
+      await saveConfig(next);
+      b.textContent = "✔ creato {data:" + ds.id + "}"; b.disabled = true;
+      toast("Dato live creato: usalo nelle sovrimpressioni con {data:" + ds.id + "}");
+    }));
+  });
+}
 // Ricerca delle stazioni Weather Underground vicine e scelta dei valori da
 // mettere in sovrimpressione.
 function wuSearchUI(box) {

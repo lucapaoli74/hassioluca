@@ -3,6 +3,10 @@
 Ogni versione rilasciata ha qui la sua voce: il testo diventa le note della
 release mostrate nel pannello (Impostazioni → Aggiornamenti).
 
+## [0.4.2] - 2026-11-23
+
+- Dati live: "🔎 Cerca sensori a un indirizzo IP" — basta l'indirizzo di un dispositivo della rete (es. un hub che raccoglie i sensori): il programma prova le sue pagine web su tutte le porte comuni, anche quelle che caricano i dati con JavaScript, e mostra temperature e umidità trovate, da usare con un clic; rapporto da copiare se non trova nulla.
+
 ## [0.4.1] - 2026-11-23
 
 - Dati live: "🔑 Importa chiavi Sonoff" per incollare le chiavi dei dispositivi salvate da un altro programma (JSON in vari formati) e leggere i sensori in rete locale senza ricollegare l'account eWeLink (che scollegherebbe gli altri programmi con la stessa APPID).
