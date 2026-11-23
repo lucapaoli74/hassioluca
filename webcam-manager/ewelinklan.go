@@ -10,6 +10,7 @@ import (
 	"log"
 	"net"
 	"os"
+	"sort"
 	"strings"
 	"sync"
 	"time"
@@ -37,7 +38,20 @@ type ewelinkLAN struct {
 	uiid     map[string]int
 	values   map[string]lanReading // id dispositivo/sensore -> ultimi parametri
 	seen     map[string]time.Time  // dispositivi visti in LAN (anche senza chiave)
+	diag     map[string]*lanDiag   // dettaglio per il pannello
 	keysPath string
+}
+
+// lanDiag descrive cosa si riceve da un dispositivo in LAN.
+type lanDiag struct {
+	ID     string    `json:"id"`
+	IP     string    `json:"ip"`
+	Type   string    `json:"type"`
+	HasKey bool      `json:"has_key"`
+	Status string    `json:"status"`
+	Params []string  `json:"params,omitempty"` // nomi dei valori ricevuti
+	SubDev string    `json:"sub_dev,omitempty"`
+	Seen   time.Time `json:"seen"`
 }
 
 var ewLAN = &ewelinkLAN{keys: map[string]string{}, uiid: map[string]int{}, values: map[string]lanReading{}, seen: map[string]time.Time{}}
@@ -106,7 +120,12 @@ func (l *ewelinkLAN) status() map[string]any {
 	for id, r := range l.values {
 		vals[id] = r.At.Format(time.RFC3339)
 	}
-	return map[string]any{"listening": l.started, "devices": seen, "values": vals, "keys": len(l.keys)}
+	details := []lanDiag{}
+	for _, d := range l.diag {
+		details = append(details, *d)
+	}
+	sort.Slice(details, func(i, j int) bool { return details[i].ID < details[j].ID })
+	return map[string]any{"listening": l.started, "devices": seen, "values": vals, "keys": len(l.keys), "details": details}
 }
 
 // start avvia l'ascolto mDNS (una volta sola).
@@ -203,32 +222,66 @@ func (l *ewelinkLAN) handleTXT(txt []string, from *net.UDPAddr) {
 		return
 	}
 	data := kv["data1"] + kv["data2"] + kv["data3"] + kv["data4"]
-	l.mu.Lock()
-	l.seen[id] = time.Now()
-	key := l.keys[id]
-	l.mu.Unlock()
-	var params map[string]any
-	if kv["encrypt"] == "true" {
-		if key == "" {
-			return // serve la chiave dal cloud
-		}
-		plain, err := ewelinkDecrypt(key, kv["iv"], data)
-		if err != nil {
-			return
-		}
-		if json.Unmarshal(plain, &params) != nil {
-			return
-		}
-	} else if json.Unmarshal([]byte(data), &params) != nil {
-		return
-	}
-	target := id
-	if sub, ok := params["subDevId"].(string); ok && sub != "" {
-		target = sub // valore di un sensore collegato al bridge
-	}
 	src := ""
 	if from != nil {
 		src = from.IP.String()
+	}
+	l.mu.Lock()
+	l.seen[id] = time.Now()
+	key := l.keys[id]
+	if key == "" {
+		for k, v := range l.keys {
+			if strings.EqualFold(k, id) {
+				key = v
+			}
+		}
+	}
+	if l.diag == nil {
+		l.diag = map[string]*lanDiag{}
+	}
+	d := l.diag[id]
+	if d == nil {
+		d = &lanDiag{ID: id}
+		l.diag[id] = d
+	}
+	d.IP, d.Type, d.HasKey, d.Seen = src, kv["type"], key != "", time.Now()
+	l.mu.Unlock()
+	setStatus := func(st string) {
+		l.mu.Lock()
+		d.Status = st
+		l.mu.Unlock()
+	}
+	var params map[string]any
+	if kv["encrypt"] == "true" {
+		if key == "" {
+			setStatus("manca la chiave di questo dispositivo")
+			return
+		}
+		plain, err := ewelinkDecrypt(key, kv["iv"], data)
+		if err != nil {
+			setStatus("decifratura non riuscita (" + err.Error() + ")")
+			return
+		}
+		if json.Unmarshal(plain, &params) != nil {
+			setStatus("decifrato ma non leggibile: chiave sbagliata?")
+			return
+		}
+	} else if json.Unmarshal([]byte(data), &params) != nil {
+		setStatus("dati in chiaro non leggibili")
+		return
+	}
+	names := []string{}
+	for k := range params {
+		names = append(names, k)
+	}
+	sort.Strings(names)
+	sub, _ := params["subDevId"].(string)
+	l.mu.Lock()
+	d.Status, d.Params, d.SubDev = "ok", names, sub
+	l.mu.Unlock()
+	target := id
+	if sub != "" {
+		target = sub // valore di un sensore collegato al bridge
 	}
 	l.mu.Lock()
 	old := l.values[target]

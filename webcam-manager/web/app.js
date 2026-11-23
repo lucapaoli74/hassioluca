@@ -948,7 +948,10 @@ pages.dati = async (page, arg) => {
     const n = Object.keys(l.devices || {}).length, v = Object.keys(l.values || {}).length;
     const box = document.createElement("p"); box.className = "help";
     box.innerHTML = `<button class="small" id="dt-keys" style="float:right">🔑 Importa chiavi Sonoff</button>${(cfg.ewelink || {}).lan_only ? "<b>Modalità solo rete locale.</b> " : ""}Sonoff in rete locale: ${v ? `<span class="badge ok">dati letti in LAN</span>` : n ? `<span class="badge warn">bridge visto in LAN, nessun dato dei sensori (si usa il cloud)</span>` : `<span class="badge">nessun dispositivo Sonoff visto in LAN finora (si usa il cloud)</span>`} · ${n} dispositivi visti · ${l.keys} chiavi`;
+    if ((l.details || []).length) box.innerHTML += `<details style="margin-top:6px"><summary>Dettaglio dispositivi in rete locale</summary><table style="font-size:13px"><tr><th>ID</th><th>IP</th><th>Tipo</th><th>Chiave</th><th>Stato</th><th>Valori ricevuti</th></tr>${l.details.map(d => `<tr><td><code>${esc(d.id)}</code></td><td>${esc(d.ip)}</td><td>${esc(d.type)}</td><td>${d.has_key ? "sì" : "<b>no</b>"}</td><td>${esc(d.status || "—")}</td><td>${esc((d.params || []).join(", "))}${d.sub_dev ? " (sensore " + esc(d.sub_dev) + ")" : ""}</td></tr>`).join("")}</table><button class="small" id="dt-lancopy">📋 Copia il dettaglio</button></details>`;
     $("#dt-list").after(box);
+    const lc = $("#dt-lancopy");
+    if (lc) lc.onclick = () => navigator.clipboard.writeText(l.details.map(d => [d.id, d.ip, d.type, d.has_key ? "chiave sì" : "chiave NO", d.status, (d.params || []).join(","), d.sub_dev || ""].join(" | ")).join("\n")).then(() => toast("Copiato"), () => toast("Seleziona e copia con Ctrl+C", true));
     $("#dt-keys").onclick = () => {
       openModal(`<h2 style="margin-top:0">🔑 Importa chiavi dei dispositivi Sonoff</h2>
         <p class="help">Dopo l'importazione Webcam Manager legge i sensori <b>solo in rete locale</b> e non usa più il cloud eWeLink (così non scollega gli altri programmi con lo stesso account).</p>
