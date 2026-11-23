@@ -266,3 +266,65 @@ func ewelinkDecrypt(devicekey, ivB64, dataB64 string) ([]byte, error) {
 	}
 	return out[:len(out)-pad], nil
 }
+
+// ImportKeys legge chiavi eWeLink da un testo JSON in vari formati (file di
+// altri programmi: {"id":"chiave"}, [{"deviceid":…,"devicekey":…}], …) e
+// restituisce quante ne ha aggiunte.
+func (l *ewelinkLAN) ImportKeys(text string) (int, error) {
+	var doc any
+	if err := json.Unmarshal([]byte(strings.TrimSpace(text)), &doc); err != nil {
+		return 0, errors.New("il testo non è JSON valido")
+	}
+	found := map[string]string{}
+	isID := func(s string) bool {
+		if len(s) < 8 || len(s) > 16 {
+			return false
+		}
+		for _, c := range strings.ToLower(s) {
+			if !(c >= '0' && c <= '9' || c >= 'a' && c <= 'f') {
+				return false
+			}
+		}
+		return true
+	}
+	var walk func(v any)
+	walk = func(v any) {
+		switch x := v.(type) {
+		case map[string]any:
+			id, _ := firstString(x, "deviceid", "deviceId", "device_id", "id")
+			key, _ := firstString(x, "devicekey", "deviceKey", "device_key", "key", "secret")
+			if id != "" && key != "" {
+				found[id] = key
+			}
+			for k, sub := range x {
+				if s, ok := sub.(string); ok && isID(k) && len(s) >= 16 {
+					found[k] = s // formato {"id": "chiave"}
+				}
+				walk(sub)
+			}
+		case []any:
+			for _, sub := range x {
+				walk(sub)
+			}
+		}
+	}
+	walk(doc)
+	if len(found) == 0 {
+		return 0, errors.New("nel testo non ci sono coppie dispositivo/chiave")
+	}
+	things := []ewelinkThing{}
+	for id, k := range found {
+		things = append(things, ewelinkThing{ID: id, DeviceKey: k})
+	}
+	l.learn(things)
+	return len(found), nil
+}
+
+func firstString(m map[string]any, keys ...string) (string, bool) {
+	for _, k := range keys {
+		if s, ok := m[k].(string); ok && s != "" {
+			return s, true
+		}
+	}
+	return "", false
+}

@@ -202,6 +202,16 @@ func (s *Server) Handler() http.Handler {
 		defer cancel()
 		writeJSON(w, StationProbe(ctx, req.Host))
 	})
+	mux.HandleFunc("POST /api/ewelink/lan/keys", func(w http.ResponseWriter, r *http.Request) {
+		b, _ := io.ReadAll(io.LimitReader(r.Body, 1<<20))
+		n, err := ewLAN.ImportKeys(string(b))
+		if err != nil {
+			httpError(w, http.StatusBadRequest, err.Error())
+			return
+		}
+		ewLAN.start()
+		writeJSON(w, map[string]any{"ok": fmt.Sprintf("%d chiavi importate", n)})
+	})
 	mux.HandleFunc("GET /api/ewelink/lan", func(w http.ResponseWriter, r *http.Request) {
 		ewLAN.start()
 		writeJSON(w, ewLAN.status())

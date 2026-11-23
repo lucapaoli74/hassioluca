@@ -946,8 +946,19 @@ pages.dati = async (page, arg) => {
   if (cfg.data_sources.some(d => d.type === "ewelink")) api("GET", "/api/ewelink/lan").then(l => {
     const n = Object.keys(l.devices || {}).length, v = Object.keys(l.values || {}).length;
     const box = document.createElement("p"); box.className = "help";
-    box.innerHTML = `Sonoff in rete locale: ${v ? `<span class="badge ok">dati letti in LAN</span>` : n ? `<span class="badge warn">bridge visto in LAN, nessun dato dei sensori (si usa il cloud)</span>` : `<span class="badge">nessun dispositivo Sonoff visto in LAN finora (si usa il cloud)</span>`} · ${n} dispositivi visti · ${l.keys} chiavi`;
+    box.innerHTML = `<button class="small" id="dt-keys" style="float:right">🔑 Importa chiavi Sonoff</button>Sonoff in rete locale: ${v ? `<span class="badge ok">dati letti in LAN</span>` : n ? `<span class="badge warn">bridge visto in LAN, nessun dato dei sensori (si usa il cloud)</span>` : `<span class="badge">nessun dispositivo Sonoff visto in LAN finora (si usa il cloud)</span>`} · ${n} dispositivi visti · ${l.keys} chiavi`;
     $("#dt-list").after(box);
+    $("#dt-keys").onclick = () => {
+      openModal(`<h2 style="margin-top:0">🔑 Importa chiavi dei dispositivi Sonoff</h2>
+        <p class="help">Incolla qui il contenuto del file con le chiavi (devicekey) salvato da un altro programma: formato JSON, per esempio <code>{"10012345ab":"chiave"}</code> o un elenco con <code>deviceid</code> e <code>devicekey</code>. Le chiavi restano solo su questo computer.</p>
+        <textarea id="dk-text" rows="10" style="width:100%;font-family:monospace"></textarea>
+        <div class="toolbar" style="margin-top:10px"><button class="primary" id="dk-go">Importa</button></div>`);
+      $("#dk-go").onclick = ev => busy(ev.target, async () => {
+        const r = await fetch("/api/ewelink/lan/keys", { method: "POST", body: $("#dk-text").value });
+        const j = await r.json(); if (!r.ok) throw new Error(j.error || "errore");
+        closeModal(); toast(j.ok); route();
+      });
+    };
   }).catch(() => {});
   $("#dt-list").innerHTML = cfg.data_sources.length ? cfg.data_sources.map(d => {
     const v = st.data[d.id] || {};

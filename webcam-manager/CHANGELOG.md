@@ -3,6 +3,10 @@
 Ogni versione rilasciata ha qui la sua voce: il testo diventa le note della
 release mostrate nel pannello (Impostazioni → Aggiornamenti).
 
+## [0.4.1] - 2026-11-23
+
+- Dati live: "🔑 Importa chiavi Sonoff" per incollare le chiavi dei dispositivi salvate da un altro programma (JSON in vari formati) e leggere i sensori in rete locale senza ricollegare l'account eWeLink (che scollegherebbe gli altri programmi con la stessa APPID).
+
 ## [0.4.0] - 2026-11-23
 
 - Sensori Sonoff eWeLink letti in rete locale (modalità LAN): il programma ascolta gli aggiornamenti che il bridge trasmette nella rete (mDNS, cifrati) e li decifra con la chiave del dispositivo presa una volta dal cloud e conservata; il cloud resta come riserva. In Dati live si vede se i dati arrivano dalla LAN.

@@ -54,3 +54,11 @@ func TestEWeLinkLAN(t *testing.T) {
 		t.Log("nota: una chiave sbagliata può superare il controllo del padding; il JSON non sarà valido")
 	}
 }
+
+func TestEWeLinkImportKeys(t *testing.T) {
+	l := &ewelinkLAN{keys: map[string]string{}, uiid: map[string]int{}, values: map[string]lanReading{}, seen: map[string]time.Time{}}
+	n, err := l.ImportKeys(`{"devices":[{"deviceid":"1000abcdef","devicekey":"11111111-2222-3333-4444-555555555555"}],"1000123456":"aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"}`)
+	if err != nil || n != 2 || l.keys["1000abcdef"] == "" || l.keys["1000123456"] == "" {
+		t.Fatal(n, err, l.keys)
+	}
+}
