@@ -10,6 +10,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log"
 	"math"
 	"net/http"
 	"net/url"
@@ -82,9 +83,14 @@ func EWeLinkExchange(ctx context.Context, st EWeLinkSettings, code, region, redi
 
 // refresh rinnova il token di accesso con il refresh token (valido circa 60 giorni:
 // letto ogni pochi minuti, l'autorizzazione resta valida finché il programma gira).
-func (s *ewelinkSession) refresh(ctx context.Context, st EWeLinkSettings) error {
+func (s *ewelinkSession) refresh(ctx context.Context, st EWeLinkSettings, oldToken string) error {
 	body, _ := json.Marshal(map[string]string{"rt": s.rt})
-	for _, auth := range []string{"Bearer " + s.token, "Sign " + ewelinkSign(st.AppSecret, body)} {
+	why := ""
+	auths := []string{"Sign " + ewelinkSign(st.AppSecret, body)}
+	if oldToken != "" {
+		auths = append([]string{"Bearer " + oldToken}, auths...)
+	}
+	for _, auth := range auths {
 		req, _ := http.NewRequest(http.MethodPost, ewelinkBase(s.region)+"/v2/user/refresh", bytes.NewReader(body))
 		req.Header.Set("Content-Type", "application/json")
 		req.Header.Set("X-CK-Appid", st.AppID)
@@ -103,10 +109,13 @@ func (s *ewelinkSession) refresh(ctx context.Context, st EWeLinkSettings) error 
 			if ewelinkSaveTokens != nil {
 				ewelinkSaveTokens(d.At, d.Rt, s.region)
 			}
+			log.Printf("eWeLink: autorizzazione rinnovata")
 			return nil
 		}
+		why = fmt.Sprintf("%d %s", r.Error, r.Msg)
 	}
-	return errors.New("autorizzazione eWeLink scaduta: ricollega l'account con “Collega account eWeLink”")
+	log.Printf("eWeLink: rinnovo dell'autorizzazione rifiutato (%s)", why)
+	return fmt.Errorf("autorizzazione eWeLink scaduta (%s): ricollega l'account con “Collega account eWeLink”", why)
 }
 
 // ewelinkBase restituisce l'indirizzo delle API per la regione (sostituibile nei test).
@@ -231,10 +240,12 @@ func (s *ewelinkSession) devices(ctx context.Context, st EWeLinkSettings) ([]ewe
 	if s.things != nil && time.Since(s.fetched) < 60*time.Second {
 		return s.things, nil
 	}
+	oldToken := ""
 	for attempt := 0; attempt < 2; attempt++ {
 		if s.token == "" {
 			if s.rt != "" {
-				if err := s.refresh(ctx, st); err != nil {
+				if err := s.refresh(ctx, st, oldToken); err != nil {
+					s.key = "" // al prossimo giro si riparte dai token salvati (es. dopo un nuovo collegamento)
 					return nil, err
 				}
 			} else if st.Email == "" && st.Password == "" {
@@ -251,7 +262,8 @@ func (s *ewelinkSession) devices(ctx context.Context, st EWeLinkSettings) ([]ewe
 			return nil, err
 		}
 		if r.Error == 401 || r.Error == 402 || r.Error == 406 {
-			s.token = "" // token scaduto: si rinnova (refresh token) o si rifà l'accesso
+			log.Printf("eWeLink: accesso rifiutato (%d %s), rinnovo l'autorizzazione", r.Error, r.Msg)
+			oldToken, s.token = s.token, "" // token scaduto: si rinnova (refresh token) o si rifà l'accesso
 			continue
 		}
 		if r.Error != 0 {

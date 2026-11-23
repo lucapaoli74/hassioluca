@@ -91,7 +91,9 @@ func NewApp(dataDir, listen string) (*App, error) {
 		if region != "" {
 			cfg.EWeLink.Region = region
 		}
-		_ = store.Replace(cfg)
+		if err := store.Replace(cfg); err != nil {
+			log.Printf("eWeLink: token rinnovati ma non salvati: %v", err)
+		}
 	}
 	a.renderer = NewRenderer(a.logoDir(), a.data)
 	a.renderer.store = store

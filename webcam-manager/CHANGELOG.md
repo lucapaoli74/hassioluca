@@ -3,6 +3,10 @@
 Ogni versione rilasciata ha qui la sua voce: il testo diventa le note della
 release mostrate nel pannello (Impostazioni → Aggiornamenti).
 
+## [0.3.9] - 2026-11-23
+
+- eWeLink: rinnovo dell'autorizzazione più robusto (usa il token precedente, dopo un nuovo collegamento riparte dai token salvati senza riavviare), motivo del rifiuto indicato nel messaggio e nel registro, avviso se i token rinnovati non si riescono a salvare.
+
 ## [0.3.8] - 2026-11-22
 
 - Stazione meteo: "Analisi approfondita" della stazione come fa l'app WS View: le chiede la porta dei comandi (annuncio UDP diretto e in broadcast), prova tutte le porte TCP e i comandi di configurazione su ognuna; se trova la porta giusta imposta la stazione da lì. Rapporto da copiare per l'assistenza.
