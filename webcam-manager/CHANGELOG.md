@@ -3,6 +3,10 @@
 Ogni versione rilasciata ha qui la sua voce: il testo diventa le note della
 release mostrate nel pannello (Impostazioni → Aggiornamenti).
 
+## [0.4.0] - 2026-11-23
+
+- Sensori Sonoff eWeLink letti in rete locale (modalità LAN): il programma ascolta gli aggiornamenti che il bridge trasmette nella rete (mDNS, cifrati) e li decifra con la chiave del dispositivo presa una volta dal cloud e conservata; il cloud resta come riserva. In Dati live si vede se i dati arrivano dalla LAN.
+
 ## [0.3.9] - 2026-11-23
 
 - eWeLink: rinnovo dell'autorizzazione più robusto (usa il token precedente, dopo un nuovo collegamento riparte dai token salvati senza riavviare), motivo del rifiuto indicato nel messaggio e nel registro, avviso se i token rinnovati non si riescono a salvare.

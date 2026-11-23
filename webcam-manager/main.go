@@ -85,6 +85,7 @@ func NewApp(dataDir, listen string) (*App, error) {
 	a.data = NewDataManager()
 	wuGlobalKey = func() string { return store.Get().WUApiKey }
 	ewelinkSettings = func() EWeLinkSettings { return store.Get().EWeLink }
+	ewLAN.setKeysPath(filepath.Join(dataDir, "ewelink-lan.json"))
 	ewelinkSaveTokens = func(at, rt, region string) {
 		cfg := store.Get()
 		cfg.EWeLink.AccessToken, cfg.EWeLink.RefreshToken = at, rt

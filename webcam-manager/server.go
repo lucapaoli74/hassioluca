@@ -202,6 +202,10 @@ func (s *Server) Handler() http.Handler {
 		defer cancel()
 		writeJSON(w, StationProbe(ctx, req.Host))
 	})
+	mux.HandleFunc("GET /api/ewelink/lan", func(w http.ResponseWriter, r *http.Request) {
+		ewLAN.start()
+		writeJSON(w, ewLAN.status())
+	})
 	mux.HandleFunc("POST /api/station/scan", func(w http.ResponseWriter, r *http.Request) {
 		ctx, cancel := context.WithTimeout(r.Context(), 90*time.Second)
 		defer cancel()

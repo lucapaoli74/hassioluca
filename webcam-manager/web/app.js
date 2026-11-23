@@ -943,6 +943,12 @@ pages.dati = async (page, arg) => {
   $("#dt-page").onclick = () => { sessionStorage.setItem("newData", JSON.stringify({ type: "html", name: "Temperatura", unit: "°C", decimals: 1, refresh_seconds: 300 })); location.hash = "#dati/nuovo"; };
   $("#wu-open").onclick = () => { $("#wu-box").classList.toggle("hidden"); wuSearchUI($("#wu-box")); };
   const st = await api("GET", "/api/status");
+  if (cfg.data_sources.some(d => d.type === "ewelink")) api("GET", "/api/ewelink/lan").then(l => {
+    const n = Object.keys(l.devices || {}).length, v = Object.keys(l.values || {}).length;
+    const box = document.createElement("p"); box.className = "help";
+    box.innerHTML = `Sonoff in rete locale: ${v ? `<span class="badge ok">dati letti in LAN</span>` : n ? `<span class="badge warn">bridge visto in LAN, nessun dato dei sensori (si usa il cloud)</span>` : `<span class="badge">nessun dispositivo Sonoff visto in LAN finora (si usa il cloud)</span>`} · ${n} dispositivi visti · ${l.keys} chiavi`;
+    $("#dt-list").after(box);
+  }).catch(() => {});
   $("#dt-list").innerHTML = cfg.data_sources.length ? cfg.data_sources.map(d => {
     const v = st.data[d.id] || {};
     return `<div class="list-item"><div class="grow"><b>${esc(d.name || d.id)}</b> <code>{data:${esc(d.id)}}</code><div class="help">${esc({ station: "Stazione meteo · " + d.variable, ewelink: "Sonoff eWeLink " + (d.entity || ""), html: "Pagina web", open_meteo: "Open-Meteo", wunderground: "Weather Underground " + (d.station || ""), home_assistant: "Home Assistant", http_json: "URL JSON", http_text: "URL testo" }[d.type] || d.type)} · ogni ${d.refresh_seconds}s ${v.error ? `· <span class="err-text">${esc(v.error)}</span>` : ""}</div></div>

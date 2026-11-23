@@ -145,11 +145,12 @@ type ewelinkSession struct {
 var ewSession = &ewelinkSession{}
 
 type ewelinkThing struct {
-	ID     string
-	Name   string
-	UIID   int
-	Online bool
-	Params map[string]any
+	ID        string
+	Name      string
+	UIID      int
+	Online    bool
+	Params    map[string]any
+	DeviceKey string // chiave per leggere il dispositivo in rete locale
 }
 
 func ewelinkSign(secret string, body []byte) string {
@@ -272,11 +273,12 @@ func (s *ewelinkSession) devices(ctx context.Context, st EWeLinkSettings) ([]ewe
 		var d struct {
 			ThingList []struct {
 				ItemData struct {
-					DeviceID string         `json:"deviceid"`
-					Name     string         `json:"name"`
-					Online   bool           `json:"online"`
-					Params   map[string]any `json:"params"`
-					Extra    struct {
+					DeviceID  string         `json:"deviceid"`
+					DeviceKey string         `json:"devicekey"`
+					Name      string         `json:"name"`
+					Online    bool           `json:"online"`
+					Params    map[string]any `json:"params"`
+					Extra     struct {
 						UIID int `json:"uiid"`
 					} `json:"extra"`
 				} `json:"itemData"`
@@ -291,9 +293,10 @@ func (s *ewelinkSession) devices(ctx context.Context, st EWeLinkSettings) ([]ewe
 			if it.DeviceID == "" {
 				continue
 			}
-			out = append(out, ewelinkThing{ID: it.DeviceID, Name: it.Name, UIID: it.Extra.UIID, Online: it.Online, Params: it.Params})
+			out = append(out, ewelinkThing{ID: it.DeviceID, Name: it.Name, UIID: it.Extra.UIID, Online: it.Online, Params: it.Params, DeviceKey: it.DeviceKey})
 		}
 		s.things, s.fetched = out, time.Now()
+		ewLAN.learn(out)
 		return out, nil
 	}
 	return nil, errors.New("eWeLink: accesso scaduto, riprova")
@@ -363,8 +366,16 @@ func ReadEWeLink(ctx context.Context, st EWeLinkSettings) ([]SensorReading, erro
 
 // readEWeLinkSource legge il valore di un dato live di tipo "ewelink".
 func readEWeLinkSource(ctx context.Context, ds DataSource, st EWeLinkSettings) (any, error) {
+	// prima la rete locale (dati che il bridge trasmette in LAN), poi il cloud
+	ewLAN.start()
+	if v, ok := ewLAN.value(ds.Entity, ds.Path, 20*time.Minute); ok {
+		return v, nil
+	}
 	things, err := ewSession.devices(ctx, st)
 	if err != nil {
+		if v, ok := ewLAN.value(ds.Entity, ds.Path, 2*time.Hour); ok {
+			return v, nil
+		}
 		return nil, err
 	}
 	for _, t := range things {
