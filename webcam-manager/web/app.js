@@ -947,10 +947,11 @@ pages.dati = async (page, arg) => {
   if (cfg.data_sources.some(d => d.type === "ewelink")) api("GET", "/api/ewelink/lan").then(l => {
     const n = Object.keys(l.devices || {}).length, v = Object.keys(l.values || {}).length;
     const box = document.createElement("p"); box.className = "help";
-    box.innerHTML = `<button class="small" id="dt-keys" style="float:right">🔑 Importa chiavi Sonoff</button>Sonoff in rete locale: ${v ? `<span class="badge ok">dati letti in LAN</span>` : n ? `<span class="badge warn">bridge visto in LAN, nessun dato dei sensori (si usa il cloud)</span>` : `<span class="badge">nessun dispositivo Sonoff visto in LAN finora (si usa il cloud)</span>`} · ${n} dispositivi visti · ${l.keys} chiavi`;
+    box.innerHTML = `<button class="small" id="dt-keys" style="float:right">🔑 Importa chiavi Sonoff</button>${(cfg.ewelink || {}).lan_only ? "<b>Modalità solo rete locale.</b> " : ""}Sonoff in rete locale: ${v ? `<span class="badge ok">dati letti in LAN</span>` : n ? `<span class="badge warn">bridge visto in LAN, nessun dato dei sensori (si usa il cloud)</span>` : `<span class="badge">nessun dispositivo Sonoff visto in LAN finora (si usa il cloud)</span>`} · ${n} dispositivi visti · ${l.keys} chiavi`;
     $("#dt-list").after(box);
     $("#dt-keys").onclick = () => {
       openModal(`<h2 style="margin-top:0">🔑 Importa chiavi dei dispositivi Sonoff</h2>
+        <p class="help">Dopo l'importazione Webcam Manager legge i sensori <b>solo in rete locale</b> e non usa più il cloud eWeLink (così non scollega gli altri programmi con lo stesso account).</p>
         <p class="help">Incolla qui il contenuto del file con le chiavi (devicekey) salvato da un altro programma: formato JSON, per esempio <code>{"10012345ab":"chiave"}</code> o un elenco con <code>deviceid</code> e <code>devicekey</code>. Le chiavi restano solo su questo computer.</p>
         <textarea id="dk-text" rows="10" style="width:100%;font-family:monospace"></textarea>
         <div class="toolbar" style="margin-top:10px"><button class="primary" id="dk-go">Importa</button></div>`);
@@ -1089,7 +1090,7 @@ function sensorWizard() {
       const chosen = [...document.querySelectorAll("#sw-res [data-i]:checked")].map(c => r[Number(c.dataset.i)]);
       if (!chosen.length) throw new Error("Seleziona almeno un valore");
       const next = clone(cfg), parts = [];
-      if (st.kind === "ewelink") next.ewelink = ewSettings; // l'account resta salvato per le letture periodiche
+      if (st.kind === "ewelink") next.ewelink = Object.assign({}, cfg.ewelink || {}, ewSettings, { lan_only: !!(cfg.ewelink || {}).lan_only }); // l'account resta salvato per le letture periodiche
       for (const v of chosen) {
         const short = /temp/i.test(v.label) ? "Temperatura" : /umid|humid/i.test(v.label) ? "Umidità" : v.label;
         const id = uniqueId("sensore-" + short, next.data_sources);

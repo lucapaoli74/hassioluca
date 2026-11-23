@@ -37,6 +37,9 @@ type EWeLinkSettings struct {
 	// collegamento autorizzato (OAuth): obbligatorio per le applicazioni "standard"
 	AccessToken  string `json:"access_token"`
 	RefreshToken string `json:"refresh_token"`
+	// LANOnly: solo rete locale, il cloud non si usa mai (per non scollegare
+	// altri programmi che usano lo stesso account e la stessa APPID)
+	LANOnly bool `json:"lan_only"`
 }
 
 // ewelinkSaveTokens salva i token rinnovati nella configurazione (impostata da App).
@@ -338,6 +341,9 @@ func ewelinkValue(t ewelinkThing, variable string) (float64, bool) {
 
 // ReadEWeLink elenca temperatura e umidità di tutti i sensori dell'account.
 func ReadEWeLink(ctx context.Context, st EWeLinkSettings) ([]SensorReading, error) {
+	if st.LANOnly {
+		return ewLAN.readings()
+	}
 	things, err := ewSession.devices(ctx, st)
 	if err != nil {
 		return nil, err
@@ -370,6 +376,9 @@ func readEWeLinkSource(ctx context.Context, ds DataSource, st EWeLinkSettings) (
 	ewLAN.start()
 	if v, ok := ewLAN.value(ds.Entity, ds.Path, 20*time.Minute); ok {
 		return v, nil
+	}
+	if st.LANOnly {
+		return nil, errors.New("nessun dato del sensore dal bridge in rete locale negli ultimi 20 minuti (in Dati live controlla lo stato \"Sonoff in rete locale\")")
 	}
 	things, err := ewSession.devices(ctx, st)
 	if err != nil {

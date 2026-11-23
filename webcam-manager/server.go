@@ -209,6 +209,15 @@ func (s *Server) Handler() http.Handler {
 			httpError(w, http.StatusBadRequest, err.Error())
 			return
 		}
+		// con le chiavi importate si lavora solo in rete locale: il cloud
+		// non si tocca, così non si scollegano gli altri programmi
+		cfg := a.store.Get()
+		if !cfg.EWeLink.LANOnly {
+			cfg.EWeLink.LANOnly = true
+			if err := a.store.Replace(cfg); err == nil {
+				a.Reload()
+			}
+		}
 		ewLAN.start()
 		writeJSON(w, map[string]any{"ok": fmt.Sprintf("%d chiavi importate", n)})
 	})
@@ -449,6 +458,7 @@ func (s *Server) Handler() http.Handler {
 			out, err = ReadHomeAssistant(ctx, req.URL, req.Token)
 		case "ewelink":
 			st, saved := req.EWeLink, a.store.Get().EWeLink
+			st.LANOnly = saved.LANOnly
 			if st.AppSecret == mask || st.AppSecret == "" {
 				st.AppSecret = saved.AppSecret
 			}

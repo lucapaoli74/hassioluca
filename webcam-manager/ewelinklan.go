@@ -328,3 +328,30 @@ func firstString(m map[string]any, keys ...string) (string, bool) {
 	}
 	return "", false
 }
+
+// readings elenca i valori dei sensori ricevuti in rete locale (modalità solo LAN).
+func (l *ewelinkLAN) readings() ([]SensorReading, error) {
+	l.start()
+	l.mu.Lock()
+	ids := map[string]lanReading{}
+	for id, r := range l.values {
+		ids[id] = r
+	}
+	l.mu.Unlock()
+	var out []SensorReading
+	for id, r := range ids {
+		if time.Since(r.At) > time.Hour {
+			continue
+		}
+		for _, v := range []struct{ key, label, unit string }{{"temperature", "Temperatura", "°C"}, {"humidity", "Umidità", "%"}} {
+			if val, ok := l.value(id, v.key, time.Hour); ok {
+				out = append(out, SensorReading{Label: v.label + " – sensore " + id + " (rete locale)", Value: formatNumber(val, 1), Unit: v.unit, Type: "ewelink", Entity: id, Path: v.key})
+			}
+		}
+	}
+	sortReadings(out)
+	if len(out) == 0 {
+		return nil, errors.New("nessun sensore ricevuto in rete locale finora: importa le chiavi e attendi qualche minuto (il bridge trasmette quando i valori cambiano)")
+	}
+	return out, nil
+}
