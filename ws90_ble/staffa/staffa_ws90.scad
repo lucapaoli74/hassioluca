@@ -15,7 +15,7 @@
 /* [Misure principali] */
 perno_d     = 23;   // diametro interno dell'attacco sotto il WS90 (misurato: 23 mm)
 gioco       = 0.4;  // il perno viene più piccolo di così
-perno_h     = 40;   // lunghezza del perno: più corto dell'attacco, così la ghiera stringe
+perno_h     = 33;   // attacco profondo 35 mm (misurato): perno 2 mm più corto, così la ghiera stringe
 cavo_d      = 12;   // foro per il cavo dentro il perno
 braccio     = 230;  // dal palo all'asse del manicotto
 larghezza   = 56;   // spessore della staffa (asse Y)
