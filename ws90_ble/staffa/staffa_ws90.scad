@@ -3,6 +3,8 @@
 //
 //   piastra con incavo a V  -> si appoggia al palo, si adatta a diametri diversi
 //   2 asole                 -> per reggetta inox / fascette fino a 22 mm
+//   2 alette (sopra/sotto)  -> 2 fori ciascuna per viti da legno Ø 6 (tirafondi),
+//                              che entrano dritte verso il centro del palo
 //   braccio a 90° + rinforzo
 //   perno verticale maschio -> entra nell'attacco femmina sotto il WS90,
 //                              che lo stringe con la sua ghiera
@@ -24,6 +26,9 @@ braccio_h   = 45;   // altezza del braccio
 colletto_h  = 25;   // base del perno sopra il braccio
 asola_l     = 22;   // larghezza fascetta (+ gioco)
 asola_s     = 5;    // spessore fascetta (+ gioco)
+aletta_h    = 50;   // altezza di ogni aletta per le viti (sopra e sotto la piastra)
+vite_d      = 6.5;  // foro per vite da legno Ø 6
+testa_d     = 14;   // allargamento per la testa della vite / rondella
 
 /* [Vista] */
 vista = "stampa"; // [stampa, montata]
@@ -37,14 +42,20 @@ z_br      = piastra_h - braccio_h;    // quota sotto del braccio
 
 module piastra() {
     difference() {
-        translate([x0, -larghezza / 2, 0]) cube([-x0, larghezza, piastra_h]);
+        translate([x0, -larghezza / 2, -aletta_h]) cube([-x0, larghezza, piastra_h + 2 * aletta_h]);
         // incavo a V verso il palo
-        translate([x0, 0, -1]) linear_extrude(piastra_h + 2)
+        translate([x0, 0, -aletta_h - 1]) linear_extrude(piastra_h + 2 * aletta_h + 2)
             polygon([[-0.01, -larghezza / 2 - 0.01], [v_prof, 0], [-0.01, larghezza / 2 + 0.01]]);
         // asole per le fascette (attraversano da un fianco all'altro)
         for (z = [22, piastra_h - 22])
             translate([x0 + v_prof + 3, -larghezza / 2 - 1, z - asola_l / 2])
                 cube([asola_s, larghezza + 2, asola_l]);
+        // fori per le viti nelle alette, con sede per la testa dal retro
+        for (z = [-aletta_h + 14, -14, piastra_h + 14, piastra_h + aletta_h - 14])
+            translate([0, 0, z]) rotate([0, -90, 0]) {
+                translate([0, 0, -1]) cylinder(d = vite_d, h = -x0 + 2);
+                translate([0, 0, -1]) cylinder(d = testa_d, h = piastra_s - 6 + 1);
+            }
     }
 }
 
@@ -79,8 +90,8 @@ module staffa() {
         union() { piastra(); braccio_r(); manicotto_pieno(); }
         fori_manicotto();
         // smussi sugli spigoli esterni del braccio
-        for (s = [-1, 1]) translate([braccio / 2, s * larghezza / 2, piastra_h])
-            rotate([45, 0, 0]) cube([braccio + 60, 4, 4], center = true);
+        for (s = [-1, 1]) translate([(braccio + 30) / 2 + 1, s * larghezza / 2, piastra_h])
+            rotate([45, 0, 0]) cube([braccio + 30, 4, 4], center = true);
     }
 }
 
