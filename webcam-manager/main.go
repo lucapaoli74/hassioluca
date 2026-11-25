@@ -108,6 +108,8 @@ func NewApp(dataDir, listen string) (*App, error) {
 	}
 	a.station.setPub = a.sched.setPub
 	stationHub = a.station
+	ws90Hub = NewWS90Hub(filepath.Join(dataDir, "ws90-rain.json"), a.station.Update)
+	ws90Hub.altitude = func() int { return store.Get().Location.Altitude }
 	a.restartc = make(chan struct{}, 1)
 	a.updater = NewUpdater(store, a.RequestRestart)
 	a.alerter = NewAlerter(a)

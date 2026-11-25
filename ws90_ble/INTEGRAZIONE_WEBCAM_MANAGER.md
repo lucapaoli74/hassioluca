@@ -1,5 +1,9 @@
 # Integrare il WS90 (Bluetooth) dentro Webcam Manager
 
+> **Fatto in Webcam Manager 0.4.5** (`webcam-manager/ws90.go`, `ble_scan*.go`): collegamento
+> "Sensore WS90 via Bluetooth" in 🌦️ Stazione meteo con Trova WS90 / Associa / Disassocia.
+> Resta da verificare sul PC del Poggiolo la ricezione Bluetooth quando gira come servizio.
+
 Richiesta: aggiungere a Webcam Manager la ricezione diretta via Bluetooth del sensore
 meteo **Ecowitt WS90 "Powered by Shelly"**, con due funzioni nell'interfaccia:
 

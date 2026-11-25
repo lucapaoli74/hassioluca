@@ -1232,6 +1232,9 @@ pages.meteo = async page => {
     <p class="help">Dati <b>in tempo reale</b> dalla tua stazione meteo (Froggit, Ecowitt, Fine Offset, Sainlogic, Bresser…) direttamente nella rete locale, senza passare da Weather Underground. I dati si possono mettere in sovrimpressione sulle webcam e pubblicare come pagina web.</p>
     <div class="card"><h3 style="margin-top:0">1 · Collegamento</h3><div id="ms-form"></div><div id="ms-remote" class="card" style="margin:12px 0 0;background:var(--bg)"><b>🔧 Imposta la stazione da qui</b> <span class="help">(senza smartphone: serve l'indirizzo IP della stazione)</span>
         <div class="toolbar" style="margin:8px 0 0"><input id="ms-cip" placeholder="IP della stazione, es. 192.168.1.60" style="max-width:260px" value="${esc(s.host || "")}"><button id="ms-cchk">Controlla la stazione</button><button id="ms-probe">🔬 Analisi approfondita</button></div><div id="ms-cres"></div></div>
+      <div id="ms-ble" class="card hidden" style="margin:12px 0 0;background:var(--bg)"><b>📡 Sensore WS90 via Bluetooth</b> <span class="help">(versione “Powered by Shelly”: trasmette in Bluetooth, non serve il gateway)</span>
+        <div id="ms-blestat" style="margin-top:8px"></div>
+        <div class="toolbar" style="margin:8px 0 0"><button id="ms-blefind">🔎 Trova WS90</button><button id="ms-bleun" class="hidden">✖ Disassocia</button></div><div id="ms-bleres"></div></div>
       <div id="ms-how" style="margin-top:12px"></div>
       <div class="toolbar" style="margin:12px 0 0"><button class="primary" id="ms-save">💾 Salva</button><button id="ms-scan">🔎 Cerca la stazione nella rete</button><button id="ms-test">Prova lettura</button><span id="ms-msg" class="help"></span></div><div id="ms-scanres"></div></div>
     <div class="card"><h3 style="margin-top:0">2 · Dati attuali <span id="ms-age" class="help"></span></h3><div id="ms-vals"><span class="help">In attesa dei dati…</span></div>
@@ -1247,12 +1250,12 @@ pages.meteo = async page => {
   const form = renderForm(s, [
     { k: "enabled", label: "Stazione meteo attiva", type: "checkbox" },
     { k: "name", label: "Nome", placeholder: "Es. Stazione Camping" },
-    { k: "source", label: "Collegamento", type: "select", redraw: true, wide: true, options: [["push", "La stazione invia i dati al programma (server personalizzato) — consigliato, tempo reale"], ["local", "Il programma legge la console nella rete (porta 45000, console Ecowitt/GW1000/GW2000/HP2550)"], ["wunderground", "Weather Underground (riserva, con ritardo)"]] },
+    { k: "source", label: "Collegamento", type: "select", redraw: true, wide: true, options: [["push", "La stazione invia i dati al programma (server personalizzato) — consigliato, tempo reale"], ["local", "Il programma legge la console nella rete (porta 45000, console Ecowitt/GW1000/GW2000/HP2550)"], ["bluetooth", "Sensore WS90 via Bluetooth (versione “Powered by Shelly”) — questo PC lo riceve direttamente"], ["wunderground", "Weather Underground (riserva, con ritardo)"]] },
     { k: "host", label: "Indirizzo IP della console", show: x => x.source === "local", placeholder: "192.168.1.60" },
     { k: "accept_key", label: "Accetta solo questa stazione (PASSKEY / ID)", show: x => x.source === "push", help: "Facoltativo: compilato con “Usa questa stazione” dopo il primo invio. Vuoto = accetta qualsiasi stazione della rete." },
     { k: "station_id", label: "ID stazione Weather Underground", show: x => x.source === "wunderground", placeholder: "ISANTA123" },
     { k: "api_key", label: "Chiave API Weather Underground", type: "password", show: x => x.source === "wunderground", help: "Vuota = quella generale (Dati live)." },
-    { k: "refresh_seconds", label: "Leggi ogni (secondi)", type: "number", min: 15, show: x => x.source !== "push" },
+    { k: "refresh_seconds", label: "Leggi ogni (secondi)", type: "number", min: 15, show: x => x.source !== "push" && x.source !== "bluetooth" },
   ], () => drawHow());
   $("#ms-form").appendChild(form);
   $("#ms-page").appendChild(renderForm(s.page, [
@@ -1266,6 +1269,8 @@ pages.meteo = async page => {
     $("#ms-scan").classList.toggle("hidden", s.source === "wunderground");
     $("#ms-test").classList.toggle("hidden", s.source === "push");
     $("#ms-remote").classList.toggle("hidden", s.source !== "push");
+    $("#ms-ble").classList.toggle("hidden", s.source !== "bluetooth");
+    if (s.source === "bluetooth") drawBle();
     const how = $("#ms-how");
     if (s.source !== "push") { how.innerHTML = ""; return; }
     const ip = info.ips[0] || "IP-DI-QUESTO-PC", p = info.push || {};
@@ -1280,6 +1285,46 @@ pages.meteo = async page => {
     const lock = $("#ms-lock");
     if (lock) lock.onclick = () => { s.accept_key = p.key; form.redraw(); drawHow(); toast("Premi 💾 Salva per confermare"); };
   };
+  const rssiText = r => r >= -70 ? "ottimo" : r >= -85 ? "buono" : "debole";
+  const drawBle = () => {
+    $("#ms-scan").classList.add("hidden");
+    $("#ms-bleun").classList.toggle("hidden", !s.ble_address);
+    const b = info.ble || {}, d = b.device, last = b.last_packet && !b.last_packet.startsWith("0001") ? b.last_packet : null;
+    const fresh = last && Date.now() - Date.parse(last) < 2 * 60000;
+    let h = "";
+    if (!s.ble_address) h = `<span class="badge warn">nessun sensore associato</span> <span class="help">Accendi il WS90 (pile inserite, luce blu che lampeggia) e premi “Trova WS90”.</span>`;
+    else if (b.target !== (s.ble_address || "").toUpperCase()) h = `Sensore scelto: <code>${esc(s.ble_address)}</code> <span class="help">— premi 💾 Salva per iniziare a riceverlo</span>`;
+    else {
+      h = `Sensore associato: <b>${esc(d && d.name || "WS90")}</b> <code>${esc(s.ble_address)}</code> `;
+      h += last ? `<span class="badge ${fresh ? "ok" : "warn"}">${fresh ? "riceve i dati" : "nessun dato recente"}</span> ultimo dato ${ago(last)}` : `<span class="badge warn">in attesa dei dati…</span>`;
+      if (d) h += ` · segnale ${d.rssi} dBm (${rssiText(d.rssi)})${d.battery ? ` · batteria ${d.battery}%` : ""}`;
+    }
+    if (b.error) h += `<p class="err-text">${esc(b.error)}</p>`;
+    if (b.hint === "no_adv") h += `<p class="help">Il Bluetooth di questo PC non riceve nessuna trasmissione. Controlla che il Bluetooth sia acceso. Se il programma gira come <b>servizio di Windows</b>, Windows potrebbe non dare il Bluetooth ai servizi: in quel caso usa il programma ponte <code>ws90_bridge.py</code>, che invia i dati qui con il collegamento “server personalizzato”.</p>`;
+    else if (last && !fresh) h += `<p class="help">Il sensore non si sente più: controlla la distanza dal PC (il Bluetooth arriva a 10-30 m all'aperto, meno coi muri) e la carica. Una chiavetta Bluetooth USB con prolunga vicino alla finestra aiuta.</p>`;
+    $("#ms-blestat").innerHTML = h;
+  };
+  $("#ms-blefind").onclick = e => busy(e.target, async () => {
+    $("#ms-bleres").innerHTML = `<p class="help">Ascolto il Bluetooth per 15 secondi: tieni il WS90 acceso vicino al PC…</p>`;
+    const r = await api("POST", "/api/ws90/scan");
+    const devs = r.devices || [];
+    $("#ms-bleres").innerHTML = devs.length ? `<h3>Sensori trovati</h3>${devs.map(d => `<div class="list-item"><div class="grow"><b>${esc(d.name || "Sensore BTHome")}</b> <code>${esc(d.address)}</code> <span class="help">segnale ${d.rssi} dBm (${rssiText(d.rssi)})${d.battery ? " · batteria " + d.battery + "%" : ""}</span>
+      <div class="help">${d.encrypted ? "dati cifrati: non leggibili" : d.list.slice(0, 7).map(v => esc(v.label) + " <b>" + esc(v.text) + "</b>").join(" · ") || "in attesa dei valori…"}</div></div>
+      ${d.encrypted ? "" : r.paired && r.paired.toUpperCase() === d.address ? `<span class="badge ok">associato</span>` : `<button class="small primary" data-a="${esc(d.address)}">🔗 Associa</button>`}</div>`).join("")}`
+      : `<p><span class="badge warn">nessun WS90 trovato</span> ${r.error ? `<span class="help">${esc(r.error)}</span>` : ""}</p><p class="help">Controlla che il WS90 abbia le pile e lampeggi blu, che il Bluetooth del PC sia acceso e riprova da più vicino.</p>`;
+    $("#ms-bleres").querySelectorAll("[data-a]").forEach(btn => btn.onclick = ev => busy(ev.target, async () => {
+      await api("POST", "/api/ws90/pair", { address: btn.dataset.a });
+      await loadConfig(); s.enabled = true; s.source = "bluetooth"; s.ble_address = btn.dataset.a; form.redraw();
+      $("#ms-bleres").innerHTML = `<p class="ok-text"><b>✔ WS90 associato.</b> Entro un minuto qui sotto compaiono i dati.</p>`;
+      info = await api("GET", "/api/station"); drawHow(); toast("WS90 associato");
+    }));
+  });
+  $("#ms-bleun").onclick = e => busy(e.target, async () => {
+    if (!confirm("Disassociare il sensore WS90 " + s.ble_address + "? Il programma smette di riceverlo.")) return;
+    await api("POST", "/api/ws90/pair", { address: "" });
+    await loadConfig(); s.ble_address = ""; s.enabled = false; form.redraw();
+    $("#ms-bleres").innerHTML = ""; info = await api("GET", "/api/station"); drawHow(); toast("WS90 disassociato");
+  });
   let current = [];
   const drawVals = (vals, when) => {
     current = vals || [];
@@ -1287,7 +1332,7 @@ pages.meteo = async page => {
     const prev = new Set([...document.querySelectorAll("#ms-vals [data-v]:checked")].map(c => c.dataset.v));
     const def = prev.size ? prev : new Set(["temp", "humidity", "wind"]);
     $("#ms-vals").innerHTML = current.length ? `<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:6px 14px">${current.map(v => `<label style="display:flex;gap:8px;align-items:center"><input type="checkbox" data-v="${v.key}" ${def.has(v.key) ? "checked" : ""}><span class="grow">${esc(v.label)}</span><b>${esc(v.text)}</b></label>`).join("")}</div>`
-      : `<span class="help">Nessun dato ricevuto. ${s.source === "push" ? "Imposta la stazione come indicato sopra." : "Premi “Prova lettura”."}</span>`;
+      : `<span class="help">Nessun dato ricevuto. ${s.source === "push" ? "Imposta la stazione come indicato sopra." : s.source === "bluetooth" ? "Associa il WS90 con “Trova WS90”." : "Premi “Prova lettura”."}</span>`;
   };
   every(5000, async () => {
     if (!$("#ms-how")) return;

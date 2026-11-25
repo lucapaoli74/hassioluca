@@ -225,6 +225,48 @@ func (s *Server) Handler() http.Handler {
 		ewLAN.start()
 		writeJSON(w, ewLAN.status())
 	})
+	mux.HandleFunc("POST /api/ws90/scan", func(w http.ResponseWriter, r *http.Request) {
+		ctx, cancel := context.WithTimeout(r.Context(), 30*time.Second)
+		defer cancel()
+		devs, msg := ws90Hub.Discover(ctx, 15*time.Second)
+		type dev struct {
+			WS90Device
+			List []StationValue `json:"list"`
+		}
+		out := []dev{}
+		for _, d := range devs {
+			completeStation(d.Values)
+			out = append(out, dev{d, stationValueList(d.Values)})
+		}
+		writeJSON(w, map[string]any{"devices": out, "error": msg, "paired": a.store.Get().Station.BLEAddress})
+	})
+	mux.HandleFunc("POST /api/ws90/pair", func(w http.ResponseWriter, r *http.Request) {
+		var req struct{ Address string }
+		if !readJSON(w, r, &req) {
+			return
+		}
+		addr := normBLEAddr(req.Address)
+		cfg := a.store.Get()
+		if addr == "" { // disassocia
+			cfg.Station.BLEAddress = ""
+			if cfg.Station.Source == "bluetooth" {
+				cfg.Station.Enabled = false
+			}
+		} else {
+			cfg.Station.Enabled, cfg.Station.Source, cfg.Station.BLEAddress = true, "bluetooth", addr
+		}
+		if err := a.store.Replace(cfg); err != nil {
+			httpError(w, http.StatusBadRequest, err.Error())
+			return
+		}
+		a.Reload()
+		if addr == "" {
+			log.Printf("WS90: sensore disassociato")
+		} else {
+			log.Printf("WS90: associato il sensore %s", addr)
+		}
+		writeJSON(w, map[string]any{"ok": true, "address": addr})
+	})
 	mux.HandleFunc("POST /api/station/scan", func(w http.ResponseWriter, r *http.Request) {
 		ctx, cancel := context.WithTimeout(r.Context(), 90*time.Second)
 		defer cancel()

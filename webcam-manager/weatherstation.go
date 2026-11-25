@@ -29,14 +29,17 @@ import (
 //     Ecowitt o Wunderground) ogni 16-60 secondi;
 //   - "local": il programma interroga la console sulla porta 45000
 //     (protocollo Ecowitt) o con la pagina /get_livedata_info;
+//   - "bluetooth": sensore WS90 "Powered by Shelly" ricevuto direttamente
+//     dal Bluetooth di questo PC (vedi ws90.go);
 //   - "wunderground": riserva, dal cloud Weather Underground.
 
 // StationSettings è la configurazione della stazione meteo.
 type StationSettings struct {
 	Enabled        bool        `json:"enabled"`
 	Name           string      `json:"name"`
-	Source         string      `json:"source"`          // "push" | "local" | "wunderground"
+	Source         string      `json:"source"`          // "push" | "local" | "wunderground" | "bluetooth"
 	Host           string      `json:"host"`            // local: indirizzo IP della console
+	BLEAddress     string      `json:"ble_address"`     // bluetooth: indirizzo del sensore WS90
 	StationID      string      `json:"station_id"`      // wunderground: ID stazione
 	APIKey         string      `json:"api_key"`         // wunderground: chiave (vuota = generale)
 	AcceptKey      string      `json:"accept_key"`      // push: accetta solo questo PASSKEY/ID (vuoto = tutti)
@@ -67,6 +70,10 @@ func (s *StationSettings) applyDefaults() {
 func (s StationSettings) validate() error {
 	switch s.Source {
 	case "push", "local", "wunderground":
+	case "bluetooth":
+		if s.Enabled && strings.TrimSpace(s.BLEAddress) == "" {
+			return errors.New("stazione meteo: premi “Trova WS90” e associa il sensore")
+		}
 	default:
 		return fmt.Errorf("stazione meteo: collegamento %q sconosciuto", s.Source)
 	}
@@ -229,6 +236,13 @@ func (h *StationHub) Restart(s StationSettings) {
 	}
 	ctx, cancel := context.WithCancel(context.Background())
 	h.cancel = cancel
+	if ws90Hub != nil {
+		if s.Enabled && s.Source == "bluetooth" {
+			ws90Hub.Follow(s.BLEAddress)
+		} else {
+			ws90Hub.Follow("")
+		}
+	}
 	if !s.Enabled {
 		return
 	}
@@ -291,6 +305,12 @@ func (h *StationHub) pull(ctx context.Context, s StationSettings) {
 // ReadStation legge una volta la stazione con il collegamento indicato.
 func ReadStation(ctx context.Context, s StationSettings) (map[string]float64, string, error) {
 	switch s.Source {
+	case "bluetooth":
+		if ws90Hub == nil || strings.TrimSpace(s.BLEAddress) == "" {
+			return nil, "", errors.New("nessun sensore WS90 associato: premi “Trova WS90”")
+		}
+		vals, err := ws90Hub.Values(s.BLEAddress)
+		return vals, ws90SourceModel, err
 	case "local":
 		if strings.TrimSpace(s.Host) == "" {
 			return nil, "", errors.New("manca l'indirizzo IP della console")
@@ -460,10 +480,14 @@ func stationValueList(vals map[string]float64) []StationValue {
 func (h *StationHub) Status() map[string]any {
 	h.mu.RLock()
 	defer h.mu.RUnlock()
-	return map[string]any{
+	st := map[string]any{
 		"reading": h.st.Reading, "values": stationValueList(h.st.Reading.Values), "push": h.push,
 		"error": h.readErr, "samples": len(h.st.Hist), "days": len(h.st.Days),
 	}
+	if ws90Hub != nil {
+		st["ble"] = ws90Hub.Status()
+	}
+	return st
 }
 
 // completeStation aggiunge punto di rugiada e temperatura percepita se mancano.

@@ -3,6 +3,10 @@
 Ogni versione rilasciata ha qui la sua voce: il testo diventa le note della
 release mostrate nel pannello (Impostazioni → Aggiornamenti).
 
+## [0.4.5] - 2026-11-25
+
+- Stazione meteo: sensore **Ecowitt WS90 “Powered by Shelly”** ricevuto direttamente dal Bluetooth del PC, senza gateway. Nuovo collegamento “Sensore WS90 via Bluetooth” con **🔎 Trova WS90** (mostra i sensori vicini con segnale, batteria e valori), **🔗 Associa** e **✖ Disassocia**. Temperatura, umidità, rugiada, pressione, vento e raffica, direzione, radiazione, UV e pioggia (oraria, giornaliera, evento, settimana, mese, anno calcolate dal contatore del sensore e conservate anche dopo un riavvio).
+
 ## [0.4.4] - 2026-11-23
 
 - Sonoff in rete locale: dettaglio di ogni dispositivo visto (IP, tipo, chiave presente, esito della decifratura, valori ricevuti, sensore collegato) con pulsante Copia; chiavi riconosciute anche con maiuscole/minuscole diverse.
