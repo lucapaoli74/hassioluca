@@ -4,22 +4,24 @@
 //   piastra con incavo a V  -> si appoggia al palo, si adatta a diametri diversi
 //   2 asole                 -> per reggetta inox / fascette fino a 22 mm
 //   braccio a 90° + rinforzo
-//   manicotto verticale     -> ci entra un tubo Ø 35 mm (spezzone di palo antenna);
-//                              il WS90 si stringe in cima al tubo con la sua staffa
-//   2 viti M6 + dado        -> bloccano il tubo nel manicotto
+//   perno verticale maschio -> entra nell'attacco femmina sotto il WS90,
+//                              che lo stringe con la sua ghiera
+//   perno cavo + uscita     -> passaggio per il cavo che esce da sotto il WS90
 //
 // Stampa (Bambu Lab H2D): file STL già orientato, coricato su un fianco.
 // ASA (o PETG), 6 pareti, 6 strati sopra/sotto, riempimento gyroid 40%,
 // nessun supporto. Misure in mm.
 
 /* [Misure principali] */
-tubo_d      = 35;   // diametro del tubo che regge il WS90
-gioco       = 0.6;  // gioco del foro sul tubo
+perno_d     = 25;   // DA MISURARE: diametro interno dell'attacco sotto il WS90
+gioco       = 0.4;  // il perno viene più piccolo di così
+perno_h     = 60;   // DA MISURARE: profondità dell'attacco
+cavo_d      = 12;   // foro per il cavo dentro il perno
 braccio     = 230;  // dal palo all'asse del manicotto
 larghezza   = 56;   // spessore della staffa (asse Y)
 piastra_h   = 160;  // altezza della piastra sul palo
 braccio_h   = 45;   // altezza del braccio
-manicotto_h = 85;   // altezza del manicotto
+colletto_h  = 25;   // base del perno sopra il braccio
 asola_l     = 22;   // larghezza fascetta (+ gioco)
 asola_s     = 5;    // spessore fascetta (+ gioco)
 
@@ -30,7 +32,7 @@ $fn = 72;
 piastra_s = 14;                       // spessore piastra dietro la V
 v_prof    = (larghezza / 2) / tan(60); // profondità della V a 120°
 x0        = -(piastra_s + v_prof);    // lato palo
-man_d     = tubo_d + gioco + 2 * 7;   // diametro esterno manicotto
+man_d     = perno_d + 22;              // diametro della base del perno
 z_br      = piastra_h - braccio_h;    // quota sotto del braccio
 
 module piastra() {
@@ -57,22 +59,19 @@ module braccio_r() {
 }
 
 module manicotto_pieno() {
-    translate([braccio, 0, z_br]) cylinder(d = man_d, h = manicotto_h + braccio_h);
-    // borchie per i dadi M6
-    for (z = [z_br + braccio_h + 18, z_br + braccio_h + manicotto_h - 18])
-        translate([braccio, 0, z]) rotate([0, 90, 0]) cylinder(d = 20, h = man_d / 2 + 6);
+    // base robusta sopra il braccio
+    translate([braccio, 0, z_br]) cylinder(d = man_d, h = braccio_h + colletto_h);
+    // perno maschio con punta smussata
+    translate([braccio, 0, piastra_h + colletto_h - 0.01]) {
+        cylinder(d = perno_d - gioco, h = perno_h - 2);
+        translate([0, 0, perno_h - 2]) cylinder(d1 = perno_d - gioco, d2 = perno_d - gioco - 3, h = 2);
+    }
 }
 
 module fori_manicotto() {
-    // foro per il tubo (cieco, con scarico acqua)
-    translate([braccio, 0, z_br + 10]) cylinder(d = tubo_d + gioco, h = manicotto_h + braccio_h);
-    translate([braccio, 0, z_br - 1]) cylinder(d = 6, h = 12);
-    // viti M6 con dado incassato
-    for (z = [z_br + braccio_h + 18, z_br + braccio_h + manicotto_h - 18])
-        translate([braccio, 0, z]) rotate([0, 90, 0]) {
-            cylinder(d = 6.5, h = man_d / 2 + 10);
-            translate([0, 0, man_d / 2 + 6 - 5.5]) rotate([0, 0, 30]) cylinder(d = 11.6, h = 10, $fn = 6);
-        }
+    // passaggio del cavo: dentro il perno, esce di lato sotto il braccio
+    translate([braccio, 0, z_br + 12]) cylinder(d = cavo_d, h = braccio_h + colletto_h + perno_h);
+    translate([braccio, 0, z_br + 12 + cavo_d / 2]) rotate([0, 90, 0]) cylinder(d = cavo_d, h = man_d);
 }
 
 module staffa() {
