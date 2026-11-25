@@ -28,3 +28,5 @@ require (
 	golang.org/x/text v0.42.0 // indirect
 	tinygo.org/x/espradio v0.5.0 // indirect
 )
+
+replace tinygo.org/x/bluetooth => ./third_party/tinygo-bluetooth

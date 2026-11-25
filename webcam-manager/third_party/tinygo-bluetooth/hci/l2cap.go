@@ -1,0 +1,155 @@
+package hci
+
+import (
+	"encoding/binary"
+	"encoding/hex"
+	"errors"
+)
+
+var errInvalidPayloadLength = errors.New("bluetooth: invalid payload length")
+
+const (
+	connectionParamUpdateRequest  = 0x12
+	connectionParamUpdateResponse = 0x13
+)
+
+type l2capConnectionParamReqPkt struct {
+	minInterval uint16
+	maxInterval uint16
+	latency     uint16
+	timeout     uint16
+}
+
+func (l *l2capConnectionParamReqPkt) unmarshal(buf []byte) (int, error) {
+	if len(buf) < 8 {
+		return 0, errInvalidPayloadLength
+	}
+
+	l.minInterval = binary.LittleEndian.Uint16(buf[0:])
+	l.maxInterval = binary.LittleEndian.Uint16(buf[2:])
+	l.latency = binary.LittleEndian.Uint16(buf[4:])
+	l.timeout = binary.LittleEndian.Uint16(buf[6:])
+
+	return 8, nil
+}
+
+type l2capConnectionParamResponsePkt struct {
+	code       uint8
+	identifier uint8
+	length     uint16
+	value      uint16
+}
+
+func (l *l2capConnectionParamResponsePkt) marshal(p []byte) (int, error) {
+	p[0] = l.code
+	p[1] = l.identifier
+	binary.LittleEndian.PutUint16(p[2:], l.length)
+	binary.LittleEndian.PutUint16(p[4:], l.value)
+
+	return 6, nil
+}
+
+type l2cap struct {
+	hci *HCI
+}
+
+func newL2CAP(hci *HCI) *l2cap {
+	return &l2cap{
+		hci: hci,
+	}
+}
+
+func (l *l2cap) addConnection(handle uint16, role uint8, interval, timeout uint16) error {
+	if role != 0x01 {
+		return nil
+	}
+
+	if timeout == 0 {
+		timeout = 0x00c8
+	}
+
+	var b [12]byte
+	b[0] = connectionParamUpdateRequest
+	b[1] = 0x01
+	binary.LittleEndian.PutUint16(b[2:], 8)
+	binary.LittleEndian.PutUint16(b[4:], interval)
+	binary.LittleEndian.PutUint16(b[6:], interval)
+	binary.LittleEndian.PutUint16(b[8:], 0)
+	binary.LittleEndian.PutUint16(b[10:], timeout)
+
+	return l.sendReq(handle, b[:])
+}
+
+func (l *l2cap) removeConnection(handle uint16) error {
+	return nil
+}
+
+func (l *l2cap) handleData(handle uint16, buf []byte) error {
+	if debug {
+		println("l2cap.handleData:", handle, "data:", hex.EncodeToString(buf))
+	}
+
+	// Every signalling packet carries a code, an identifier and a length.
+	if len(buf) < 4 {
+		return errInvalidPayloadLength
+	}
+
+	code := buf[0]
+	identifier := buf[1]
+
+	switch code {
+	case connectionParamUpdateRequest:
+		return l.handleParameterUpdateRequest(handle, identifier, buf[4:])
+
+	case connectionParamUpdateResponse:
+		return l.handleParameterUpdateResponse(handle, identifier, buf[4:])
+	}
+
+	return nil
+}
+
+func (l *l2cap) handleParameterUpdateRequest(connectionHandle uint16, identifier uint8, data []byte) error {
+	if debug {
+		println("l2cap.handleParameterUpdateRequest:", connectionHandle, "identifier:", identifier, "data:", hex.EncodeToString(data))
+	}
+
+	req := l2capConnectionParamReqPkt{}
+	if _, err := req.unmarshal(data); err != nil {
+		return err
+	}
+
+	// TODO: check against min/max
+
+	resp := l2capConnectionParamResponsePkt{
+		code:       connectionParamUpdateResponse,
+		identifier: identifier,
+		length:     2,
+		value:      0,
+	}
+
+	var b [6]byte
+	resp.marshal(b[:])
+
+	if err := l.sendReq(connectionHandle, b[:]); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (l *l2cap) handleParameterUpdateResponse(connectionHandle uint16, identifier uint8, data []byte) error {
+	if debug {
+		println("l2cap.handleParameterUpdateResponse:", connectionHandle, "data:", hex.EncodeToString(data))
+	}
+
+	// for now do nothing
+	return nil
+}
+
+func (l *l2cap) sendReq(handle uint16, data []byte) error {
+	if debug {
+		println("l2cap.sendReq:", handle, "data:", hex.EncodeToString(data))
+	}
+
+	return l.hci.SendACLPacket(handle, CIDSignaling, data)
+}

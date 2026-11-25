@@ -1,0 +1,170 @@
+
+TINYGO=tinygo
+
+smoketest: smoketest-tinygo smoketest-linux smoketest-windows smoketest-wasm
+
+smoketest-tinygo:
+	# Test all examples (and some boards)
+	$(TINYGO) build -o test.hex -size=short -target=pca10040-s132v6       ./examples/advertisement
+	@md5sum test.hex
+	$(TINYGO) build -o test.uf2 -size=short -target=circuitplay-bluefruit ./examples/advertisement
+	@md5sum test.uf2
+	# beacon-lowpower calls EnableDCSupply and SetTxPower, so build it for each
+	# SoftDevice and for a board that uses the stubs.
+	$(TINYGO) build -o test.hex -size=short -target=pca10056-s140v7 -serial=none ./examples/beacon-lowpower
+	@md5sum test.hex
+	$(TINYGO) build -o test.hex -size=short -target=pca10040-s132v6       ./examples/beacon-lowpower
+	@md5sum test.hex
+	$(TINYGO) build -o test.hex -size=short -target=microbit-v2-s113v7    ./examples/beacon-lowpower
+	@md5sum test.hex
+	$(TINYGO) build -o test.uf2 -size=short -target=nano-rp2040           ./examples/beacon-lowpower
+	@md5sum test.uf2
+	$(TINYGO) build -o test.uf2 -size=short -target=circuitplay-bluefruit ./examples/circuitplay
+	@md5sum test.uf2
+	$(TINYGO) build -o test.hex -size=short -target=circuitplay-bluefruit ./examples/connparams
+	@md5sum test.hex
+	$(TINYGO) build -o test.uf2 -size=short -target=circuitplay-bluefruit ./examples/discover
+	@md5sum test.uf2
+	$(TINYGO) build -o test.hex -size=short -target=pca10040-s132v6       ./examples/heartrate
+	@md5sum test.hex
+	$(TINYGO) build -o test.hex -size=short -target=reelboard-s140v7      ./examples/ledcolor
+	@md5sum test.hex
+	$(TINYGO) build -o test.hex -size=short -target=pca10040-s132v6       ./examples/nusclient
+	@md5sum test.hex
+	$(TINYGO) build -o test.hex -size=short -target=pca10040-s132v6       ./examples/nusserver
+	@md5sum test.hex
+	# Both pairing examples link in crypto/ecdh for LE Secure Connections,
+	# whose P-256 tables need more RAM than the nRF52832 has.
+	$(TINYGO) build -o test.hex -size=short -target=pca10056-s140v7       ./examples/pairing-justworks
+	@md5sum test.hex
+	$(TINYGO) build -o test.hex -size=short -target=microbit-v2-s113v7    ./examples/pairing-justworks
+	@md5sum test.hex
+	$(TINYGO) build -o test.hex -size=short -target=pca10056-s140v7       ./examples/pairing-passkey
+	@md5sum test.hex
+	$(TINYGO) build -o test.hex -size=short -target=microbit-v2-s113v7    ./examples/pairing-passkey
+	@md5sum test.hex
+	$(TINYGO) build -o test.hex -size=short -target=pca10040-s132v6       ./examples/scanner
+	@md5sum test.hex
+	$(TINYGO) build -o test.hex -size=short -target=pca10040-s132v6       ./examples/stop-advertisement
+	@md5sum test.hex
+	# usbvbus calls USBVBusPresent, so build it for each nRF52840 SoftDevice and
+	# for a board that uses the stub.
+	$(TINYGO) build -o test.hex -size=short -target=pca10056-s140v7       ./examples/usbvbus
+	@md5sum test.hex
+	$(TINYGO) build -o test.uf2 -size=short -target=pca10056-s140v6-uf2   ./examples/usbvbus
+	@md5sum test.uf2
+	$(TINYGO) build -o test.uf2 -size=short -target=nano-rp2040           ./examples/usbvbus
+	@md5sum test.uf2
+	# flash calls Adapter.Flash, so build it for each nRF52 SoftDevice and for
+	# a board that uses the stub.
+	$(TINYGO) build -o test.hex -size=short -target=pca10056-s140v7       ./examples/flash
+	@md5sum test.hex
+	$(TINYGO) build -o test.uf2 -size=short -target=pca10056-s140v6-uf2   ./examples/flash
+	@md5sum test.uf2
+	$(TINYGO) build -o test.hex -size=short -target=pca10040-s132v6       ./examples/flash
+	@md5sum test.hex
+	$(TINYGO) build -o test.hex -size=short -target=microbit-v2-s113v7    ./examples/flash
+	@md5sum test.hex
+	$(TINYGO) build -o test.uf2 -size=short -target=nano-rp2040           ./examples/flash
+	@md5sum test.uf2
+	# Test some more boards that are not tested above.
+	$(TINYGO) build -o test.hex -size=short -target=pca10056-s140v7       ./examples/advertisement
+	@md5sum test.hex
+	$(TINYGO) build -o test.hex -size=short -target=microbit-s110v8       ./examples/nusserver
+	@md5sum test.hex
+	$(TINYGO) build -o test.hex -size=short -target=microbit-v2-s113v7    ./examples/nusserver
+	@md5sum test.hex
+	$(TINYGO) build -o test.uf2 -size=short -target=nano-rp2040 		  ./examples/discover
+	@md5sum test.uf2
+	$(TINYGO) build -o test.uf2 -size=short -target=arduino-nano33 		  ./examples/discover
+	@md5sum test.uf2
+	$(TINYGO) build -o test.uf2 -size=short -target=pyportal	          ./examples/discover
+	@md5sum test.uf2
+	$(TINYGO) build -o test.uf2 -size=short -target=nano-rp2040 		  ./examples/advertisement
+	@md5sum test.uf2
+	$(TINYGO) build -o test.uf2 -size=short -target=circuitplay-express -tags="hci hci_uart" ./examples/advertisement
+	@md5sum test.uf2
+	$(TINYGO) build -o test.uf2 -size=short -target=pico-w	./examples/discover
+	@md5sum test.uf2
+	$(TINYGO) build -o test.uf2 -size=short -target=badger2040-w	./examples/advertisement
+	@md5sum test.uf2
+	$(TINYGO) build -o test.bin -size=short -target=xiao-esp32c3	./examples/advertisement
+	@md5sum test.bin
+	$(TINYGO) build -o test.bin -size=short -target=xiao-esp32c3	./examples/discover
+	@md5sum test.bin
+	$(TINYGO) build -o test.bin -size=short -target=xiao-esp32s3	./examples/advertisement
+	@md5sum test.bin
+	$(TINYGO) build -o test.bin -size=short -target=xiao-esp32s3	./examples/discover
+	@md5sum test.bin
+	$(TINYGO) build -o test.bin -size=short -target=esp32-mini32	./examples/advertisement
+	@md5sum test.bin
+	$(TINYGO) build -o test.bin -size=short -target=esp32-mini32	./examples/discover
+	@md5sum test.bin
+
+smoketest-hci:
+	# Test the four HCI transports, for a faster loop than the whole matrix.
+	# ninafw
+	$(TINYGO) build -o test.uf2 -size=short -target=nano-rp2040           ./examples/discover
+	@md5sum test.uf2
+	$(TINYGO) build -o test.uf2 -size=short -target=nano-rp2040           ./examples/advertisement
+	@md5sum test.uf2
+	$(TINYGO) build -o test.uf2 -size=short -target=arduino-nano33        ./examples/discover
+	@md5sum test.uf2
+	$(TINYGO) build -o test.uf2 -size=short -target=pyportal              ./examples/discover
+	@md5sum test.uf2
+	# hci over a plain UART
+	$(TINYGO) build -o test.uf2 -size=short -target=circuitplay-express -tags="hci hci_uart" ./examples/advertisement
+	@md5sum test.uf2
+	# cyw43439
+	$(TINYGO) build -o test.uf2 -size=short -target=pico-w                ./examples/discover
+	@md5sum test.uf2
+	$(TINYGO) build -o test.uf2 -size=short -target=badger2040-w          ./examples/advertisement
+	@md5sum test.uf2
+	# espradio
+	$(TINYGO) build -o test.bin -size=short -target=xiao-esp32c3          ./examples/discover
+	@md5sum test.bin
+	$(TINYGO) build -o test.bin -size=short -target=xiao-esp32s3          ./examples/advertisement
+	@md5sum test.bin
+	$(TINYGO) build -o test.bin -size=short -target=esp32-mini32          ./examples/advertisement
+	@md5sum test.bin
+	# The bledebug build of the hci package is not covered anywhere else.
+	$(TINYGO) build -o test.uf2 -size=short -target=nano-rp2040 -tags=bledebug ./examples/discover
+	@md5sum test.uf2
+	$(TINYGO) build -o test.uf2 -size=short -target=pico-w      -tags=bledebug ./examples/discover
+	@md5sum test.uf2
+
+smoketest-linux:
+	# Test on Linux.
+	GOOS=linux go build -o /tmp/go-build-discard ./examples/advertisement
+	GOOS=linux go build -o /tmp/go-build-discard ./examples/beacon-lowpower
+	GOOS=linux go build -o /tmp/go-build-discard ./examples/connparams
+	GOOS=linux go build -o /tmp/go-build-discard ./examples/heartrate
+	GOOS=linux go build -o /tmp/go-build-discard ./examples/heartrate-monitor
+	GOOS=linux go build -o /tmp/go-build-discard ./examples/nusserver
+	GOOS=linux go build -o /tmp/go-build-discard ./examples/scanner
+	GOOS=linux go build -o /tmp/go-build-discard ./examples/discover
+
+smoketest-windows:
+	# Test on Windows.
+	GOOS=windows go build -o /tmp/go-build-discard ./examples/beacon-lowpower
+	GOOS=windows go build -o /tmp/go-build-discard ./examples/scanner
+	GOOS=windows go build -o /tmp/go-build-discard ./examples/discover
+	GOOS=windows go build -o /tmp/go-build-discard ./examples/heartrate-monitor
+	GOOS=windows go build -o /tmp/go-build-discard ./examples/advertisement
+	GOOS=windows go build -o /tmp/go-build-discard ./examples/heartrate
+
+smoketest-wasm:
+	# Test on WASM.
+	$(TINYGO) build -o /tmp/go-build-discard.wasm -target=wasm ./examples/webbluetooth
+
+smoketest-macos:
+	# Test on macos.
+	GOOS=darwin CGO_ENABLED=1 go build -o /tmp/go-build-discard ./examples/scanner
+	GOOS=darwin CGO_ENABLED=1 go build -o /tmp/go-build-discard ./examples/discover
+	GOOS=darwin CGO_ENABLED=1 go build -o /tmp/go-build-discard ./examples/nusclient
+	GOOS=darwin CGO_ENABLED=1 go build -o /tmp/go-build-discard ./examples/heartrate-monitor
+
+gen-uuids:
+	# generate the standard service and characteristic UUIDs
+	go run ./tools/gen-service-uuids/main.go
+	go run ./tools/gen-characteristic-uuids/main.go
