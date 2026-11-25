@@ -1,0 +1,19 @@
+name: "Webcam Manager: problema"
+description: Qualcosa non funziona durante le prove
+labels: ["webcam-manager", "bug"]
+body:
+  - type: input
+    id: where
+    attributes: { label: Installazione, description: "Località / computer (es. Camping Coggiolo, PC reception)" }
+    validations: { required: true }
+  - type: input
+    id: version
+    attributes: { label: Versione, description: "Impostazioni → Generali → Versione" }
+    validations: { required: true }
+  - type: textarea
+    id: what
+    attributes: { label: Cosa succede, description: "Cosa hai fatto, cosa ti aspettavi, cosa è successo" }
+    validations: { required: true }
+  - type: textarea
+    id: diag
+    attributes: { label: Diagnostica, description: "Allega il file da Impostazioni → Diagnostica → Scarica diagnostica (non contiene password)" }
