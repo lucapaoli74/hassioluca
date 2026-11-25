@@ -97,6 +97,68 @@ footer{margin-top:26px;text-align:center;color:var(--mute);font-size:13px}
 @keyframes needle{0%,100%{transform:rotate(-12deg)}50%{transform:rotate(14deg)}}
 @media (prefers-reduced-motion:reduce){*{animation:none!important}}
 </style>
+<style id="vivid">
+:root{--card:rgba(255,255,255,.86);--fg:#152238;--mute:#4f5f75;--line:rgba(255,255,255,.55);--shadow:0 10px 30px rgba(10,20,60,.18)}
+@media (prefers-color-scheme:dark){:root{--card:rgba(16,22,42,.72);--fg:#eef3fb;--mute:#a8b6cc;--line:rgba(255,255,255,.12);--shadow:0 10px 30px rgba(0,0,0,.45)}}
+html{background:#1e3c72}
+body{background:var(--c2);min-height:100vh}
+body::before{content:"";position:fixed;inset:0;z-index:-1;background:linear-gradient(160deg,var(--c1),var(--c2) 45%,var(--c3));background-size:240% 240%;animation:sky 28s ease-in-out infinite alternate}
+@keyframes sky{0%{background-position:0% 30%}100%{background-position:100% 70%}}
+body.sun{--c1:#ff6a00;--c2:#ffb347;--c3:#00b4ff}
+body.partly{--c1:#f9a03f;--c2:#4facfe;--c3:#00d2ff}
+body.cloudy{--c1:#5d7cb8;--c2:#8ea6d8;--c3:#c3cfe2}
+body.rain{--c1:#1e3c72;--c2:#2a5298;--c3:#00b4db}
+body.storm{--c1:#141e30;--c2:#4b1d78;--c3:#243b55}
+body.snow{--c1:#3f6fbf;--c2:#6fa4e8;--c3:#a9d4ff}
+body.fog{--c1:#55627e;--c2:#7f8ca6;--c3:#b4bfd0}
+body.wind{--c1:#0f8b8d;--c2:#11998e;--c3:#38ef7d}
+body.night{--c1:#0f0c29;--c2:#302b63;--c3:#24243e}
+.hero{background:rgba(255,255,255,.14)!important;backdrop-filter:blur(6px);border:1px solid rgba(255,255,255,.28);box-shadow:0 16px 40px rgba(0,0,0,.25)}
+.hero::after{display:none}
+.scene{position:absolute;inset:0;overflow:hidden;pointer-events:none;z-index:0}
+.top,.main{position:relative;z-index:1}
+.bigicon{width:150px;height:150px}
+.temp{background:linear-gradient(180deg,#fff 30%,var(--tc,#fff));-webkit-background-clip:text;background-clip:text;color:transparent;filter:drop-shadow(0 3px 10px rgba(0,0,0,.25));font-size:86px}
+.pill{display:inline-flex;align-items:center;gap:6px;padding:5px 12px;border-radius:99px;background:rgba(255,255,255,.22);border:1px solid rgba(255,255,255,.3);font-size:14px;font-weight:600;backdrop-filter:blur(4px)}
+.pill b{color:#fff}.pill.min{background:rgba(47,127,208,.35)}.pill.max{background:rgba(228,87,46,.35)}
+.mm{gap:8px;flex-wrap:wrap}
+.drop2{position:absolute;top:-20px;width:2px;height:18px;border-radius:2px;background:linear-gradient(transparent,rgba(255,255,255,.85));animation:rainfall linear infinite}
+@keyframes rainfall{to{transform:translateY(460px) translateX(-30px)}}
+.flake2{position:absolute;top:-20px;color:#fff;opacity:.9;animation:snowfall linear infinite;text-shadow:0 0 6px rgba(255,255,255,.8)}
+@keyframes snowfall{0%{transform:translate(0,0) rotate(0)}50%{transform:translate(25px,230px) rotate(180deg)}100%{transform:translate(-10px,470px) rotate(360deg)}}
+.star{position:absolute;width:3px;height:3px;border-radius:50%;background:#fff;box-shadow:0 0 6px #fff;animation:tw 3s ease-in-out infinite}
+.shoot{position:absolute;top:12%;left:-10%;width:120px;height:2px;background:linear-gradient(90deg,transparent,#fff);transform:rotate(-18deg);animation:shoot 9s ease-in infinite 2s;opacity:0}
+@keyframes shoot{0%{opacity:0;transform:translate(0,0) rotate(-18deg)}3%{opacity:1}12%{opacity:0;transform:translate(900px,-280px) rotate(-18deg)}100%{opacity:0}}
+.sunglow{position:absolute;right:-90px;top:-90px;width:340px;height:340px;border-radius:50%;background:radial-gradient(circle,rgba(255,250,200,.95) 0,rgba(255,214,90,.55) 30%,rgba(255,170,40,.18) 55%,transparent 70%);animation:glow 5s ease-in-out infinite alternate}
+.rays{position:absolute;right:-260px;top:-260px;width:680px;height:680px;background:repeating-conic-gradient(rgba(255,255,255,.13) 0 6deg,transparent 6deg 18deg);border-radius:50%;animation:spin 60s linear infinite;-webkit-mask:radial-gradient(circle,#000 30%,transparent 70%);mask:radial-gradient(circle,#000 30%,transparent 70%)}
+@keyframes glow{from{transform:scale(1);opacity:.85}to{transform:scale(1.12);opacity:1}}
+.cloud2{position:absolute;width:220px;height:70px;border-radius:70px;background:rgba(255,255,255,.55);filter:blur(2px);animation:cloudmove linear infinite}
+.cloud2::before,.cloud2::after{content:"";position:absolute;background:inherit;border-radius:50%}
+.cloud2::before{width:100px;height:100px;top:-50px;left:35px}.cloud2::after{width:130px;height:130px;top:-70px;left:90px}
+@keyframes cloudmove{from{left:-260px}to{left:110%}}
+.bolt{position:absolute;inset:0;background:rgba(255,255,255,.75);opacity:0;animation:bolt 6s infinite}
+@keyframes bolt{0%,90%,100%{opacity:0}91%{opacity:.8}92%{opacity:.1}93%{opacity:.6}95%{opacity:0}}
+.fogband{position:absolute;left:-30%;width:160%;height:46px;border-radius:40px;background:rgba(255,255,255,.35);filter:blur(10px);animation:fogmove ease-in-out infinite alternate}
+@keyframes fogmove{from{transform:translateX(-8%)}to{transform:translateX(8%)}}
+.streak{position:absolute;height:2px;width:160px;border-radius:2px;background:linear-gradient(90deg,transparent,rgba(255,255,255,.8),transparent);animation:streak linear infinite}
+@keyframes streak{from{left:-200px}to{left:110%}}
+.card{background:var(--card);border:1px solid var(--line);backdrop-filter:blur(10px);transition:transform .25s,box-shadow .25s}
+.card:hover{transform:translateY(-4px);box-shadow:0 16px 36px rgba(10,20,60,.28)}
+.card::before{display:none}
+.card .h{color:var(--mute)}
+.ib{width:46px;height:46px;border-radius:14px;display:inline-flex;align-items:center;justify-content:center;background:var(--g);box-shadow:0 6px 14px rgba(0,0,0,.18);flex:none}
+.ib svg{width:30px!important;height:30px!important;filter:brightness(0) invert(1)}
+.card .v{font-size:28px;background:var(--g);-webkit-background-clip:text;background-clip:text;color:transparent}
+.bar{background:rgba(127,140,170,.18)}.bar i{background:var(--g)}
+section h2,.sh h2{color:#fff;text-shadow:0 2px 8px rgba(0,0,0,.3)}
+.chart,table,.tabs{background:var(--card);border-color:var(--line);backdrop-filter:blur(10px)}
+.tabs button.on{background:linear-gradient(135deg,#ff6a00,#ee0979)}
+.chart svg{height:200px}
+footer{color:rgba(255,255,255,.85);text-shadow:0 1px 4px rgba(0,0,0,.3)}
+.empty{color:#fff}
+.top h1,.sub,.desc{text-shadow:0 2px 8px rgba(0,0,0,.35)}
+@media (max-width:600px){.temp{font-size:66px}.bigicon{width:110px;height:110px}.main{gap:10px 18px}}
+</style>
 </head>
 <body>
 <div class="wrap" id="app"></div>
@@ -254,20 +316,36 @@ function chartsFor(r){
   return out;
 }
 
+// ---------- scena animata ----------
+function scene(c){
+  var s="",r=function(a,b){return (a+Math.random()*(b-a)).toFixed(2)};
+  if(c==="sun"||c==="partly")s+='<b class="rays"></b><b class="sunglow"></b>';
+  if(c==="night"){for(var i=0;i<60;i++)s+='<i class="star" style="left:'+r(0,100)+'%;top:'+r(0,95)+'%;animation-delay:'+r(0,3)+'s;transform:scale('+r(.5,1.4)+')"></i>';s+='<i class="shoot"></i>'}
+  if(c==="partly"||c==="cloudy"||c==="rain"||c==="storm"||c==="snow"){var n=c==="partly"?3:5;for(var i=0;i<n;i++)s+='<b class="cloud2" style="top:'+r(4,60)+'%;animation-duration:'+r(35,70)+'s;animation-delay:-'+r(0,60)+'s;transform:scale('+r(.6,1.3)+');opacity:'+(c==="storm"||c==="rain"?.45:.75)+'"></b>'}
+  if(c==="rain"||c==="storm"){for(var i=0;i<70;i++)s+='<i class="drop2" style="left:'+r(-5,105)+'%;animation-delay:'+r(0,1.5)+'s;animation-duration:'+r(.45,.85)+'s"></i>';if(c==="storm")s+='<b class="bolt"></b>'}
+  if(c==="snow")for(var i=0;i<45;i++)s+='<i class="flake2" style="left:'+r(-5,100)+'%;animation-delay:-'+r(0,9)+'s;animation-duration:'+r(6,12)+'s;font-size:'+r(9,18)+'px">❄</i>';
+  if(c==="fog")for(var i=0;i<4;i++)s+='<b class="fogband" style="top:'+(15+i*20)+'%;animation-duration:'+r(5,9)+'s"></b>';
+  if(c==="wind")for(var i=0;i<14;i++)s+='<b class="streak" style="top:'+r(5,95)+'%;animation-duration:'+r(1.2,2.6)+'s;animation-delay:-'+r(0,2.6)+'s"></b>';
+  return '<div class="scene">'+s+'</div>';
+}
+var GRAD={temp:"#ff512f,#f09819",feels:"#ff9966,#ff5e62",temp_min:"#36d1dc,#5b86e5",temp_max:"#ff512f,#dd2476",humidity:"#36d1dc,#5b86e5",dewpt:"#43cea2,#185a9d",wind:"#11998e,#38ef7d",gust:"#00b09b,#96c93d",gust_max:"#00b09b,#96c93d",winddir:"#0cebeb,#20a3b2",winddir_text:"#0cebeb,#20a3b2",pressure:"#8e2de2,#4a00e0",pressure_abs:"#8e2de2,#4a00e0",solar:"#f7971e,#ffd200",uv:"#da22ff,#9733ee"};
+function grad(k){var g=GRAD[k]||(/^rain/.test(k)?"#4776e6,#8e54e9":/_in$/.test(k)?"#f2994a,#f2c94c":/^temp/.test(k)?"#ff512f,#f09819":/^humid/.test(k)?"#36d1dc,#5b86e5":"#4facfe,#00c6fb");return "linear-gradient(135deg,"+g+")"}
+
 // ---------- pagina ----------
 function render(){
   var app=document.getElementById("app");
   var age=D.updated?(Date.now()-D.updated)/60000:1e9;
   var t=cur("temp");
-  var h='<div class="hero '+esc(D.cond)+'"><div class="top"><div><h1>'+esc(D.title)+'</h1><div class="sub">'+esc(D.location&&D.title.indexOf(D.location)<0?D.location+(D.altitude?" · ":""):"")+(D.altitude?D.altitude+" m s.l.m.":"")+'</div></div>'+
+  document.body.className=D.cond||"partly";
+  var h='<div class="hero '+esc(D.cond)+'">'+scene(D.cond)+'<div class="top"><div><h1>'+esc(D.title)+'</h1><div class="sub">'+esc(D.location&&D.title.indexOf(D.location)<0?D.location+(D.altitude?" · ":""):"")+(D.altitude?D.altitude+" m s.l.m.":"")+'</div></div>'+
     '<div class="live'+(age>30?" old":"")+'"><i></i>'+(D.updated?(age>30?"dati di ":"live · ")+fmtT(D.updated,age>720):"in attesa dei dati")+'</div></div>'+
-    '<div class="main">'+bigIcon(D.cond)+'<div>'+(t?'<div class="temp">'+esc(t.t)+'</div>':'')+'<div class="desc">'+esc(condText[D.cond]||"")+(cur("feels")&&t?" · percepita "+esc(cur("feels").t):"")+'</div>'+
-    (D.minmax?'<div class="mm"><span>▼ <b>'+num(D.minmax.min,1)+'°</b> alle '+esc(D.minmax.min_at)+'</span><span>▲ <b>'+num(D.minmax.max,1)+'°</b> alle '+esc(D.minmax.max_at)+'</span></div>':'')+'</div>'+
+    '<div class="main">'+bigIcon(D.cond)+'<div>'+(t?'<div class="temp" style="--tc:'+tempColor(t.v)+'">'+esc(t.t)+'</div>':'')+'<div class="desc">'+esc(condText[D.cond]||"")+(cur("feels")&&t?" · percepita "+esc(cur("feels").t):"")+'</div>'+
+    (D.minmax?'<div class="mm"><span class="pill min">▼ min <b>'+num(D.minmax.min,1)+'°</b> '+esc(D.minmax.min_at)+'</span><span class="pill max">▲ max <b>'+num(D.minmax.max,1)+'°</b> '+esc(D.minmax.max_at)+'</span></div>':'')+'</div>'+
     (D.cam?'<div class="camwrap"><img id="cam" src="'+esc(D.cam)+'?t='+Date.now()+'" alt="'+esc(D.cam_name||"webcam")+'"><div>'+esc(D.cam_name||"")+'</div></div>':'')+'</div></div>';
   h+='<div class="grid">';
   var shown=0;
   (D.fields||[]).forEach(function(k,ix){var c=cur(k);if(!c||(k==="temp"))return;var e=extra(k,c);shown++;
-    h+='<div class="card" style="--acc:'+accent(k)+';animation-delay:'+(ix*25)+'ms"><div class="h">'+icon(k,c.v)+esc(c.l)+'</div><div class="v"'+(e.col?' style="color:'+e.col+'"':'')+'>'+esc(c.t)+'</div>'+(e.x?'<div class="x">'+esc(e.x)+'</div>':'')+(e.bar!=null?'<div class="bar"><i style="width:'+Math.max(2,Math.min(100,e.bar))+'%"></i></div>':'')+'</div>'});
+    h+='<div class="card" style="--acc:'+accent(k)+';--g:'+grad(k)+';animation-delay:'+(ix*25)+'ms"><div class="h"><span class="ib">'+icon(k,c.v)+'</span>'+esc(c.l)+'</div><div class="v">'+esc(c.t)+'</div>'+(e.x?'<div class="x">'+esc(e.x)+'</div>':'')+(e.bar!=null?'<div class="bar"><i style="width:'+Math.max(2,Math.min(100,e.bar))+'%"></i></div>':'')+'</div>'});
   h+='</div>';
   if(!D.updated)h+='<div class="empty">In attesa dei primi dati dalla stazione meteo…</div>';
   h+='<section><div class="sh"><h2>Andamento</h2><div class="tabs">'+[["day","24 ore"],["week","7 giorni"],["month","30 giorni"],["year","12 mesi"]].map(function(x){return '<button data-r="'+x[0]+'"'+(x[0]===range?' class="on"':'')+'>'+x[1]+'</button>'}).join("")+'</div></div><div class="charts" id="charts"></div></section>';

@@ -3,6 +3,14 @@
 Ogni versione rilasciata ha qui la sua voce: il testo diventa le note della
 release mostrate nel pannello (Impostazioni → Aggiornamenti).
 
+## [0.4.7] - 2026-11-25
+
+- Pagina meteo più vivace: sfondo a colori accesi che cambia con il tempo e si muove lentamente, scena animata in alto (pioggia che cade, neve, nuvole che passano, sole con raggi, cielo stellato con stelle cadenti, nebbia, raffiche di vento, lampi), icone animate su bollini colorati, valori con colori sfumati, temperatura colorata in base al valore.
+
+## [0.4.6] - 2026-11-25
+
+- WS90 Bluetooth su Windows: i dati non arrivavano ("in attesa dei dati") perché la libreria Bluetooth su Windows scartava i "service data" degli annunci, dove il WS90 mette i valori in formato BTHome. Ora vengono letti dalle sezioni grezze dell'annuncio (copia corretta della libreria in third_party/tinygo-bluetooth).
+
 ## [0.4.5] - 2026-11-25
 
 - Stazione meteo: sensore **Ecowitt WS90 “Powered by Shelly”** ricevuto direttamente dal Bluetooth del PC, senza gateway. Nuovo collegamento “Sensore WS90 via Bluetooth” con **🔎 Trova WS90** (mostra i sensori vicini con segnale, batteria e valori), **🔗 Associa** e **✖ Disassocia**. Temperatura, umidità, rugiada, pressione, vento e raffica, direzione, radiazione, UV e pioggia (oraria, giornaliera, evento, settimana, mese, anno calcolate dal contatore del sensore e conservate anche dopo un riavvio).
