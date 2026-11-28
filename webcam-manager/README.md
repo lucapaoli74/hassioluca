@@ -164,6 +164,10 @@ Il pannello mostra subito quando arrivano i dati. Da lì: **Crea scritta in sovr
 
 In alternativa il programma può leggere la console (porta 45000, console GW1000/GW2000/HP2550…) con la ricerca automatica nella rete.
 
+### PC dedicato con Ubuntu (chiavetta USB di installazione automatica)
+
+Per svincolarsi da Windows: in `deploy/usb/` ci sono `autoinstall.yaml` e le istruzioni `LEGGIMI.txt`. Si crea la chiavetta di Ubuntu Server 24.04 con Rufus, si copia `autoinstall.yaml` nella chiavetta e si avvia il PC da lì: Ubuntu si installa da solo (cancellando il disco), al primo avvio scarica Webcam Manager e lo avvia come servizio. Il pannello si apre da un altro PC all'indirizzo mostrato sullo schermo o su `http://webcam-manager.local:8080`. Eseguibile Linux: `download/webcam-manager-linux-amd64`.
+
 ## Aggiornamenti e gestione delle modifiche
 
 - **Versioni**: ogni modifica rilasciata ha un numero (`1.2.0`) e una voce in [CHANGELOG.md](CHANGELOG.md).

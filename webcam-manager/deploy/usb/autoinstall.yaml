@@ -1,0 +1,62 @@
+#cloud-config
+# Webcam Manager — made by Paoli Luca 2026
+# Installazione automatica di Ubuntu Server 24.04 LTS + Webcam Manager.
+# Copia questo file nella cartella principale della chiavetta USB di
+# installazione di Ubuntu (vedi LEGGIMI.txt).
+#
+# ATTENZIONE: CANCELLA TUTTO IL DISCO del PC su cui viene installato.
+#
+# Prima dell'uso modifica con il Blocco note solo le righe segnate con "<--".
+autoinstall:
+  version: 1
+  locale: it_IT.UTF-8
+  keyboard:
+    layout: it
+  timezone: Europe/Rome
+  identity:
+    hostname: webcam-manager
+    username: webcam
+    # password del sistema Linux: "webcam" (cambiala poi con il comando passwd)
+    password: "$6$wmPoggiolo26$baorj.NTeAB9avM70WYwlIYPuYRoMjhJKxSQqw.L6JH6.WMcBaD55UnRRuHg2gx8esVhHoUaDxaPEQXGeC7MM1"
+  ssh:
+    install-server: true
+    allow-pw: true
+  storage:
+    layout:
+      name: direct          # usa tutto il disco principale
+  packages:
+    - ffmpeg
+    - bluez
+    - avahi-daemon          # il PC si raggiunge anche come webcam-manager.local
+    - curl
+    - ca-certificates
+    - python3
+  late-commands:
+    # al primo avvio (con la rete) scarica e installa Webcam Manager come servizio
+    - |
+      cat > /target/etc/systemd/system/webcam-manager-firstboot.service <<'UNIT'
+      [Unit]
+      Description=Installazione di Webcam Manager (primo avvio)
+      Wants=network-online.target
+      After=network-online.target
+      ConditionPathExists=!/var/lib/webcam-manager-installed
+
+      [Service]
+      Type=oneshot
+      ExecStart=/bin/bash -c 'curl -fsSL -o /root/install-linux.sh https://raw.githubusercontent.com/lucapaoli74/hassioluca/claude/exciting-newton-jj27x9/webcam-manager/deploy/install-linux.sh && bash /root/install-linux.sh --url https://github.com/lucapaoli74/hassioluca/raw/claude/exciting-newton-jj27x9/webcam-manager/download/webcam-manager-linux-amd64 --location "Camping Coggiolo Sant Anna Pelago (MO)" --altitude 1250 --password "CAMBIAMI" --port 8080 && touch /var/lib/webcam-manager-installed'
+      Restart=on-failure
+      RestartSec=60
+
+      [Install]
+      WantedBy=multi-user.target
+      UNIT
+    # ^ <-- cambia località, altitudine e password del pannello ("CAMBIAMI")
+    - curtin in-target --target=/target -- systemctl enable webcam-manager-firstboot.service
+    # sullo schermo del PC compare l'indirizzo da aprire da un altro computer
+    - |
+      cat > /target/etc/issue <<'ISSUE'
+
+        Webcam Manager — da un altro PC apri:  http://\4:8080
+        (oppure http://webcam-manager.local:8080)
+
+      ISSUE

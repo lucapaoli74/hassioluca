@@ -3,6 +3,10 @@
 Ogni versione rilasciata ha qui la sua voce: il testo diventa le note della
 release mostrate nel pannello (Impostazioni → Aggiornamenti).
 
+## [0.4.8] - 2026-11-28
+
+- Versione Linux per PC dedicato: chiavetta USB di installazione automatica di Ubuntu Server 24.04 (deploy/usb/autoinstall.yaml + LEGGIMI.txt). Installa sistema, ffmpeg, Bluetooth, Chrome per le pagine dinamiche e Webcam Manager come servizio; l'indirizzo del pannello compare sullo schermo del PC e il PC si raggiunge anche come webcam-manager.local. Eseguibile download/webcam-manager-linux-amd64.
+
 ## [0.4.7] - 2026-11-25
 
 - Pagina meteo più vivace: sfondo a colori accesi che cambia con il tempo e si muove lentamente, scena animata in alto (pioggia che cade, neve, nuvole che passano, sole con raggi, cielo stellato con stelle cadenti, nebbia, raffiche di vento, lampi), icone animate su bollini colorati, valori con colori sfumati, temperatura colorata in base al valore.

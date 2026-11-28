@@ -1,0 +1,55 @@
+WEBCAM MANAGER SU LINUX (UBUNTU) — CHIAVETTA DI INSTALLAZIONE AUTOMATICA
+made by Paoli Luca 2026
+
+Il PC diventa un "apparecchio" dedicato: Ubuntu Server senza schermo grafico,
+Webcam Manager parte da solo all'accensione e si configura da un altro PC via
+browser, esattamente come la versione Windows.
+
+!!! ATTENZIONE: L'INSTALLAZIONE CANCELLA TUTTO IL DISCO DEL PC (Windows compreso) !!!
+Prima, sul Webcam Manager Windows: Impostazioni -> Esporta configurazione
+(salva il file .zip): dopo lo reimporti nel pannello Linux e ritrovi webcam,
+sovrimpressioni, siti FTP, dati live e stazione meteo.
+
+COSA SERVE
+- una chiavetta USB da almeno 8 GB (verrà cancellata)
+- il PC collegato al router con il CAVO di rete (non Wi-Fi)
+
+1) PREPARA LA CHIAVETTA (da un PC Windows qualsiasi)
+   a. Scarica Ubuntu Server 24.04 LTS:  https://ubuntu.com/download/server
+      (file ubuntu-24.04.x-live-server-amd64.iso)
+   b. Scarica Rufus:  https://rufus.ie  (versione portatile)
+   c. Apri Rufus, scegli la chiavetta e il file .iso, schema "GPT",
+      premi AVVIA e conferma "Scrivi in modalità immagine ISO".
+   d. A fine scrittura apri la chiavetta in Esplora file e copia nella
+      cartella principale il file  autoinstall.yaml  (questo pacchetto).
+   e. Apri autoinstall.yaml con il Blocco note e cambia, se vuoi:
+      - la password del pannello  "CAMBIAMI"
+      - località e altitudine
+      (lascia tutto il resto com'è). Salva.
+
+2) INSTALLA (sul PC del Poggiolo, serve una persona sul posto ~20 minuti)
+   a. Inserisci la chiavetta e accendi il PC premendo il tasto del menu di
+      avvio (di solito F12, F11, F8 o ESC) e scegli la chiavetta USB.
+   b. Scegli "Try or Install Ubuntu Server".
+   c. Dopo un po' compare la domanda  "Continue with autoinstall? (yes|no)":
+      scrivi  yes  e premi Invio.  Da qui fa tutto da solo.
+   d. Al termine il PC si riavvia: togli la chiavetta.
+   e. Al primo avvio scarica e installa Webcam Manager (qualche minuto).
+      Sullo schermo, sopra "login", compare l'indirizzo da aprire, es.
+          Webcam Manager — da un altro PC apri:  http://192.168.1.50:8080
+
+3) CONFIGURA (da qualsiasi PC della rete, anche da remoto)
+   - Apri l'indirizzo mostrato (oppure http://webcam-manager.local:8080)
+   - utente: admin   password: quella scritta al posto di CAMBIAMI
+   - Impostazioni -> Importa configurazione: scegli il .zip esportato da Windows.
+   - Riassocia il WS90 in Stazione meteo -> Trova WS90 (Bluetooth del PC).
+   - Prenota nel router un IP fisso per questo PC.
+
+ACCESSO AL SISTEMA (solo se serve assistenza)
+   utente Linux: webcam   password: webcam  (cambiala con il comando: passwd)
+   da un altro PC:  ssh webcam@IP-DEL-PC
+   registro del programma:  journalctl -u webcam-manager -f
+
+AGGIORNAMENTI
+   Dal pannello: Impostazioni -> Aggiornamenti -> carica il nuovo file
+   webcam-manager-linux-amd64, come per la versione Windows.

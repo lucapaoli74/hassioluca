@@ -38,6 +38,16 @@ echo "==> Pacchetti di sistema (ffmpeg per le telecamere RTSP)"
 export DEBIAN_FRONTEND=noninteractive
 apt-get update -qq
 apt-get install -y -qq ffmpeg ca-certificates curl python3 tzdata qemu-guest-agent open-vm-tools >/dev/null 2>&1 || apt-get install -y -qq ffmpeg ca-certificates curl python3
+# Bluetooth (stazione meteo WS90) e nome in rete webcam-manager.local
+apt-get install -y -qq bluez avahi-daemon >/dev/null 2>&1 || true
+systemctl enable --now bluetooth >/dev/null 2>&1 || true
+# browser senza finestra per leggere le pagine meteo che usano JavaScript
+if ! command -v google-chrome >/dev/null && ! command -v chromium >/dev/null && [ "$(uname -m)" = x86_64 ]; then
+  echo "==> Google Chrome (lettura delle pagine web dinamiche)"
+  curl -fsSL -o /tmp/chrome.deb https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb \
+    && apt-get install -y -qq /tmp/chrome.deb >/dev/null 2>&1 || echo "   Chrome non installato: le pagine dinamiche non si potranno leggere"
+  rm -f /tmp/chrome.deb
+fi
 
 DEST=/opt/webcam-manager/webcam-manager
 mkdir -p /opt/webcam-manager
